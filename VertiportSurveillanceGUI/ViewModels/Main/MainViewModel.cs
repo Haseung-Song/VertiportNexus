@@ -12,9 +12,9 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
     /// [Main] 화면 [ViewModel]
     /// 
     /// 메인 클래스 역할:
-    /// 1. [MQ] 기반 상위 시스템 명령 수신 / 응답 송신 구조 관리
-    /// 2. [UDP] 기반 [EOC] 장비 제어 및 상태 수신 구조 관리
-    /// 3. [MMAP] 기반 영상 / 항적 / 탐지 결과 공유 구조 관리
+    /// 1. [MQ] 상위 시스템 메시지 송수신 관리
+    /// 2. [UDP] [EOC] 장비 제어 및 상태 수신 관리
+    /// 3. [MMAP] 영상 / 항적 / 탐지 데이터 공유 관리
     /// 4. [XAML] 바인딩용 [Image] / [StatusText] / [Command] 갱신
     /// </summary>
     public class MainViewModel : INotifyPropertyChanged
@@ -143,12 +143,12 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
         #region [Image Binding Fields]
 
         /// <summary>
-        /// [EO] 또는 주 영상 출력용 [Image]
+        /// [EO] 영상 출력용 [Image]
         /// </summary>
         private BitmapSource _eoCameraImage;
 
         /// <summary>
-        /// [IR] 또는 보조 영상 출력용 [Image]
+        /// [IR] 영상 출력용 [Image]
         /// </summary>
         private BitmapSource _irCameraImage;
 
@@ -174,129 +174,66 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
 
         #region [MQ Commands]
 
-        /// <summary>
-        /// [MQ] 연결 [Command]
-        /// </summary>
         public ICommand ConnectMqCommand { get; }
 
-        /// <summary>
-        /// [MQ] 연결 해제 [Command]
-        /// </summary>
         public ICommand DisconnectMqCommand { get; }
 
         #endregion
 
         #region [UDP Commands]
 
-        /// <summary>
-        /// [UDP] 수신 시작 [Command]
-        /// </summary>
         public ICommand StartUdpReceiveCommand { get; }
 
-        /// <summary>
-        /// [UDP] 수신 중지 [Command]
-        /// </summary>
         public ICommand StopUdpReceiveCommand { get; }
 
         #endregion
 
         #region [MMAP Commands]
 
-        /// <summary>
-        /// [MMAP] 영상 수신 시작 [Command]
-        /// </summary>
         public ICommand StartMmapReadCommand { get; }
 
-        /// <summary>
-        /// [MMAP] 영상 수신 중지 [Command]
-        /// </summary>
         public ICommand StopMmapReadCommand { get; }
 
-        /// <summary>
-        /// [Dummy MMAP Writer] 시작 [Command]
-        /// </summary>
         public ICommand StartDummyMmapWriterCommand { get; }
 
         #endregion
 
         #region [Camera Commands]
 
-        /// <summary>
-        /// [PAN] 왼쪽 이동 [Command]
-        /// </summary>
         public ICommand PanLeftCommand { get; }
 
-        /// <summary>
-        /// [PAN] 오른쪽 이동 [Command]
-        /// </summary>
         public ICommand PanRightCommand { get; }
 
-        /// <summary>
-        /// [TILT] 위쪽 이동 [Command]
-        /// </summary>
         public ICommand TiltUpCommand { get; }
 
-        /// <summary>
-        /// [TILT] 아래쪽 이동 [Command]
-        /// </summary>
         public ICommand TiltDownCommand { get; }
 
-        /// <summary>
-        /// [PTZ] 이동 정지 [Command]
-        /// </summary>
         public ICommand StopMoveCommand { get; }
 
-        /// <summary>
-        /// [ZOOM] 확대 [Command]
-        /// </summary>
         public ICommand ZoomInCommand { get; }
 
-        /// <summary>
-        /// [ZOOM] 축소 [Command]
-        /// </summary>
         public ICommand ZoomOutCommand { get; }
 
-        /// <summary>
-        /// [FOCUS] Near [Command]
-        /// </summary>
         public ICommand FocusNearCommand { get; }
 
-        /// <summary>
-        /// [FOCUS] Far [Command]
-        /// </summary>
         public ICommand FocusFarCommand { get; }
 
         #endregion
 
         #region [Track Commands]
 
-        /// <summary>
-        /// 항적 선택 [Command]
-        /// </summary>
         public ICommand SelectTrackCommand { get; }
 
-        /// <summary>
-        /// 항적 기반 [Lock-On] [Command]
-        /// </summary>
         public ICommand LockOnCommand { get; }
 
-        /// <summary>
-        /// 항적 기반 [Lock-Off] [Command]
-        /// </summary>
         public ICommand LockOffCommand { get; }
 
         #endregion
 
         #region [AI Commands]
 
-        /// <summary>
-        /// [AI] 분석 시작 [Command]
-        /// </summary>
         public ICommand StartAiCommand { get; }
 
-        /// <summary>
-        /// [AI] 분석 중지 [Command]
-        /// </summary>
         public ICommand StopAiCommand { get; }
 
         #endregion
@@ -422,7 +359,7 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
             InitializeDefaultValues();
 
             ConsoleLogHelper.PrintLine();
-            Console.WriteLine("[MAIN] Vertiport Surveillance GUI -> Initialize Complete");
+            Console.WriteLine("[MAIN] Vertiport Surveillance GUI Initialize Complete");
             ConsoleLogHelper.PrintLine();
 
             #endregion
@@ -434,9 +371,6 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
 
         #region [MQ Properties]
 
-        /// <summary>
-        /// [MQ] 연결 상태 표시 문자열
-        /// </summary>
         public string MqStatusText
         {
             get => _mqStatusText;
@@ -447,12 +381,11 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
                     _mqStatusText = value;
                     OnPropertyChanged();
                 }
+
             }
+
         }
 
-        /// <summary>
-        /// 마지막 [MQ] 수신 메시지 표시 문자열
-        /// </summary>
         public string LastMqMessageText
         {
             get => _lastMqMessageText;
@@ -463,16 +396,15 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
                     _lastMqMessageText = value;
                     OnPropertyChanged();
                 }
+
             }
+
         }
 
         #endregion
 
         #region [UDP Properties]
 
-        /// <summary>
-        /// [UDP] 수신 상태 표시 문자열
-        /// </summary>
         public string UdpStatusText
         {
             get => _udpStatusText;
@@ -483,12 +415,11 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
                     _udpStatusText = value;
                     OnPropertyChanged();
                 }
+
             }
+
         }
 
-        /// <summary>
-        /// 마지막 [UDP] 수신 패킷 표시 문자열
-        /// </summary>
         public string LastUdpPacketText
         {
             get => _lastUdpPacketText;
@@ -499,16 +430,15 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
                     _lastUdpPacketText = value;
                     OnPropertyChanged();
                 }
+
             }
+
         }
 
         #endregion
 
         #region [MMAP Properties]
 
-        /// <summary>
-        /// [MMAP] 영상 수신 상태 표시 문자열
-        /// </summary>
         public string MmapStatusText
         {
             get => _mmapStatusText;
@@ -519,12 +449,11 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
                     _mmapStatusText = value;
                     OnPropertyChanged();
                 }
+
             }
+
         }
 
-        /// <summary>
-        /// [MMAP] 마지막 영상 [Frame Number]
-        /// </summary>
         public long LastFrameNumber
         {
             get => _lastFrameNumber;
@@ -535,16 +464,15 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
                     _lastFrameNumber = value;
                     OnPropertyChanged();
                 }
+
             }
+
         }
 
         #endregion
 
         #region [Camera Properties]
 
-        /// <summary>
-        /// 카메라 연결 상태 표시 문자열
-        /// </summary>
         public string CameraStatusText
         {
             get => _cameraStatusText;
@@ -555,12 +483,11 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
                     _cameraStatusText = value;
                     OnPropertyChanged();
                 }
+
             }
+
         }
 
-        /// <summary>
-        /// 현재 [Pan] 값
-        /// </summary>
         public double CurrentPan
         {
             get => _currentPan;
@@ -571,12 +498,11 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
                     _currentPan = value;
                     OnPropertyChanged();
                 }
+
             }
+
         }
 
-        /// <summary>
-        /// 현재 [Tilt] 값
-        /// </summary>
         public double CurrentTilt
         {
             get => _currentTilt;
@@ -587,12 +513,11 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
                     _currentTilt = value;
                     OnPropertyChanged();
                 }
+
             }
+
         }
 
-        /// <summary>
-        /// 현재 [Zoom] 값
-        /// </summary>
         public double CurrentZoom
         {
             get => _currentZoom;
@@ -603,12 +528,11 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
                     _currentZoom = value;
                     OnPropertyChanged();
                 }
+
             }
+
         }
 
-        /// <summary>
-        /// 현재 [Focus] 값
-        /// </summary>
         public double CurrentFocus
         {
             get => _currentFocus;
@@ -619,16 +543,15 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
                     _currentFocus = value;
                     OnPropertyChanged();
                 }
+
             }
+
         }
 
         #endregion
 
         #region [Track Properties]
 
-        /// <summary>
-        /// 항적 수신 상태 표시 문자열
-        /// </summary>
         public string TrackStatusText
         {
             get => _trackStatusText;
@@ -639,12 +562,11 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
                     _trackStatusText = value;
                     OnPropertyChanged();
                 }
+
             }
+
         }
 
-        /// <summary>
-        /// 현재 선택된 항적 [ID]
-        /// </summary>
         public int SelectedTrackId
         {
             get => _selectedTrackId;
@@ -655,16 +577,15 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
                     _selectedTrackId = value;
                     OnPropertyChanged();
                 }
+
             }
+
         }
 
         #endregion
 
         #region [AI Properties]
 
-        /// <summary>
-        /// [AI] 분석 상태 표시 문자열
-        /// </summary>
         public string AiStatusText
         {
             get => _aiStatusText;
@@ -675,12 +596,11 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
                     _aiStatusText = value;
                     OnPropertyChanged();
                 }
+
             }
+
         }
 
-        /// <summary>
-        /// 현재 탐지 객체 수
-        /// </summary>
         public int DetectionCount
         {
             get => _detectionCount;
@@ -691,16 +611,15 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
                     _detectionCount = value;
                     OnPropertyChanged();
                 }
+
             }
+
         }
 
         #endregion
 
         #region [Image Properties]
 
-        /// <summary>
-        /// [EO] 또는 주 영상 출력용 [Image]
-        /// </summary>
         public BitmapSource EOCameraImage
         {
             get => _eoCameraImage;
@@ -711,12 +630,11 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
                     _eoCameraImage = value;
                     OnPropertyChanged();
                 }
+
             }
+
         }
 
-        /// <summary>
-        /// [IR] 또는 보조 영상 출력용 [Image]
-        /// </summary>
         public BitmapSource IRCameraImage
         {
             get => _irCameraImage;
@@ -727,16 +645,15 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
                     _irCameraImage = value;
                     OnPropertyChanged();
                 }
+
             }
+
         }
 
         #endregion
 
         #region [Status Properties]
 
-        /// <summary>
-        /// 프로그램 전체 상태 표시 문자열
-        /// </summary>
         public string MainStatusText
         {
             get => _mainStatusText;
@@ -747,12 +664,11 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
                     _mainStatusText = value;
                     OnPropertyChanged();
                 }
+
             }
+
         }
 
-        /// <summary>
-        /// 현재 운용 모드 표시 문자열
-        /// </summary>
         public string OperationModeText
         {
             get => _operationModeText;
@@ -763,7 +679,9 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
                     _operationModeText = value;
                     OnPropertyChanged();
                 }
+
             }
+
         }
 
         #endregion
@@ -813,9 +731,6 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
 
         #region [MQ Methods]
 
-        /// <summary>
-        /// [MQ] 연결 처리
-        /// </summary>
         private void ConnectMq()
         {
             MqStatusText = "MQ Connected";
@@ -825,9 +740,6 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
             ConsoleLogHelper.PrintLine();
         }
 
-        /// <summary>
-        /// [MQ] 연결 해제 처리
-        /// </summary>
         private void DisconnectMq()
         {
             MqStatusText = "MQ Disconnected";
@@ -841,9 +753,6 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
 
         #region [UDP Methods]
 
-        /// <summary>
-        /// [UDP] 수신 시작 처리
-        /// </summary>
         private void StartUdpReceive()
         {
             UdpStatusText = "UDP Receiving";
@@ -853,9 +762,6 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
             ConsoleLogHelper.PrintLine();
         }
 
-        /// <summary>
-        /// [UDP] 수신 중지 처리
-        /// </summary>
         private void StopUdpReceive()
         {
             UdpStatusText = "UDP Stopped";
@@ -869,9 +775,6 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
 
         #region [MMAP Methods]
 
-        /// <summary>
-        /// [MMAP] 영상 수신 시작 처리
-        /// </summary>
         private void StartMmapRead()
         {
             MmapStatusText = "MMAP Reading";
@@ -881,9 +784,6 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
             ConsoleLogHelper.PrintLine();
         }
 
-        /// <summary>
-        /// [MMAP] 영상 수신 중지 처리
-        /// </summary>
         private void StopMmapRead()
         {
             MmapStatusText = "MMAP Stopped";
@@ -893,9 +793,6 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
             ConsoleLogHelper.PrintLine();
         }
 
-        /// <summary>
-        /// [Dummy MMAP Writer] 시작 처리
-        /// </summary>
         private void StartDummyMmapWriter()
         {
             Console.WriteLine();
@@ -907,9 +804,6 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
 
         #region [Camera Control Methods]
 
-        /// <summary>
-        /// [PAN] 왼쪽 이동 처리
-        /// </summary>
         private void PanLeft()
         {
             _currentMoveType = ContinuousMoveType.PanTilt;
@@ -919,9 +813,6 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
             ConsoleLogHelper.PrintLine();
         }
 
-        /// <summary>
-        /// [PAN] 오른쪽 이동 처리
-        /// </summary>
         private void PanRight()
         {
             _currentMoveType = ContinuousMoveType.PanTilt;
@@ -931,9 +822,6 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
             ConsoleLogHelper.PrintLine();
         }
 
-        /// <summary>
-        /// [TILT] 위쪽 이동 처리
-        /// </summary>
         private void TiltUp()
         {
             _currentMoveType = ContinuousMoveType.PanTilt;
@@ -943,9 +831,6 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
             ConsoleLogHelper.PrintLine();
         }
 
-        /// <summary>
-        /// [TILT] 아래쪽 이동 처리
-        /// </summary>
         private void TiltDown()
         {
             _currentMoveType = ContinuousMoveType.PanTilt;
@@ -955,9 +840,6 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
             ConsoleLogHelper.PrintLine();
         }
 
-        /// <summary>
-        /// [ZOOM] 확대 처리
-        /// </summary>
         private void ZoomIn()
         {
             _currentMoveType = ContinuousMoveType.Zoom;
@@ -967,9 +849,6 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
             ConsoleLogHelper.PrintLine();
         }
 
-        /// <summary>
-        /// [ZOOM] 축소 처리
-        /// </summary>
         private void ZoomOut()
         {
             _currentMoveType = ContinuousMoveType.Zoom;
@@ -979,9 +858,6 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
             ConsoleLogHelper.PrintLine();
         }
 
-        /// <summary>
-        /// [FOCUS] Near 처리
-        /// </summary>
         private void FocusNear()
         {
             _currentMoveType = ContinuousMoveType.Focus;
@@ -991,9 +867,6 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
             ConsoleLogHelper.PrintLine();
         }
 
-        /// <summary>
-        /// [FOCUS] Far 처리
-        /// </summary>
         private void FocusFar()
         {
             _currentMoveType = ContinuousMoveType.Focus;
@@ -1003,9 +876,6 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
             ConsoleLogHelper.PrintLine();
         }
 
-        /// <summary>
-        /// 이동 정지 처리
-        /// </summary>
         private void StopMove()
         {
             if (_currentMoveType == ContinuousMoveType.None)
@@ -1022,9 +892,6 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
 
         #region [Track Methods]
 
-        /// <summary>
-        /// 항적 선택 처리
-        /// </summary>
         private void SelectTrack()
         {
             Console.WriteLine();
@@ -1032,9 +899,6 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
             ConsoleLogHelper.PrintLine();
         }
 
-        /// <summary>
-        /// [Lock-On] 처리
-        /// </summary>
         private void LockOn()
         {
             Console.WriteLine();
@@ -1042,9 +906,6 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
             ConsoleLogHelper.PrintLine();
         }
 
-        /// <summary>
-        /// [Lock-Off] 처리
-        /// </summary>
         private void LockOff()
         {
             Console.WriteLine();
@@ -1056,9 +917,6 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
 
         #region [AI Methods]
 
-        /// <summary>
-        /// [AI] 분석 시작 처리
-        /// </summary>
         private void StartAi()
         {
             AiStatusText = "AI Running";
@@ -1068,9 +926,6 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
             ConsoleLogHelper.PrintLine();
         }
 
-        /// <summary>
-        /// [AI] 분석 중지 처리
-        /// </summary>
         private void StopAi()
         {
             AiStatusText = "AI Stopped";
@@ -1084,14 +939,8 @@ namespace VertiportSurveillanceGUI.ViewModels.Main
 
         #region [INotifyPropertyChanged]
 
-        /// <summary>
-        /// [Property] 값 변경 이벤트
-        /// </summary>
         public event PropertyChangedEventHandler PropertyChanged;
 
-        /// <summary>
-        /// [Property] 값 변경 알림
-        /// </summary>
         private void OnPropertyChanged(
             [CallerMemberName] string propertyName = null)
         {
