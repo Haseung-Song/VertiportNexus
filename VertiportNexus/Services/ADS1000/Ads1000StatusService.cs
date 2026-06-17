@@ -1,0 +1,164 @@
+﻿using System;
+using VertiportNexus.Common;
+using VertiportNexus.Models.ADS1000;
+
+namespace VertiportNexus.Services.ADS1000
+{
+    /// <summary>
+    /// [ADS1000] 상태 [Packet] 처리 서비스
+    /// 
+    /// [MCB] / [SCB]에서 수신한 [Packet]을 파싱하고,
+    /// 화면에 반영할 상태값을 추출한다.
+    /// 
+    /// [MainViewModel]은 수신 결과를 받아
+    /// [XAML] 바인딩 속성만 갱신한다.
+    /// </summary>
+    internal class Ads1000StatusService
+    {
+        #region [Constants]
+
+        /// <summary>
+        /// [ADS1000] 수신 [Packet] 로그 출력 간격
+        /// 
+        /// 상태 [Packet] 로그는 [1초] 단위로 제한하여 출력한다.
+        /// </summary>
+        private const int ADS1000_RECEIVE_LOG_INTERVAL_SECONDS = 1;
+
+        #endregion
+
+        #region [Fields]
+
+        /// <summary>
+        /// [ADS1000] 수신 [Packet] 파싱 객체
+        /// </summary>
+        private readonly Ads1000PacketParser _packetParser;
+
+        /// <summary>
+        /// 마지막 [ADS1000] 수신 [Packet] 로그 출력 시간
+        /// </summary>
+        private DateTime _lastAds1000ReceiveLogTime =
+            DateTime.MinValue;
+
+        #endregion
+
+        #region [Constructor]
+
+        /// <summary>
+        /// [Ads1000StatusService] 생성자
+        /// </summary>
+        public Ads1000StatusService()
+        {
+            _packetParser =
+                new Ads1000PacketParser();
+        }
+
+        #endregion
+
+        #region [Public Methods]
+
+        /// <summary>
+        /// [ADS1000] 수신 [Packet] 처리
+        /// </summary>
+        /// <param name="deviceName">
+        /// 수신 장비 이름
+        /// </param>
+        /// <param name="packet">
+        /// 수신 [Packet]
+        /// </param>
+        /// <returns>
+        /// [ADS1000] 상태 처리 결과
+        /// </returns>
+        public Ads1000StatusResult ProcessReceivedPacket(
+            string deviceName,
+            byte[] packet)
+        {
+            string packetText =
+                ConvertToHexString(
+                    packet);
+
+            Ads1000ParsedPacket parsedPacket =
+                _packetParser.Parse(
+                    packet);
+
+            bool canPrintLog =
+                CanPrintAds1000ReceiveLog();
+
+            if (canPrintLog)
+            {
+                Console.WriteLine("[ADS1000][" + deviceName + "] Parse Result");
+                Console.WriteLine("[ADS1000][" + deviceName + "] Raw : " + packetText);
+                Console.WriteLine("[ADS1000][" + deviceName + "] IsValid : " + parsedPacket.IsValid);
+            }
+
+            if (!parsedPacket.IsValid)
+            {
+                if (canPrintLog)
+                {
+                    Console.WriteLine("[ADS1000][" + deviceName + "] Error : " + parsedPacket.ErrorMessage);
+                    ConsoleLogHelper.PrintLine();
+                }
+
+                return Ads1000StatusResult.CreateInvalid(
+                    deviceName,
+                    packetText,
+                    parsedPacket);
+            }
+
+            if (canPrintLog)
+            {
+                Console.WriteLine("[ADS1000][" + deviceName + "] Cmd1 : 0x" + parsedPacket.Cmd1.ToString("X2"));
+                Console.WriteLine("[ADS1000][" + deviceName + "] Length : " + parsedPacket.Length);
+                Console.WriteLine("[ADS1000][" + deviceName + "] Checksum : 0x" + parsedPacket.Checksum.ToString("X2"));
+                ConsoleLogHelper.PrintLine();
+            }
+
+            return Ads1000StatusResult.CreateValid(
+                deviceName,
+                packetText,
+                parsedPacket);
+        }
+
+        #endregion
+
+        #region [Private Methods]
+
+        /// <summary>
+        /// [ADS1000] 수신 [Packet] 로그 출력 가능 여부 확인
+        /// </summary>
+        private bool CanPrintAds1000ReceiveLog()
+        {
+            DateTime now =
+                DateTime.Now;
+
+            if ((now - _lastAds1000ReceiveLogTime).TotalSeconds <
+                ADS1000_RECEIVE_LOG_INTERVAL_SECONDS)
+            {
+                return false;
+            }
+
+            _lastAds1000ReceiveLogTime =
+                now;
+
+            return true;
+        }
+
+        /// <summary>
+        /// [byte[]] 데이터를 [HEX] 문자열로 변환
+        /// </summary>
+        private string ConvertToHexString(
+            byte[] data)
+        {
+            if (data == null ||
+                data.Length == 0)
+            {
+                return string.Empty;
+            }
+
+            return BitConverter
+                .ToString(data)
+                .Replace("-", " ");
+        }
+        #endregion
+    }
+
+}
