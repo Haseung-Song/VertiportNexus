@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
@@ -1184,18 +1185,27 @@ namespace VertiportNexus.ViewModels.Main
             string deviceName,
             byte[] packet)
         {
-            Ads1000StatusResult statusResult =
-                _ads1000StatusService.ProcessReceivedPacket(
+            List<Ads1000StatusResult> statusResults =
+                _ads1000StatusService.ProcessReceivedPackets(
                     deviceName,
                     packet);
 
-            if (!statusResult.IsValid)
-            {
+            if (statusResults.Count == 0)
                 return;
-            }
 
-            ApplyParsedStatusValue(
-                statusResult.ParsedPacket);
+            App.Current.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                foreach (Ads1000StatusResult statusResult in statusResults)
+                {
+                    if (!statusResult.IsValid)
+                        continue;
+
+                    ApplyParsedStatusValue(
+                        statusResult.ParsedPacket);
+                }
+
+            }));
+
         }
 
         #endregion
@@ -1216,8 +1226,7 @@ namespace VertiportNexus.ViewModels.Main
         {
             App.Current.Dispatcher.Invoke(() =>
             {
-                EOCameraImage =
-                    bitmap;
+                EOCameraImage = bitmap;
             });
 
         }
@@ -1370,6 +1379,7 @@ namespace VertiportNexus.ViewModels.Main
                         0,
                         1000);
             }
+
         }
 
         #endregion

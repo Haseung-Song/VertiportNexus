@@ -56,9 +56,9 @@ namespace VertiportNexus.Services.ADS1000
         /// 목표 속도까지 도달하는 가속도를 설정한다.
         ///
         /// 낮은 값 사용 시 응답 속도가 느려질 수 있으므로
-        /// 실장비 테스트 기준 [30000]을 사용한다.
+        /// 실장비 테스트 기준 [50000]을 사용한다.
         /// </summary>
-        private const int DEFAULT_ACCELERATION = 30000;
+        private const int DEFAULT_ACCELERATION = 50000;
 
         #endregion
 

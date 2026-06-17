@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using VertiportNexus.Common;
 using VertiportNexus.Models.ADS1000;
 
@@ -118,6 +119,87 @@ namespace VertiportNexus.Services.ADS1000
                 parsedPacket);
         }
 
+        /// <summary>
+        /// [ADS1000] 수신 데이터 전체 [Packet] 처리
+        /// 
+        /// [TCP] 수신 데이터에 여러 개의 [ADS1000] [Packet]이 포함될 수 있으므로,
+        /// 모든 [Packet]을 분리 / 파싱하여 상태 처리 결과 목록으로 반환한다.
+        /// </summary>
+        /// <param name="deviceName">
+        /// 수신 장비 이름
+        /// </param>
+        /// <param name="packet">
+        /// 수신 데이터
+        /// </param>
+        /// <returns>
+        /// [ADS1000] 상태 처리 결과 목록
+        /// </returns>
+        public List<Ads1000StatusResult> ProcessReceivedPackets(
+            string deviceName,
+            byte[] packet)
+        {
+            List<Ads1000StatusResult> statusResults =
+                new List<Ads1000StatusResult>();
+
+            string packetText =
+                ConvertToHexString(
+                    packet);
+
+            List<Ads1000ParsedPacket> parsedPackets =
+                _packetParser.ParseAll(
+                    packet);
+
+            bool canPrintLog =
+                CanPrintAds1000ReceiveLog();
+
+            foreach (Ads1000ParsedPacket parsedPacket in parsedPackets)
+            {
+                if (canPrintLog)
+                {
+                    Console.WriteLine("[ADS1000][" + deviceName + "] Parse Result");
+                    Console.WriteLine("[ADS1000][" + deviceName + "] Raw : " + packetText);
+                    Console.WriteLine("[ADS1000][" + deviceName + "] IsValid : " + parsedPacket.IsValid);
+                }
+
+                if (!parsedPacket.IsValid)
+                {
+                    if (canPrintLog)
+                    {
+                        Console.WriteLine("[ADS1000][" + deviceName + "] Error : " + parsedPacket.ErrorMessage);
+                        ConsoleLogHelper.PrintLine();
+                    }
+
+                    statusResults.Add(
+                        Ads1000StatusResult.CreateInvalid(
+                            deviceName,
+                            packetText,
+                            parsedPacket));
+
+                    continue;
+                }
+
+                if (canPrintLog)
+                {
+                    Console.WriteLine("[ADS1000][" + deviceName + "] Cmd1 : 0x" + parsedPacket.Cmd1.ToString("X2"));
+                    Console.WriteLine("[ADS1000][" + deviceName + "] Length : " + parsedPacket.Length);
+                    Console.WriteLine("[ADS1000][" + deviceName + "] Checksum : 0x" + parsedPacket.Checksum.ToString("X2"));
+                }
+
+                statusResults.Add(
+                    Ads1000StatusResult.CreateValid(
+                        deviceName,
+                        packetText,
+                        parsedPacket));
+            }
+
+            if (canPrintLog &&
+                statusResults.Count > 0)
+            {
+                ConsoleLogHelper.PrintLine();
+            }
+            return statusResults;
+        }
+
         #endregion
 
         #region [Private Methods]
@@ -127,8 +209,7 @@ namespace VertiportNexus.Services.ADS1000
         /// </summary>
         private bool CanPrintAds1000ReceiveLog()
         {
-            DateTime now =
-                DateTime.Now;
+            DateTime now = DateTime.Now;
 
             if ((now - _lastAds1000ReceiveLogTime).TotalSeconds <
                 ADS1000_RECEIVE_LOG_INTERVAL_SECONDS)
@@ -136,8 +217,7 @@ namespace VertiportNexus.Services.ADS1000
                 return false;
             }
 
-            _lastAds1000ReceiveLogTime =
-                now;
+            _lastAds1000ReceiveLogTime = now;
 
             return true;
         }

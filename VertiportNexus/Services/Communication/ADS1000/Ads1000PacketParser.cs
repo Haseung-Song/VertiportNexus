@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 using VertiportNexus.Models.ADS1000;
@@ -164,6 +165,85 @@ namespace VertiportNexus.Services.ADS1000
                     result);
 
             return result;
+        }
+
+        /// <summary>
+        /// [ADS1000] 수신 데이터 전체 [Packet] 파싱
+        /// 
+        /// [TCP] 수신 특성상 한 번의 [Read]에
+        /// 여러 개의 [AA AA] [Packet]이 붙어서 들어올 수 있으므로,
+        /// 수신 버퍼 안의 모든 [Packet]을 분리하여 파싱한다.
+        /// </summary>
+        /// <param name="receivedData">
+        /// [TCP]에서 수신한 전체 데이터
+        /// </param>
+        /// <returns>
+        /// 파싱된 [ADS1000] [Packet] 목록
+        /// </returns>
+        public List<Ads1000ParsedPacket> ParseAll(
+            byte[] receivedData)
+        {
+            List<Ads1000ParsedPacket> parsedPackets =
+                new List<Ads1000ParsedPacket>();
+
+            if (receivedData == null ||
+                receivedData.Length < MIN_PACKET_LENGTH)
+            {
+                return parsedPackets;
+            }
+
+            int index = 0;
+
+            while (index <= receivedData.Length - MIN_PACKET_LENGTH)
+            {
+                /// <summary>
+                /// [AA AA] [Sync] 위치를 찾는다.
+                /// </summary>
+                if (receivedData[index] != SYNC_0 ||
+                    receivedData[index + 1] != SYNC_1)
+                {
+                    index++;
+                    continue;
+                }
+
+                /// <summary>
+                /// [Length] 위치까지 접근 가능한지 확인한다.
+                /// </summary>
+                if (index + 3 >= receivedData.Length)
+                    break;
+
+                byte dataLength = receivedData[index + 3];
+
+                int packetLength =
+                    2 + 1 + 1 + dataLength + 1;
+
+                /// <summary>
+                /// 수신 버퍼 안에 완성 [Packet]이 모두 들어왔는지 확인한다.
+                /// </summary>
+                if (index + packetLength > receivedData.Length)
+                    break;
+
+                byte[] singlePacket =
+                    new byte[packetLength];
+
+                Array.Copy(
+                    receivedData,
+                    index,
+                    singlePacket,
+                    0,
+                    packetLength);
+
+                Ads1000ParsedPacket parsedPacket =
+                    Parse(
+                        singlePacket);
+
+                parsedPackets.Add(
+                    parsedPacket);
+
+                index +=
+                    packetLength;
+            }
+            return parsedPackets;
         }
 
         #endregion
