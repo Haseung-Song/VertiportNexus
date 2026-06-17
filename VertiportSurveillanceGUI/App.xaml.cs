@@ -1,4 +1,5 @@
-﻿using Microsoft.Win32.SafeHandles;
+﻿using FFmpeg.AutoGen;
+using Microsoft.Win32.SafeHandles;
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -96,6 +97,27 @@ namespace VertiportSurveillanceGUI
 
         #endregion
 
+        #region [FFmpeg Initialize]
+
+        /// <summary>
+        /// [FFmpeg] [Native DLL] 경로 설정
+        /// 
+        /// [avcodec] / [avformat] / [avutil] / [swscale] [DLL]을 찾도록 지정한다.
+        /// </summary>
+        private void InitializeFFmpeg()
+        {
+            string ffmpegPath =
+                Path.Combine(
+                    AppDomain.CurrentDomain.BaseDirectory,
+                    "FFmpeg");
+
+            ffmpeg.RootPath = ffmpegPath;
+
+            Console.WriteLine("[FFmpeg] RootPath : " + ffmpeg.RootPath);
+        }
+
+        #endregion
+
         #region [Application Startup]
 
         /// <summary>
@@ -105,8 +127,21 @@ namespace VertiportSurveillanceGUI
         /// </summary>
         protected override void OnStartup(StartupEventArgs e)
         {
+            /// <summary>
+            /// [OpenCV] [FFmpeg] 디버그 로그 출력 비활성화
+            /// </summary>
+            Environment.SetEnvironmentVariable("OPENCV_FFMPEG_DEBUG", "0");
+
+            /// <summary>
+            /// [OpenCV] 경고 및 정보 로그 숨김
+            /// 
+            /// [ERROR] 로그만 출력한다.
+            /// </summary>
+            Environment.SetEnvironmentVariable("OPENCV_LOG_LEVEL", "ERROR");
+
             base.OnStartup(e);
 
+            InitializeFFmpeg();
 #if DEBUG
             /// <summary>
             /// [Debug] 콘솔 창 생성
@@ -204,15 +239,14 @@ namespace VertiportSurveillanceGUI
         {
             ConsoleLogHelper.PrintLine();
             Console.WriteLine("[CONSOLE] Vertiport Surveillance GUI -> Debug Console End");
-
 #if DEBUG
             /// <summary>
             /// [Debug] 콘솔 창 해제
             /// </summary>
             FreeConsole();
-#endif
 
             base.OnExit(e);
+#endif
         }
         #endregion
     }
