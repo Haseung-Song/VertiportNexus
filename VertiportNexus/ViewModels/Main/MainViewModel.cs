@@ -129,11 +129,9 @@ namespace VertiportNexus.ViewModels.Main
         private int _scbPort = DEFAULT_SCB_PORT;
 
         /// <summary>
-        /// 기존 [UDP] UI 바인딩 호환용 [Port]
-        /// 
-        /// 현재는 [TCP] 직접 연결 구조이므로 실제 제어에는 사용하지 않는다.
+        /// 기존 [TCP] UI 바인딩 호환용 [Port]
         /// </summary>
-        private int _udpLocalReceivePort = 5005;
+        private int _tcpLocalReceivePort = 5005;
 
         #endregion
 
@@ -173,16 +171,6 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         private ConnectionState _scbConnectionState =
             ConnectionState.Disconnected;
-
-        /// <summary>
-        /// 마지막 송신 [Packet] 표시 문자열
-        /// </summary>
-        private string _lastUdpSendPacketText = string.Empty;
-
-        /// <summary>
-        /// 마지막 수신 [Packet] 표시 문자열
-        /// </summary>
-        private string _lastUdpReceivePacketText = string.Empty;
 
         /// <summary>
         /// 프로그램 전체 상태 표시 문자열
@@ -588,14 +576,14 @@ namespace VertiportNexus.ViewModels.Main
         }
 
 
-        public int UdpLocalReceivePort
+        public int TcpLocalReceivePort
         {
-            get => _udpLocalReceivePort;
+            get => _tcpLocalReceivePort;
             set
             {
-                if (_udpLocalReceivePort != value)
+                if (_tcpLocalReceivePort != value)
                 {
-                    _udpLocalReceivePort = value;
+                    _tcpLocalReceivePort = value;
                     OnPropertyChanged();
                 }
 
@@ -719,36 +707,6 @@ namespace VertiportNexus.ViewModels.Main
 
                     default:
                         return Brushes.IndianRed;
-                }
-
-            }
-
-        }
-
-        public string LastUdpSendPacketText
-        {
-            get => _lastUdpSendPacketText;
-            private set
-            {
-                if (_lastUdpSendPacketText != value)
-                {
-                    _lastUdpSendPacketText = value;
-                    OnPropertyChanged();
-                }
-
-            }
-
-        }
-
-        public string LastUdpReceivePacketText
-        {
-            get => _lastUdpReceivePacketText;
-            private set
-            {
-                if (_lastUdpReceivePacketText != value)
-                {
-                    _lastUdpReceivePacketText = value;
-                    OnPropertyChanged();
                 }
 
             }
@@ -1165,15 +1123,6 @@ namespace VertiportNexus.ViewModels.Main
                 return;
             }
 
-            if (sendResult.Packet != null &&
-                sendResult.Packet.Length > 0)
-            {
-                LastUdpSendPacketText =
-                    "[" + sendResult.DeviceName + "] " +
-                    ConvertToHexString(
-                        sendResult.Packet);
-            }
-
         }
 
         #endregion
@@ -1239,10 +1188,6 @@ namespace VertiportNexus.ViewModels.Main
                 _ads1000StatusService.ProcessReceivedPacket(
                     deviceName,
                     packet);
-
-            LastUdpReceivePacketText =
-                "[" + statusResult.DeviceName + "] " +
-                statusResult.PacketText;
 
             if (!statusResult.IsValid)
             {

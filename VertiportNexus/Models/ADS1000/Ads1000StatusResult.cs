@@ -31,7 +31,7 @@
         public Ads1000ParsedPacket ParsedPacket { get; }
 
         /// <summary>
-        /// 화면 표시용 [UDP] 상태 문자열
+        /// 화면 표시용 [TCP] 상태 문자열
         /// </summary>
         public string StatusText { get; }
 
