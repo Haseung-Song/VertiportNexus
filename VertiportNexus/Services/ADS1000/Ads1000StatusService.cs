@@ -23,7 +23,8 @@ namespace VertiportNexus.Services.ADS1000
         /// 
         /// 상태 [Packet] 로그는 [1초] 단위로 제한하여 출력한다.
         /// </summary>
-        private const int ADS1000_RECEIVE_LOG_INTERVAL_SECONDS = 1;
+        private const int ADS1000_RECEIVE_LOG_INTERVAL_SECONDS =
+            1;
 
         #endregion
 
@@ -110,7 +111,6 @@ namespace VertiportNexus.Services.ADS1000
                 Console.WriteLine("[ADS1000][" + deviceName + "] Cmd1 : 0x" + parsedPacket.Cmd1.ToString("X2"));
                 Console.WriteLine("[ADS1000][" + deviceName + "] Length : " + parsedPacket.Length);
                 Console.WriteLine("[ADS1000][" + deviceName + "] Checksum : 0x" + parsedPacket.Checksum.ToString("X2"));
-                ConsoleLogHelper.PrintLine();
             }
 
             return Ads1000StatusResult.CreateValid(
@@ -183,6 +183,7 @@ namespace VertiportNexus.Services.ADS1000
                     Console.WriteLine("[ADS1000][" + deviceName + "] Cmd1 : 0x" + parsedPacket.Cmd1.ToString("X2"));
                     Console.WriteLine("[ADS1000][" + deviceName + "] Length : " + parsedPacket.Length);
                     Console.WriteLine("[ADS1000][" + deviceName + "] Checksum : 0x" + parsedPacket.Checksum.ToString("X2"));
+                    ConsoleLogHelper.PrintLine();
                 }
 
                 statusResults.Add(
@@ -190,12 +191,6 @@ namespace VertiportNexus.Services.ADS1000
                         deviceName,
                         packetText,
                         parsedPacket));
-            }
-
-            if (canPrintLog &&
-                statusResults.Count > 0)
-            {
-                ConsoleLogHelper.PrintLine();
             }
             return statusResults;
         }

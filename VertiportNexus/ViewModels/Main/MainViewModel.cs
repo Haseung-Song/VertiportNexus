@@ -162,6 +162,12 @@ namespace VertiportNexus.ViewModels.Main
         private bool _isDeviceDisconnecting;
 
         /// <summary>
+        /// 마지막 [ADS1000] 상태 로그 출력 시간
+        /// </summary>
+        private DateTime _lastAds1000StatusLogTime =
+            DateTime.MinValue;
+
+        /// <summary>
         /// [MCB] 연결 상태
         /// </summary>
         private ConnectionState _mcbConnectionState =
@@ -1202,6 +1208,27 @@ namespace VertiportNexus.ViewModels.Main
 
                     ApplyParsedStatusValue(
                         statusResult.ParsedPacket);
+
+                    if ((DateTime.Now - _lastAds1000StatusLogTime).TotalSeconds >= 3)
+                    {
+                        _lastAds1000StatusLogTime =
+                            DateTime.Now;
+
+                        Console.WriteLine(
+                            $"[ADS1000] Pan   : {CurrentPan:F2}");
+
+                        Console.WriteLine(
+                            $"[ADS1000] Tilt  : {CurrentTilt:F2}");
+
+                        Console.WriteLine(
+                            $"[ADS1000] Zoom  : {CurrentZoom:F0}");
+
+                        Console.WriteLine(
+                            $"[ADS1000] Focus : {CurrentFocus:F0}");
+
+                        ConsoleLogHelper.PrintLine();
+                    }
+
                 }
 
             }));
@@ -1385,23 +1412,6 @@ namespace VertiportNexus.ViewModels.Main
         #endregion
 
         #region [Utility]
-
-        /// <summary>
-        /// [byte[]] 데이터를 [HEX] 문자열로 변환
-        /// </summary>
-        private string ConvertToHexString(
-            byte[] data)
-        {
-            if (data == null ||
-                data.Length == 0)
-            {
-                return string.Empty;
-            }
-
-            return BitConverter
-                .ToString(data)
-                .Replace("-", " ");
-        }
 
         /// <summary>
         /// 값 범위 제한
