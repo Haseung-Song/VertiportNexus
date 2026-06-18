@@ -17,7 +17,13 @@ namespace VertiportNexus.Converters
                 return null;
             }
 
-            PixelFormat pixelFormat = PixelFormats.Bgr24;
+            /// <summary>
+            /// [OpenCV] 기본 영상 포맷
+            /// 
+            /// 일반적인 [BGR 3채널] 영상을 기준으로 설정한다.
+            /// </summary>
+            PixelFormat pixelFormat =
+                PixelFormats.Bgr24;
 
             // [채널 수]에 따른 [PixelFormat] 선택
             if (frame.Channels() == 1)
@@ -30,6 +36,23 @@ namespace VertiportNexus.Converters
                 pixelFormat =
                     PixelFormats.Bgra32;
             }
+
+            /// <summary>
+            /// [OpenCV] [Mat] 데이터를
+            /// [WPF]에서 표시 가능한 [BitmapSource]로 변환
+            ///
+            /// [Width] / [Height]
+            /// : 영상 해상도
+            ///
+            /// [PixelFormat]
+            /// : 영상 색상 포맷
+            ///
+            /// [Data]
+            /// : [Mat] 원본 영상 버퍼
+            ///
+            /// [Stride]
+            /// : 한 줄당 메모리 크기(Byte)
+            /// </summary>
             return BitmapSource.Create(
                 frame.Width,
                 frame.Height,
@@ -43,6 +66,7 @@ namespace VertiportNexus.Converters
                     * frame.Height),
                 (int)
                     frame.Step());
+
         }
 
     }

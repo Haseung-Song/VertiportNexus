@@ -8,9 +8,13 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using VertiportNexus.Common;
 using VertiportNexus.Models.ADS1000;
+using VertiportNexus.Models.Vertiport;
 using VertiportNexus.Services.ADS1000;
 using VertiportNexus.Services.Camera;
+using VertiportNexus.Services.Command;
+using VertiportNexus.Services.Communication.MQ;
 using VertiportNexus.Services.Communication.TCP;
+using VertiportNexus.Services.Vertiport;
 
 namespace VertiportNexus.ViewModels.Main
 {
@@ -90,6 +94,26 @@ namespace VertiportNexus.ViewModels.Main
         /// [ADS1000] 상태 [Packet] 처리 서비스
         /// </summary>
         private readonly Ads1000StatusService _ads1000StatusService;
+
+        /// <summary>
+        /// [Mock] [MQ] 수신 서비스
+        /// </summary>
+        private readonly MockMqReceiver _mockMqReceiver;
+
+        /// <summary>
+        /// [CSE] 명령 수신 서비스
+        /// </summary>
+        private readonly CseCommandReceiveService _cseCommandReceiveService;
+
+        /// <summary>
+        /// 내부 카메라 명령 처리 서비스
+        /// </summary>
+        private readonly CameraCommandService _cameraCommandService;
+
+        /// <summary>
+        /// [CSE] 명령 처리 서비스
+        /// </summary>
+        private readonly CseCommandHandler _cseCommandHandler;
 
         #endregion
 
@@ -430,6 +454,64 @@ namespace VertiportNexus.ViewModels.Main
             /// </summary>
             _ads1000StatusService =
                 new Ads1000StatusService();
+
+            #endregion
+
+            #region [CSE Initialize]
+
+            /// <summary>
+            /// [Mock] [MQ] 수신 서비스 생성
+            /// </summary>
+            _mockMqReceiver =
+                new MockMqReceiver();
+
+            /// <summary>
+            /// [CSE] 명령 수신 서비스 생성
+            /// </summary>
+            _cseCommandReceiveService =
+                new CseCommandReceiveService(
+                    _mockMqReceiver);
+
+            /// <summary>
+            /// 내부 카메라 명령 처리 서비스 생성
+            /// </summary>
+            _cameraCommandService =
+                new CameraCommandService(
+                    _ads1000CameraControlService);
+
+            /// <summary>
+            /// [CSE] 명령 처리 서비스 생성
+            /// </summary>
+            _cseCommandHandler =
+                new CseCommandHandler(
+                    _cameraCommandService);
+
+            /// <summary>
+            /// [CSE] 명령 수신 이벤트 연결
+            /// </summary>
+            _cseCommandReceiveService.CommandReceived +=
+                OnCseCommandReceived;
+
+            /// <summary>
+            /// [CSE] 명령 수신 시작
+            /// </summary>
+            _cseCommandReceiveService.StartReceive();
+
+            /// <summary>
+            /// [CSE] [PTZ Move] 명령 수신 테스트
+            /// 
+            /// [continuous] [Pan Right] 이동 명령을
+            /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
+            /// </summary>
+            //TestCsePtzMove();
+
+            /// <summary>
+            /// [CSE] [PTZ Stop] 명령 수신 테스트
+            /// 
+            /// [PTZ] 정지 명령을
+            /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
+            /// </summary>
+            //TestCsePtzStop();
 
             #endregion
 
@@ -962,6 +1044,18 @@ namespace VertiportNexus.ViewModels.Main
                 /// </summary>
                 _eoCameraService.Connect(
                     _eoRtspAddress);
+
+                if (connectionResult.IsMcbConnected)
+                {
+                    /// <summary>
+                    /// [CSE] [Mock MQ] [PTZ] 제어 테스트
+                    /// 
+                    /// 영상 연결 흐름을 막지 않도록
+                    /// 별도 [Task]에서 이동 / 정지 테스트를 수행한다.
+                    /// </summary>
+                    _ = RunCsePtzMockTestAsync();
+                }
+
             }
             finally
             {
@@ -969,6 +1063,32 @@ namespace VertiportNexus.ViewModels.Main
                     false;
             }
 
+        }
+
+        /// <summary>
+        /// [CSE] [Mock MQ] [PTZ] 제어 테스트
+        /// 
+        /// [MCB] 연결 완료 후,
+        /// [continuous] 이동 명령과
+        /// [PTZ Stop] 명령을 순차 테스트한다.
+        /// </summary>
+        private async Task RunCsePtzMockTestAsync()
+        {
+            await Task.Delay(
+                1500);
+
+            /// <summary>
+            /// [CSE] [PTZ Move] 명령 수신 테스트
+            /// </summary>
+            TestCsePtzMove();
+
+            await Task.Delay(
+                3000);
+
+            /// <summary>
+            /// [CSE] [PTZ Stop] 명령 수신 테스트
+            /// </summary>
+            TestCsePtzStop();
         }
 
         /// <summary>
@@ -1429,6 +1549,77 @@ namespace VertiportNexus.ViewModels.Main
 
             return value;
         }
+
+        #endregion
+
+        #region [CSE Test Methods]
+
+        #region [CSE Receive Event Methods]
+
+        /// <summary>
+        /// [CSE] 명령 수신 처리
+        /// 
+        /// [MQ] 수신부에서 [JSON] 파싱이 완료된 명령을 전달받아,
+        /// 현재는 수신 명령 로그만 출력한다.
+        /// 
+        /// 이후 [CseCommandHandler]를 통해
+        /// [ADS1000] 카메라 제어 서비스와 연결한다.
+        /// </summary>
+        /// <param name="message">
+        /// [CSE] 명령 메시지
+        /// </param>
+        private void OnCseCommandReceived(
+            CseCommandMessage message)
+        {
+            _cseCommandHandler.HandleCommand(
+                message);
+        }
+
+        #endregion
+
+        #region [CSE Test Methods]
+
+        /// <summary>
+        /// [CSE] [PTZ Move] 테스트
+        /// </summary>
+        private void TestCsePtzMove()
+        {
+            string json =
+                @"{
+                    ""msg_type"": ""ptz_move"",
+                    ""msg_id"": ""CMD-0001"",
+                    ""timestamp"": ""2026-06-17T10:00:00"",
+                    ""reply_to"": ""q.command.res"",
+                    ""payload"": {
+                        ""mode"": ""continuous"",
+                        ""pan"": 1.0
+                    }
+
+                }";
+            _mockMqReceiver.InjectMessage(
+                json);
+        }
+
+        /// <summary>
+        /// [CSE] [PTZ Stop] 테스트
+        /// </summary>
+        private void TestCsePtzStop()
+        {
+            string json =
+                @"{
+                    ""msg_type"": ""ptz_stop"",
+                    ""msg_id"": ""CMD-0002"",
+                    ""timestamp"": ""2026-06-17T10:00:01"",
+                    ""reply_to"": ""q.command.res"",
+                    ""payload"": {
+                    }
+
+                }";
+            _mockMqReceiver.InjectMessage(
+                json);
+        }
+
+        #endregion
 
         #endregion
 
