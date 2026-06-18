@@ -33,7 +33,7 @@ namespace VertiportNexus.Services.ADS1000
         #region [Constants]
 
         /// <summary>
-        /// [Pan] / [Tilt] 기본 각속도
+        /// [Pan] / [Tilt] 연속 이동 기본 각속도
         /// </summary>
         private const double DEFAULT_PAN_TILT_SPEED = 50;
 
@@ -134,7 +134,7 @@ namespace VertiportNexus.Services.ADS1000
         #region [Pan / Tilt Methods]
 
         /// <summary>
-        /// [Pan] 왼쪽 이동
+        /// [Pan] 왼쪽 연속 이동
         /// </summary>
         public void PanLeft()
         {
@@ -148,7 +148,7 @@ namespace VertiportNexus.Services.ADS1000
         }
 
         /// <summary>
-        /// [Pan] 오른쪽 이동
+        /// [Pan] 오른쪽 연속 이동
         /// </summary>
         public void PanRight()
         {
@@ -162,7 +162,7 @@ namespace VertiportNexus.Services.ADS1000
         }
 
         /// <summary>
-        /// [Tilt] 위쪽 이동
+        /// [Tilt] 위쪽 연속 이동
         /// </summary>
         public void TiltUp()
         {
@@ -176,7 +176,7 @@ namespace VertiportNexus.Services.ADS1000
         }
 
         /// <summary>
-        /// [Tilt] 아래쪽 이동
+        /// [Tilt] 아래쪽 연속 이동
         /// </summary>
         public void TiltDown()
         {
@@ -187,6 +187,95 @@ namespace VertiportNexus.Services.ADS1000
                 _mcbPacketBuilder.BuildTiltSpeedPacket(
                     -DEFAULT_PAN_TILT_SPEED),
                 "Tilt Down");
+        }
+
+        /// <summary>
+        /// [Pan] 절대 위치 이동
+        /// </summary>
+        public void MovePanAbsolute(
+            double angle)
+        {
+            SendMcbPacket(
+                _mcbPacketBuilder
+                    .BuildPanAbsolutePositionPacket(
+                        angle),
+                "Pan Absolute");
+        }
+
+        /// <summary>
+        /// [Tilt] 절대 위치 이동
+        /// </summary>
+        public void MoveTiltAbsolute(
+            double angle)
+        {
+            SendMcbPacket(
+                _mcbPacketBuilder
+                    .BuildTiltAbsolutePositionPacket(
+                        angle),
+                "Tilt Absolute");
+        }
+
+        /// <summary>
+        /// [Pan] 상대 위치 이동
+        /// </summary>
+        public void MovePanRelative(
+            double angle)
+        {
+            SendMcbPacket(
+                _mcbPacketBuilder
+                    .BuildPanRelativePositionPacket(
+                        angle),
+                "Pan Relative");
+        }
+
+        /// <summary>
+        /// [Tilt] 상대 위치 이동
+        /// </summary>
+        public void MoveTiltRelative(
+            double angle)
+        {
+            SendMcbPacket(
+                _mcbPacketBuilder
+                    .BuildTiltRelativePositionPacket(
+                        angle),
+                "Tilt Relative");
+        }
+
+        /// <summary>
+        /// [Pan] 현재 위치를 [0]으로 설정
+        /// </summary>
+        public void SetPanZero()
+        {
+            SendMcbPacket(
+                _mcbPacketBuilder
+                    .BuildPanSetZeroPacket(),
+                "Pan Set Zero");
+        }
+
+        /// <summary>
+        /// [Tilt] 현재 위치를 [0]으로 설정
+        /// </summary>
+        public void SetTiltZero()
+        {
+            SendMcbPacket(
+                _mcbPacketBuilder
+                    .BuildTiltSetZeroPacket(),
+                "Tilt Set Zero");
+        }
+
+        /// <summary>
+        /// [Home] 위치 이동
+        /// 
+        /// [Pan] / [Tilt]를
+        /// 원점(0도) 위치로 이동한다.
+        /// </summary>
+        public void MoveHomePosition()
+        {
+            MovePanAbsolute(
+                0);
+
+            MoveTiltAbsolute(
+                0);
         }
 
         #endregion
@@ -219,6 +308,22 @@ namespace VertiportNexus.Services.ADS1000
                 "Zoom Out");
         }
 
+        /// <summary>
+        /// [Zoom] 위치 이동
+        /// 
+        /// [Zoom] 값을 [0 ~ 1000] 범위로 지정하여
+        /// 해당 위치로 이동한다.
+        /// </summary>
+        public void MoveZoomPosition(
+            ushort zoomValue)
+        {
+            SendScbPacket(
+                _scbPacketBuilder
+                    .BuildZoomPositionPacket(
+                        zoomValue),
+                "Zoom Position");
+        }
+
         #endregion
 
         #region [Focus Methods]
@@ -247,6 +352,22 @@ namespace VertiportNexus.Services.ADS1000
             SendScbPacket(
                 _scbPacketBuilder.BuildFocusFarPacket(),
                 "Focus Far");
+        }
+
+        /// <summary>
+        /// [Focus] 위치 이동
+        /// 
+        /// [Focus] 값을 [0 ~ 1000] 범위로 지정하여
+        /// 해당 위치로 이동한다.
+        /// </summary>
+        public void MoveFocusPosition(
+            ushort focusValue)
+        {
+            SendScbPacket(
+                _scbPacketBuilder
+                    .BuildFocusPositionPacket(
+                        focusValue),
+                "Focus Position");
         }
 
         /// <summary>

@@ -237,6 +237,36 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         private double _currentFocus;
 
+        /// <summary>
+        /// [Pan] Absolute 이동 입력값
+        /// </summary>
+        private double _panAbsoluteValue = 30;
+
+        /// <summary>
+        /// [Tilt] Absolute 이동 입력값
+        /// </summary>
+        private double _tiltAbsoluteValue = 10;
+
+        /// <summary>
+        /// [Pan] Relative 이동 입력값
+        /// </summary>
+        private double _panRelativeValue = 10;
+
+        /// <summary>
+        /// [Tilt] Relative 이동 입력값
+        /// </summary>
+        private double _tiltRelativeValue = 5;
+
+        /// <summary>
+        /// [Zoom] 위치 이동 입력값
+        /// </summary>
+        private int _zoomPositionValue = 300;
+
+        /// <summary>
+        /// [Focus] 위치 이동 입력값
+        /// </summary>
+        private int _focusPositionValue = 500;
+
         #endregion
 
         #region [Image Binding Fields - Test Only]
@@ -341,6 +371,51 @@ namespace VertiportNexus.ViewModels.Main
         /// [Auto Focus] 요청 [Command]
         /// </summary>
         public ICommand AutoFocusCommand { get; }
+
+        /// <summary>
+        /// [Pan] Absolute 이동 요청 [Command]
+        /// </summary>
+        public ICommand MovePanAbsoluteCommand { get; }
+
+        /// <summary>
+        /// [Tilt] Absolute 이동 요청 [Command]
+        /// </summary>
+        public ICommand MoveTiltAbsoluteCommand { get; }
+
+        /// <summary>
+        /// [Pan] Relative 이동 요청 [Command]
+        /// </summary>
+        public ICommand MovePanRelativeCommand { get; }
+
+        /// <summary>
+        /// [Tilt] Relative 이동 요청 [Command]
+        /// </summary>
+        public ICommand MoveTiltRelativeCommand { get; }
+
+        /// <summary>
+        /// [Home Position] 이동 요청 [Command]
+        /// </summary>
+        public ICommand MoveHomePositionCommand { get; }
+
+        /// <summary>
+        /// [Pan] 현재 위치 [0] 설정 요청 [Command]
+        /// </summary>
+        public ICommand SetPanZeroCommand { get; }
+
+        /// <summary>
+        /// [Tilt] 현재 위치 [0] 설정 요청 [Command]
+        /// </summary>
+        public ICommand SetTiltZeroCommand { get; }
+
+        /// <summary>
+        /// [Zoom] 위치 이동 요청 [Command]
+        /// </summary>
+        public ICommand SetZoomPositionCommand { get; }
+
+        /// <summary>
+        /// [Focus] 위치 이동 요청 [Command]
+        /// </summary>
+        public ICommand SetFocusPositionCommand { get; }
 
         /// <summary>
         /// [Status] 조회 요청 [Command]
@@ -578,6 +653,42 @@ namespace VertiportNexus.ViewModels.Main
             AutoFocusCommand =
                 new RelayCommand(
                     _ads1000CameraControlService.AutoFocus);
+
+            MovePanAbsoluteCommand =
+                new RelayCommand(
+                    MovePanAbsolute);
+
+            MoveTiltAbsoluteCommand =
+                new RelayCommand(
+                    MoveTiltAbsolute);
+
+            MovePanRelativeCommand =
+                new RelayCommand(
+                    MovePanRelative);
+
+            MoveTiltRelativeCommand =
+                new RelayCommand(
+                    MoveTiltRelative);
+
+            MoveHomePositionCommand =
+                new RelayCommand(
+                    _ads1000CameraControlService.MoveHomePosition);
+
+            SetPanZeroCommand =
+                new RelayCommand(
+                    _ads1000CameraControlService.SetPanZero);
+
+            SetTiltZeroCommand =
+                new RelayCommand(
+                    _ads1000CameraControlService.SetTiltZero);
+
+            SetZoomPositionCommand =
+                new RelayCommand(
+                    SetZoomPosition);
+
+            SetFocusPositionCommand =
+                new RelayCommand(
+                    SetFocusPosition);
 
             RequestStatusCommand =
                 new RelayCommand(
@@ -897,6 +1008,96 @@ namespace VertiportNexus.ViewModels.Main
 
         }
 
+        public double PanAbsoluteValue
+        {
+            get => _panAbsoluteValue;
+            set
+            {
+                if (_panAbsoluteValue != value)
+                {
+                    _panAbsoluteValue = value;
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        public double TiltAbsoluteValue
+        {
+            get => _tiltAbsoluteValue;
+            set
+            {
+                if (_tiltAbsoluteValue != value)
+                {
+                    _tiltAbsoluteValue = value;
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        public double PanRelativeValue
+        {
+            get => _panRelativeValue;
+            set
+            {
+                if (_panRelativeValue != value)
+                {
+                    _panRelativeValue = value;
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        public double TiltRelativeValue
+        {
+            get => _tiltRelativeValue;
+            set
+            {
+                if (_tiltRelativeValue != value)
+                {
+                    _tiltRelativeValue = value;
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        public int ZoomPositionValue
+        {
+            get => _zoomPositionValue;
+            set
+            {
+                if (_zoomPositionValue != value)
+                {
+                    _zoomPositionValue = value;
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        public int FocusPositionValue
+        {
+            get => _focusPositionValue;
+            set
+            {
+                if (_focusPositionValue != value)
+                {
+                    _focusPositionValue = value;
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
         public BitmapSource EOCameraImage
         {
             get => _eoCameraImage;
@@ -1045,16 +1246,97 @@ namespace VertiportNexus.ViewModels.Main
                 _eoCameraService.Connect(
                     _eoRtspAddress);
 
-                if (connectionResult.IsMcbConnected)
-                {
-                    /// <summary>
-                    /// [CSE] [Mock MQ] [PTZ] 제어 테스트
-                    /// 
-                    /// 영상 연결 흐름을 막지 않도록
-                    /// 별도 [Task]에서 이동 / 정지 테스트를 수행한다.
-                    /// </summary>
-                    _ = RunCsePtzMockTestAsync();
-                }
+                //if (connectionResult.IsMcbConnected)
+                //{
+                //    await Task.Delay(
+                //        3000);
+
+                //    /// <summary>
+                //    /// [Pan] Absolute 이동 테스트
+                //    /// 
+                //    /// [Pan] 축을 [30도] 위치로 이동한다.
+                //    /// </summary>
+                //    TestPanAbsolute();
+
+                //    await Task.Delay(
+                //        5000);
+
+                //    /// <summary>
+                //    /// [Pan] Relative 이동 테스트
+                //    /// 
+                //    /// 현재 [Pan] 위치 기준으로
+                //    /// [+10도] 상대 이동한다.
+                //    /// </summary>
+                //    TestPanRelative();
+
+                //    await Task.Delay(
+                //        3000);
+
+                //    /// <summary>
+                //    /// [Tilt] Absolute 이동 테스트
+                //    /// 
+                //    /// [Tilt] 축을 [10도] 위치로 이동한다.
+                //    /// </summary>
+                //    TestTiltAbsolute();
+
+                //    await Task.Delay(
+                //        7000);
+
+                //    /// <summary>
+                //    /// [Tilt] Relative 이동 테스트
+                //    /// 
+                //    /// 현재 [Tilt] 위치 기준으로
+                //    /// [+5도] 상대 이동한다.
+                //    /// </summary>
+                //    TestTiltRelative();
+
+                //    await Task.Delay(
+                //        7000);
+
+                //    /// <summary>
+                //    /// [Home Position] 이동 테스트
+                //    /// 
+                //    /// 실제 [Pan] / [Tilt]를
+                //    /// 원점 [0도] 위치로 이동시킨다.
+                //    /// </summary>
+                //    TestHomePosition();
+
+                //    await Task.Delay(
+                //        5000);
+
+                //    /// <summary>
+                //    /// [Zoom] 위치 이동 테스트
+                //    /// 
+                //    /// [Zoom] 값을 [300] 위치로 이동시킨다.
+                //    /// </summary>
+                //    TestZoomPosition();
+
+                //    await Task.Delay(
+                //        5000);
+
+                //    /// <summary>
+                //    /// [Focus] 위치 이동 테스트
+                //    /// 
+                //    /// [Focus] 값을 [500] 위치로 이동시킨다.
+                //    /// </summary>
+                //    TestFocusPosition();
+
+                //    await Task.Delay(
+                //        7000);
+
+                //    /// <summary>
+                //    /// [Pan] 현재 위치를 [0]으로 설정
+                //    /// </summary>
+                //    TestPanSetZero();
+
+                //    await Task.Delay(
+                //        3000);
+
+                //    /// <summary>
+                //    /// [Tilt] 현재 위치를 [0]으로 설정
+                //    /// </summary>
+                //    TestTiltSetZero();
+                //}
 
             }
             finally
@@ -1075,7 +1357,7 @@ namespace VertiportNexus.ViewModels.Main
         private async Task RunCsePtzMockTestAsync()
         {
             await Task.Delay(
-                1500);
+                2500);
 
             /// <summary>
             /// [CSE] [PTZ Move] 명령 수신 테스트
@@ -1083,7 +1365,7 @@ namespace VertiportNexus.ViewModels.Main
             TestCsePtzMove();
 
             await Task.Delay(
-                3000);
+                5000);
 
             /// <summary>
             /// [CSE] [PTZ Stop] 명령 수신 테스트
@@ -1481,6 +1763,72 @@ namespace VertiportNexus.ViewModels.Main
             _ads1000CameraControlService.StopMove();
         }
 
+        /// <summary>
+        /// [Pan] Absolute 이동
+        /// </summary>
+        private void MovePanAbsolute()
+        {
+            _ads1000CameraControlService
+                .MovePanAbsolute(
+                    PanAbsoluteValue);
+        }
+
+        /// <summary>
+        /// [Tilt] Absolute 이동
+        /// </summary>
+        private void MoveTiltAbsolute()
+        {
+            _ads1000CameraControlService
+                .MoveTiltAbsolute(
+                    TiltAbsoluteValue);
+        }
+
+        /// <summary>
+        /// [Pan] Relative 이동
+        /// </summary>
+        private void MovePanRelative()
+        {
+            _ads1000CameraControlService
+                .MovePanRelative(
+                    PanRelativeValue);
+        }
+
+        /// <summary>
+        /// [Tilt] Relative 이동
+        /// </summary>
+        private void MoveTiltRelative()
+        {
+            _ads1000CameraControlService
+                .MoveTiltRelative(
+                    TiltRelativeValue);
+        }
+
+        /// <summary>
+        /// [Zoom] 위치 이동
+        /// </summary>
+        private void SetZoomPosition()
+        {
+            _ads1000CameraControlService
+                .MoveZoomPosition(
+                    (ushort)Clamp(
+                        ZoomPositionValue,
+                        0,
+                        1000));
+        }
+
+        /// <summary>
+        /// [Focus] 위치 이동
+        /// </summary>
+        private void SetFocusPosition()
+        {
+            _ads1000CameraControlService
+                .MoveFocusPosition(
+                    (ushort)Clamp(
+                        FocusPositionValue,
+                        0,
+                        1000));
+        }
+
         #endregion
 
         #region [Status Apply Methods]
@@ -1618,6 +1966,126 @@ namespace VertiportNexus.ViewModels.Main
             _mockMqReceiver.InjectMessage(
                 json);
         }
+
+        #endregion
+
+        #region [Camera Control Test]
+
+        #region [Pan / Tilt Test]
+
+        /// <summary>
+        /// [ADS1000] Pan Absolute 이동 테스트
+        /// </summary>
+        private void TestPanAbsolute()
+        {
+            _ads1000CameraControlService
+                .MovePanAbsolute(
+                    -30);
+        }
+
+        /// <summary>
+        /// [ADS1000] Pan Relative 이동 테스트
+        /// </summary>
+        private void TestPanRelative()
+        {
+            _ads1000CameraControlService
+                .MovePanRelative(
+                    -10);
+        }
+
+        /// <summary>
+        /// [ADS1000] Pan Zero 설정 테스트
+        /// </summary>
+        private void TestPanSetZero()
+        {
+            _ads1000CameraControlService
+                .SetPanZero();
+        }
+
+        /// <summary>
+        /// [ADS1000] Tilt Absolute 이동 테스트
+        /// 
+        /// [Tilt] 축을 지정 각도로 이동시키는
+        /// 위치 제어 테스트이다.
+        /// </summary>
+        private void TestTiltAbsolute()
+        {
+            _ads1000CameraControlService
+                .MoveTiltAbsolute(
+                    -10);
+        }
+
+        /// <summary>
+        /// [ADS1000] Tilt Relative 이동 테스트
+        /// 
+        /// 현재 [Tilt] 위치 기준으로
+        /// 지정 각도만큼 상대 이동하는지 확인한다.
+        /// </summary>
+        private void TestTiltRelative()
+        {
+            _ads1000CameraControlService
+                .MoveTiltRelative(
+                    -5);
+        }
+
+        /// <summary>
+        /// [ADS1000] Tilt Zero 설정 테스트
+        /// 
+        /// 현재 [Tilt] 위치를 [0] 기준점으로
+        /// 재정의하는지 확인한다.
+        /// </summary>
+        private void TestTiltSetZero()
+        {
+            _ads1000CameraControlService
+                .SetTiltZero();
+        }
+
+        #endregion
+
+        #region [Zoom / Focus Test]
+
+        /// <summary>
+        /// [ADS1000] Zoom 위치 이동 테스트
+        /// 
+        /// [Zoom] 값을 [300] 위치로 이동시키는지 확인한다.
+        /// </summary>
+        private void TestZoomPosition()
+        {
+            _ads1000CameraControlService
+                .MoveZoomPosition(
+                    300);
+        }
+
+        /// <summary>
+        /// [ADS1000] Focus 위치 이동 테스트
+        /// 
+        /// [Focus] 값을 [500] 위치로 이동시키는지 확인한다.
+        /// </summary>
+        private void TestFocusPosition()
+        {
+            _ads1000CameraControlService
+                .MoveFocusPosition(
+                    500);
+        }
+
+        #endregion
+
+        #region [Auto Focus Test]
+
+        #endregion
+
+        #region [Home Position Test]
+
+        /// <summary>
+        /// [ADS1000] Home Position 이동 테스트
+        /// </summary>
+        private void TestHomePosition()
+        {
+            _ads1000CameraControlService
+                .MoveHomePosition();
+        }
+
+        #endregion
 
         #endregion
 

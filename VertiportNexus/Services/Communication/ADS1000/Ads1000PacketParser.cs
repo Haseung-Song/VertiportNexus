@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
+using VertiportNexus.Common;
 using VertiportNexus.Models.ADS1000;
 
 namespace VertiportNexus.Services.ADS1000
@@ -35,15 +36,6 @@ namespace VertiportNexus.Services.ADS1000
         /// Sync0 + Sync1 + Cmd1 + Length + Checksum
         /// </summary>
         private const int MIN_PACKET_LENGTH = 5;
-
-        /// <summary>
-        /// [Pan] / [Tilt] Encoder 해상도
-        /// 
-        /// [PanTilt.ini] 기준:
-        /// PMOTOR RESOLUTION = 2500000
-        /// TMOTOR RESOLUTION = 2500000
-        /// </summary>
-        private const double MOTOR_ENCODER_RESOLUTION = 2500000.0;
 
         #endregion
 
@@ -353,7 +345,7 @@ namespace VertiportNexus.Services.ADS1000
             /// 각도 = 위치 * 360 / 2^19
             /// </summary>
             angleValue =
-                encoderValue * 360.0 / MOTOR_ENCODER_RESOLUTION;
+                encoderValue * 360.0 / Ads1000Constants.MOTOR_ENCODER_RESOLUTION;
 
             return true;
         }

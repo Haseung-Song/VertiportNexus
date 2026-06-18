@@ -142,15 +142,15 @@
                            FontWeight="Bold"/>
 
                 <TextBlock Text="{Binding MainStatusText, Mode=OneWay}"
-           Foreground="#5F86B3"
-           FontSize="14"
-           FontWeight="SemiBold"
-           Margin="0,6,0,0"/>
+                                          Foreground="#5F86B3"
+                                          FontSize="14"
+                                          FontWeight="SemiBold"
+                                          Margin="0,6,0,0"/>
 
                 <TextBlock Text="{Binding OperationModeText, Mode=OneWay}"
-           Foreground="#6E9E67"
-           FontSize="14"
-           FontWeight="SemiBold"/>
+                                          Foreground="#6E9E67"
+                                          FontSize="14"
+                                          FontWeight="SemiBold"/>
             </StackPanel>
         </Border>
 
@@ -190,7 +190,6 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="50"/>
-                        <RowDefinition Height="20"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
@@ -206,6 +205,7 @@
                     <Button Grid.Row="1"
                             Height="34"
                             Width="130"
+                            Margin="0,0,0,5"
                             HorizontalAlignment="Left"
                             Content="장비 연결"
                             Style="{StaticResource ConnectButtonStyle}"
@@ -216,418 +216,705 @@
                             Background="#5F666D"
                             BorderBrush="#95A5B0"
                             BorderThickness="1.5"
-                            Padding="3">
+                            Padding="5">
 
                         <Grid>
                             <Grid.RowDefinitions>
+                                <!-- 제어 패널 제목 영역 -->
                                 <RowDefinition Height="Auto"/>
+
+                                <!-- 기능별 Tab 영역 -->
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
 
-                            <!-- 제목 -->
+                            <!-- 우측 제어 패널 제목 -->
                             <TextBlock Grid.Row="0"
-                                       Text="장비 연결"
+                                       Text="장비 제어"
                                        Foreground="White"
                                        FontSize="16"
                                        FontWeight="Bold"
-                                       Margin="0,0,0,5"/>
+                                       Margin="0,0,0,10"/>
 
-                            <!-- 제어 패널 Scroll 영역 -->
-                            <ScrollViewer Grid.Row="1"
-                                          VerticalScrollBarVisibility="Auto"
-                                          HorizontalScrollBarVisibility="Disabled">
+                            <!--
+                                우측 제어 패널 Tab 구성
 
-                                <StackPanel Orientation="Vertical"
-                                            Margin="0,0,0,10">
+                                [장비 연결]
+                                [PAN / TILT]
+                                [ZOOM / FOCUS]
 
-                                    <!-- 장비 연결 설정 -->
-                                    <Border Margin="0,10,10,0"
-                                            Background="#5F666D"
-                                            BorderBrush="#95A5B0"
-                                            BorderThickness="1.5"
-                                            Padding="10">
+                                영상 영역은 유지하고,
+                                우측 제어 영역만 기능별로 전환한다.
+                            -->
+                            <TabControl Grid.Row="1"
+                                        Background="#4F5860"
+                                        BorderBrush="#95A5B0"
+                                        Foreground="White">
 
-                                        <StackPanel>
+                                <!--
+                                    [장비 연결] Tab
 
-                                            <TextBlock Text="장비 연결 설정"
-                                                       HorizontalAlignment="Center"
-                                                       Foreground="White"
-                                                       FontWeight="Bold"
-                                                       Margin="0,0,0,8"/>
+                                    MCB / SCB 연결 대상 정보와
+                                    연결 상태를 표시한다.
+                                -->
+                                <TabItem Header="장비 연결">
 
-                                            <!-- MCB 통신 설정 -->
-                                            <Border Background="#40464D"
+                                    <!-- 장비 연결 Tab 내부 Scroll 영역 -->
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Disabled">
+
+                                        <StackPanel Margin="3">
+
+                                            <!-- 장비 연결 설정 영역 -->
+                                            <Border Margin="0,0,0,10"
+                                                    Background="#5F666D"
                                                     BorderBrush="#95A5B0"
-                                                    BorderThickness="1"
-                                                    Padding="8"
-                                                    Margin="0,0,0,8">
+                                                    BorderThickness="1.5"
+                                                    Padding="5">
 
-                                                <Grid>
-                                                    <Grid.RowDefinitions>
-                                                        <RowDefinition Height="Auto"/>
-                                                        <RowDefinition Height="Auto"/>
-                                                    </Grid.RowDefinitions>
+                                                <StackPanel>
 
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="65"/>
-                                                    </Grid.ColumnDefinitions>
+                                                    <!-- 장비 연결 설정 제목 -->
+                                                    <TextBlock Text="장비 연결 설정"
+                                                               HorizontalAlignment="Center"
+                                                               Foreground="White"
+                                                               FontWeight="Bold"
+                                                               Margin="0,0,0,10"/>
 
-                                                    <Grid Grid.Row="0"
-                                                          Grid.Column="0"
-                                                          Grid.ColumnSpan="3"
-                                                          Margin="0,0,0,6">
+                                                    <!-- MCB 통신 설정 영역 -->
+                                                    <Border Background="#40464D"
+                                                            BorderBrush="#95A5B0"
+                                                            BorderThickness="1"
+                                                            Padding="8"
+                                                            Margin="0,0,0,10">
 
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                        </Grid.ColumnDefinitions>
+                                                        <Grid>
+                                                            <Grid.RowDefinitions>
+                                                                <!-- MCB 제목 / 상태 표시 -->
+                                                                <RowDefinition Height="Auto"/>
 
-                                                        <TextBlock Grid.Column="0"
-                                                                   Text="MCB 통신 설정"
-                                                                   Foreground="White"
-                                                                   FontSize="12"
-                                                                   FontWeight="Bold"/>
+                                                                <!-- MCB IP / Port 입력 -->
+                                                                <RowDefinition Height="Auto"/>
+                                                            </Grid.RowDefinitions>
 
-                                                        <TextBlock Grid.Column="1"
-                                                                   Text="{Binding McbConnectionStatusText}"
-                                                                   Foreground="{Binding McbConnectionStatusBrush}"
-                                                                   FontSize="11"
-                                                                   FontWeight="Bold"/>
-                                                    </Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <!-- 여백용 Column -->
+                                                                <ColumnDefinition Width="Auto"/>
 
-                                                    <!-- [MCB] IP 설정 -->
-                                                    <TextBox Grid.Row="1"
-                                                             Grid.Column="1"
-                                                             Text="{Binding McbIpAddress, UpdateSourceTrigger=PropertyChanged}"
-                                                             Height="24"
-                                                             FontSize="12"
-                                                             FontWeight="Bold"
-                                                             VerticalContentAlignment="Center"
-                                                             Margin="0,0,5,0"/>
+                                                                <!-- IP 입력 Column -->
+                                                                <ColumnDefinition Width="*"/>
 
-                                                    <!-- [MCB] Port 설정 -->
-                                                    <TextBox Grid.Row="1"
-                                                             Grid.Column="2"
-                                                             Text="{Binding McbPort, UpdateSourceTrigger=PropertyChanged}"
-                                                             Height="24"
-                                                             FontSize="12"
-                                                             FontWeight="Bold"
-                                                             VerticalContentAlignment="Center"/>
-                                                </Grid>
+                                                                <!-- Port 입력 Column -->
+                                                                <ColumnDefinition Width="65"/>
+                                                            </Grid.ColumnDefinitions>
+
+                                                            <!-- MCB 제목 및 연결 상태 표시 -->
+                                                            <Grid Grid.Row="0"
+                                                                  Grid.Column="0"
+                                                                  Grid.ColumnSpan="3"
+                                                                  Margin="0,0,0,6">
+
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                </Grid.ColumnDefinitions>
+
+                                                                <!-- MCB 통신 설정 제목 -->
+                                                                <TextBlock Grid.Column="0"
+                                                                           Text="MCB 통신 설정"
+                                                                           Foreground="White"
+                                                                           FontSize="12"
+                                                                           FontWeight="Bold"/>
+
+                                                                <!-- MCB 연결 상태 표시 -->
+                                                                <TextBlock Grid.Column="1"
+                                                                           Text="{Binding McbConnectionStatusText}"
+                                                                           Foreground="{Binding McbConnectionStatusBrush}"
+                                                                           FontSize="11"
+                                                                           FontWeight="Bold"/>
+                                                            </Grid>
+
+                                                            <!-- MCB IP 입력 -->
+                                                            <TextBox Grid.Row="1"
+                                                                     Grid.Column="1"
+                                                                     Text="{Binding McbIpAddress, UpdateSourceTrigger=PropertyChanged}"
+                                                                     Height="24"
+                                                                     FontSize="12"
+                                                                     FontWeight="Bold"
+                                                                     VerticalContentAlignment="Center"
+                                                                     Margin="0,0,5,0"/>
+
+                                                            <!-- MCB Port 입력 -->
+                                                            <TextBox Grid.Row="1"
+                                                                     Grid.Column="2"
+                                                                     Text="{Binding McbPort, UpdateSourceTrigger=PropertyChanged}"
+                                                                     Height="24"
+                                                                     FontSize="12"
+                                                                     FontWeight="Bold"
+                                                                     VerticalContentAlignment="Center"/>
+                                                        </Grid>
+                                                    </Border>
+
+                                                    <!-- SCB 통신 설정 영역 -->
+                                                    <Border Background="#40464D"
+                                                            BorderBrush="#95A5B0"
+                                                            BorderThickness="1"
+                                                            Padding="8">
+
+                                                        <Grid>
+                                                            <Grid.RowDefinitions>
+                                                                <!-- SCB 제목 / 상태 표시 -->
+                                                                <RowDefinition Height="Auto"/>
+
+                                                                <!-- SCB IP / Port 입력 -->
+                                                                <RowDefinition Height="Auto"/>
+                                                            </Grid.RowDefinitions>
+
+                                                            <Grid.ColumnDefinitions>
+                                                                <!-- 여백용 Column -->
+                                                                <ColumnDefinition Width="Auto"/>
+
+                                                                <!-- IP 입력 Column -->
+                                                                <ColumnDefinition Width="*"/>
+
+                                                                <!-- Port 입력 Column -->
+                                                                <ColumnDefinition Width="65"/>
+                                                            </Grid.ColumnDefinitions>
+
+                                                            <!-- SCB 제목 및 연결 상태 표시 -->
+                                                            <Grid Grid.Row="0"
+                                                                  Grid.Column="0"
+                                                                  Grid.ColumnSpan="3"
+                                                                  Margin="0,0,0,6">
+
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                </Grid.ColumnDefinitions>
+
+                                                                <!-- SCB 통신 설정 제목 -->
+                                                                <TextBlock Grid.Column="0"
+                                                                           Text="SCB 통신 설정"
+                                                                           Foreground="White"
+                                                                           FontSize="12"
+                                                                           FontWeight="Bold"/>
+
+                                                                <!-- SCB 연결 상태 표시 -->
+                                                                <TextBlock Grid.Column="1"
+                                                                           Text="{Binding ScbConnectionStatusText}"
+                                                                           Foreground="{Binding ScbConnectionStatusBrush}"
+                                                                           FontSize="11"
+                                                                           FontWeight="Bold"/>
+                                                            </Grid>
+
+                                                            <!-- SCB IP 입력 -->
+                                                            <TextBox Grid.Row="1"
+                                                                     Grid.Column="1"
+                                                                     Text="{Binding ScbIpAddress, UpdateSourceTrigger=PropertyChanged}"
+                                                                     Height="24"
+                                                                     FontSize="12"
+                                                                     FontWeight="Bold"
+                                                                     VerticalContentAlignment="Center"
+                                                                     Margin="0,0,5,0"/>
+
+                                                            <!-- SCB Port 입력 -->
+                                                            <TextBox Grid.Row="1"
+                                                                     Grid.Column="2"
+                                                                     Text="{Binding ScbPort, UpdateSourceTrigger=PropertyChanged}"
+                                                                     Height="24"
+                                                                     FontSize="12"
+                                                                     FontWeight="Bold"
+                                                                     VerticalContentAlignment="Center"/>
+                                                        </Grid>
+                                                    </Border>
+
+                                                </StackPanel>
                                             </Border>
 
-                                            <!-- SCB 통신 설정 -->
-                                            <Border Background="#40464D"
+                                            <!-- PAN / TILT 연속 이동 제어 영역 -->
+                                            <Border Margin="0,0,0,10"
+                                                    Background="#5F666D"
                                                     BorderBrush="#95A5B0"
-                                                    BorderThickness="1"
-                                                    Padding="8">
+                                                    BorderThickness="1.5"
+                                                    Padding="5">
 
-                                                <Grid>
-                                                    <Grid.RowDefinitions>
-                                                        <RowDefinition Height="Auto"/>
-                                                        <RowDefinition Height="Auto"/>
-                                                    </Grid.RowDefinitions>
+                                                <StackPanel>
 
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="65"/>
-                                                    </Grid.ColumnDefinitions>
+                                                    <!-- PAN / TILT 제어 제목 -->
+                                                    <TextBlock Text="PAN / TILT CONTROL"
+                                                               HorizontalAlignment="Center"
+                                                               Foreground="White"
+                                                               FontWeight="Bold"
+                                                               Margin="0,0,0,10"/>
 
-                                                    <Grid Grid.Row="0"
-                                                          Grid.Column="0"
-                                                          Grid.ColumnSpan="3"
-                                                          Margin="0,0,0,6">
+                                                    <!--
+                                                        [PAN / TILT] 방향 버튼 영역
+
+                                                        MouseDown : 이동 시작
+                                                        MouseUp   : 이동 정지
+                                                        MouseLeave: 이동 정지
+                                                    -->
+                                                    <Grid Width="120"
+                                                          Height="120"
+                                                          HorizontalAlignment="Center">
+
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition/>
+                                                            <RowDefinition/>
+                                                            <RowDefinition/>
+                                                        </Grid.RowDefinitions>
 
                                                         <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition/>
+                                                            <ColumnDefinition/>
+                                                            <ColumnDefinition/>
                                                         </Grid.ColumnDefinitions>
 
-                                                        <TextBlock Grid.Column="0"
-                                                                   Text="SCB 통신 설정"
-                                                                   Foreground="White"
-                                                                   FontSize="12"
-                                                                   FontWeight="Bold"/>
+                                                        <!-- Tilt 위쪽 연속 이동 -->
+                                                        <Button Grid.Row="0"
+                                                                Grid.Column="1"
+                                                                Content="▲"
+                                                                Style="{StaticResource PanTiltDirectionButtonStyle}"
+                                                                PreviewMouseDown="TiltUp_MouseDown"
+                                                                PreviewMouseUp="MoveStop_MouseUp"
+                                                                MouseLeave="MoveStop_MouseUp"/>
 
-                                                        <TextBlock Grid.Column="1"
-                                                                   Text="{Binding ScbConnectionStatusText}"
-                                                                   Foreground="{Binding ScbConnectionStatusBrush}"
-                                                                   FontSize="11"
-                                                                   FontWeight="Bold"/>
+                                                        <!-- Pan 왼쪽 연속 이동 -->
+                                                        <Button Grid.Row="1"
+                                                                Grid.Column="0"
+                                                                Content="◀"
+                                                                Style="{StaticResource PanTiltDirectionButtonStyle}"
+                                                                PreviewMouseDown="PanLeft_MouseDown"
+                                                                PreviewMouseUp="MoveStop_MouseUp"
+                                                                MouseLeave="MoveStop_MouseUp"/>
+
+                                                        <!-- PAN / TILT 정지 버튼 영역 -->
+                                                        <Border Grid.Row="1"
+                                                                Grid.Column="1"
+                                                                Margin="5"
+                                                                Background="#3F454B"
+                                                                BorderBrush="#8B949E"
+                                                                BorderThickness="1">
+
+                                                            <!-- PAN / TILT 정지 -->
+                                                            <Button Content="STOP"
+                                                                    Style="{StaticResource StopButtonStyle}"
+                                                                    Command="{Binding StopMoveCommand}"/>
+                                                        </Border>
+
+                                                        <!-- Pan 오른쪽 연속 이동 -->
+                                                        <Button Grid.Row="1"
+                                                                Grid.Column="2"
+                                                                Content="▶"
+                                                                Style="{StaticResource PanTiltDirectionButtonStyle}"
+                                                                PreviewMouseDown="PanRight_MouseDown"
+                                                                PreviewMouseUp="MoveStop_MouseUp"
+                                                                MouseLeave="MoveStop_MouseUp"/>
+
+                                                        <!-- Tilt 아래쪽 연속 이동 -->
+                                                        <Button Grid.Row="2"
+                                                                Grid.Column="1"
+                                                                Content="▼"
+                                                                Style="{StaticResource PanTiltDirectionButtonStyle}"
+                                                                PreviewMouseDown="TiltDown_MouseDown"
+                                                                PreviewMouseUp="MoveStop_MouseUp"
+                                                                MouseLeave="MoveStop_MouseUp"/>
                                                     </Grid>
 
-                                                    <!-- [SCB] IP 설정 -->
-                                                    <TextBox Grid.Row="1"
-                                                             Grid.Column="1"
-                                                             Text="{Binding ScbIpAddress, UpdateSourceTrigger=PropertyChanged}"
-                                                             Height="24"
-                                                             FontSize="12"
-                                                             FontWeight="Bold"
-                                                             VerticalContentAlignment="Center"
-                                                             Margin="0,0,5,0"/>
+                                                    <!-- PAN / TILT 연속 이동 속도 표시 -->
+                                                    <TextBlock Text="{Binding PanTiltSpeedLevel,StringFormat=PT SPEED LV : {0} deg/s}"
+                                                               Foreground="#D0D7DE"
+                                                               FontSize="12"
+                                                               FontWeight="Bold"
+                                                               HorizontalAlignment="Center"
+                                                               Margin="0,5,0,0"/>
+                                                </StackPanel>
+                                            </Border>
 
-                                                    <!-- [SCB] Port 설정 -->
-                                                    <TextBox Grid.Row="1"
-                                                             Grid.Column="2"
-                                                             Text="{Binding ScbPort, UpdateSourceTrigger=PropertyChanged}"
-                                                             Height="24"
-                                                             FontSize="12"
-                                                             FontWeight="Bold"
-                                                             VerticalContentAlignment="Center"/>
-                                                </Grid>
+                                            <!-- ZOOM / FOCUS 연속 제어 영역 -->
+                                            <Border Margin="0,0,0,10"
+                                                    Background="#5F666D"
+                                                    BorderBrush="#95A5B0"
+                                                    BorderThickness="1.5"
+                                                    Padding="5">
+
+                                                <StackPanel>
+
+                                                    <!-- ZOOM / FOCUS 제어 제목 -->
+                                                    <TextBlock Text="ZOOM / FOCUS CONTROL"
+                                                               HorizontalAlignment="Center"
+                                                               Foreground="White"
+                                                               FontWeight="Bold"
+                                                               Margin="0,0,0,10"/>
+
+                                                    <!-- Zoom 연속 제어 버튼 영역 -->
+                                                    <StackPanel Orientation="Horizontal"
+                                                                HorizontalAlignment="Center"
+                                                                Margin="0,0,0,10">
+
+                                                        <!-- Zoom Tele 연속 이동 -->
+                                                        <Button Content="ZOOM +"
+                                                                Width="85"
+                                                                Margin="5"
+                                                                Focusable="False"
+                                                                Style="{StaticResource EoControlButtonStyle}"
+                                                                PreviewMouseDown="ZoomIn_MouseDown"
+                                                                PreviewMouseUp="MoveStop_MouseUp"
+                                                                MouseLeave="MoveStop_MouseUp"/>
+
+                                                        <!-- Zoom Wide 연속 이동 -->
+                                                        <Button Content="ZOOM -"
+                                                                Width="85"
+                                                                Margin="5"
+                                                                Focusable="False"
+                                                                Style="{StaticResource EoControlButtonStyle}"
+                                                                PreviewMouseDown="ZoomOut_MouseDown"
+                                                                PreviewMouseUp="MoveStop_MouseUp"
+                                                                MouseLeave="MoveStop_MouseUp"/>
+                                                    </StackPanel>
+
+                                                    <!-- Focus 연속 제어 버튼 영역 -->
+                                                    <StackPanel Orientation="Horizontal"
+                                                                HorizontalAlignment="Center"
+                                                                Margin="0,0,0,10">
+
+                                                        <!-- Focus Far 연속 이동 -->
+                                                        <Button Content="FOCUS +"
+                                                                Width="85"
+                                                                Margin="5"
+                                                                Focusable="False"
+                                                                Style="{StaticResource EoControlButtonStyle}"
+                                                                PreviewMouseDown="FocusFar_MouseDown"
+                                                                PreviewMouseUp="MoveStop_MouseUp"
+                                                                MouseLeave="MoveStop_MouseUp"/>
+
+                                                        <!-- Focus Near 연속 이동 -->
+                                                        <Button Content="FOCUS -"
+                                                                Width="85"
+                                                                Margin="5"
+                                                                Focusable="False"
+                                                                Style="{StaticResource EoControlButtonStyle}"
+                                                                PreviewMouseDown="FocusNear_MouseDown"
+                                                                PreviewMouseUp="MoveStop_MouseUp"
+                                                                MouseLeave="MoveStop_MouseUp"/>
+                                                    </StackPanel>
+
+                                                    <!-- Auto Focus 실행 -->
+                                                    <Button Content="AUTO FOCUS"
+                                                            Width="180"
+                                                            Margin="5"
+                                                            HorizontalAlignment="Center"
+                                                            Style="{StaticResource AutoFocusButtonStyle}"
+                                                            Command="{Binding AutoFocusCommand}"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <!-- 현재 장비 상태 표시 영역 -->
+                                            <Border Margin="0,0,0,10"
+                                                    Background="#40464D"
+                                                    BorderBrush="#95A5B0"
+                                                    BorderThickness="1"
+                                                    Padding="5">
+
+                                                <StackPanel>
+
+                                                    <!-- 현재 장비 상태 제목 -->
+                                                    <TextBlock Text="CURRENT STATUS"
+                                                               HorizontalAlignment="Center"
+                                                               Foreground="White"
+                                                               FontWeight="Bold"
+                                                               Margin="0,0,0,10"/>
+
+                                                    <!-- 현재 Pan 값 표시 -->
+                                                    <TextBlock Text="{Binding CurrentPan,StringFormat=Pan   : {0:F2}}"
+                                                               Foreground="#D0D7DE"
+                                                               FontSize="12"
+                                                               FontWeight="Bold"
+                                                               Margin="0,2"/>
+
+                                                    <!-- 현재 Tilt 값 표시 -->
+                                                    <TextBlock Text="{Binding CurrentTilt,StringFormat=Tilt  : {0:F2}}"
+                                                               Foreground="#D0D7DE"
+                                                               FontSize="12"
+                                                               FontWeight="Bold"
+                                                               Margin="0,2"/>
+
+                                                    <!-- 현재 Zoom 값 표시 -->
+                                                    <TextBlock Text="{Binding CurrentZoom,StringFormat=Zoom  : {0:F0}}"
+                                                               Foreground="#D0D7DE"
+                                                               FontSize="12"
+                                                               FontWeight="Bold"
+                                                               Margin="0,2"/>
+
+                                                    <!-- 현재 Focus 값 표시 -->
+                                                    <TextBlock Text="{Binding CurrentFocus,StringFormat=Focus : {0:F0}}"
+                                                               Foreground="#D0D7DE"
+                                                               FontSize="12"
+                                                               FontWeight="Bold"
+                                                               Margin="0,2"/>
+
+                                                </StackPanel>
                                             </Border>
 
                                         </StackPanel>
-                                    </Border>
+                                    </ScrollViewer>
+                                </TabItem>
 
-                                    <!-- PAN / TILT CONTROL -->
-                                    <Border Margin="0,10,10,0"
-                                            Background="#5F666D"
-                                            BorderBrush="#95A5B0"
-                                            BorderThickness="1.5"
-                                            Padding="10">
+                                <!--
+                                    [PAN / TILT] Tab
+                                
+                                    1) Continue 이동
+                                    2) Absolute 이동
+                                    3) Relative 이동
+                                    4) Home / Zero 기능을 제공한다.
+                                -->
+                                <TabItem Header="PAN / TILT">
 
-                                        <Grid>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
+                                    <!-- [PAN / TILT] Tab 내부 [Scroll 영역] -->
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Disabled">
 
-                                            <TextBlock Grid.Row="0"
-                                                       Text="PAN / TILT CONTROL"
-                                                       HorizontalAlignment="Center"
-                                                       Foreground="White"
-                                                       FontWeight="Bold"
-                                                       Margin="0,0,0,5"/>
+                                        <StackPanel Margin="0,10,0,10">
 
-                                            <Grid Grid.Row="1"
-                                                  Width="120"
-                                                  Height="120"
-                                                  HorizontalAlignment="Center">
 
-                                                <Grid.RowDefinitions>
-                                                    <RowDefinition/>
-                                                    <RowDefinition/>
-                                                    <RowDefinition/>
-                                                </Grid.RowDefinitions>
 
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition/>
-                                                    <ColumnDefinition/>
-                                                    <ColumnDefinition/>
-                                                </Grid.ColumnDefinitions>
+                                            <!-- Absolute 위치 이동 영역 -->
+                                            <Border Margin="0,0,0,10"
+                                                    Background="#5F666D"
+                                                    BorderBrush="#95A5B0"
+                                                    BorderThickness="1.5"
+                                                    Padding="10">
 
-                                                <!-- [TILT] [UP] -->
-                                                <Button Grid.Row="0"
-                                                        Grid.Column="1"
-                                                        Content="▲"
-                                                        Style="{StaticResource PanTiltDirectionButtonStyle}"
-                                                        PreviewMouseDown="TiltUp_MouseDown"
-                                                        PreviewMouseUp="MoveStop_MouseUp"
-                                                        MouseLeave="MoveStop_MouseUp"/>
+                                                <StackPanel>
 
-                                                <!-- [PAN] [LEFT] -->
-                                                <Button Grid.Row="1"
-                                                        Grid.Column="0"
-                                                        Content="◀"
-                                                        Style="{StaticResource PanTiltDirectionButtonStyle}"
-                                                        PreviewMouseDown="PanLeft_MouseDown"
-                                                        PreviewMouseUp="MoveStop_MouseUp"
-                                                        MouseLeave="MoveStop_MouseUp"/>
+                                                    <!-- Absolute 이동 제목 -->
+                                                    <TextBlock Text="ABSOLUTE MOVE"
+                                                               HorizontalAlignment="Center"
+                                                               Foreground="White"
+                                                               FontWeight="Bold"
+                                                               Margin="0,0,0,8"/>
 
-                                                <!-- [STOP] -->
-                                                <Border Grid.Row="1"
-                                                        Grid.Column="1"
-                                                        Margin="5"
-                                                        Background="#3F454B"
-                                                        BorderBrush="#8B949E"
-                                                        BorderThickness="1">
+                                                    <!-- Pan Absolute 목표 각도 입력 라벨 -->
+                                                    <TextBlock Text="Pan Target"
+                                                               Foreground="White"
+                                                               FontSize="12"/>
 
-                                                    <Button Content="STOP"
-                                                            Style="{StaticResource StopButtonStyle}"
-                                                            Command="{Binding StopMoveCommand}"/>
-                                                </Border>
+                                                    <!-- Pan Absolute 목표 각도 입력 -->
+                                                    <TextBox Text="{Binding PanAbsoluteValue, UpdateSourceTrigger=PropertyChanged}"
+                                                             Height="24"
+                                                             Margin="0,3,0,5"
+                                                             FontWeight="Bold"
+                                                             VerticalContentAlignment="Center"/>
 
-                                                <!-- [PAN] [RIGHT] -->
-                                                <Button Grid.Row="1"
-                                                        Grid.Column="2"
-                                                        Content="▶"
-                                                        Style="{StaticResource PanTiltDirectionButtonStyle}"
-                                                        PreviewMouseDown="PanRight_MouseDown"
-                                                        PreviewMouseUp="MoveStop_MouseUp"
-                                                        MouseLeave="MoveStop_MouseUp"/>
+                                                    <!-- Pan Absolute 이동 실행 -->
+                                                    <Button Content="PAN GO"
+                                                            Height="30"
+                                                            Margin="0,0,0,8"
+                                                            Style="{StaticResource EoControlButtonStyle}"
+                                                            Command="{Binding MovePanAbsoluteCommand}"/>
 
-                                                <!-- [TILT] [DOWN] -->
-                                                <Button Grid.Row="2"
-                                                        Grid.Column="1"
-                                                        Content="▼"
-                                                        Style="{StaticResource PanTiltDirectionButtonStyle}"
-                                                        PreviewMouseDown="TiltDown_MouseDown"
-                                                        PreviewMouseUp="MoveStop_MouseUp"
-                                                        MouseLeave="MoveStop_MouseUp"/>
-                                            </Grid>
+                                                    <!-- Tilt Absolute 목표 각도 입력 라벨 -->
+                                                    <TextBlock Text="Tilt Target"
+                                                               Foreground="White"
+                                                               FontSize="12"/>
 
-                                            <TextBlock Grid.Row="2"
-                                                       Text="{Binding PanTiltSpeedLevel,StringFormat=PT SPEED LV : {0} deg/s}"
-                                                       Foreground="#D0D7DE"
-                                                       FontSize="12"
-                                                       FontWeight="Bold"
-                                                       HorizontalAlignment="Center"
-                                                       Margin="0,5,0,0"/>
-                                        </Grid>
-                                    </Border>
+                                                    <!-- Tilt Absolute 목표 각도 입력 -->
+                                                    <TextBox Text="{Binding TiltAbsoluteValue, UpdateSourceTrigger=PropertyChanged}"
+                                                             Height="24"
+                                                             Margin="0,3,0,5"
+                                                             FontWeight="Bold"
+                                                             VerticalContentAlignment="Center"/>
 
-                                    <!-- ZOOM / FOCUS CONTROL -->
-                                    <Border Margin="0,10,10,0"
-                                            Background="#5F666D"
-                                            BorderBrush="#95A5B0"
-                                            BorderThickness="1.5"
-                                            Padding="10">
+                                                    <!-- Tilt Absolute 이동 실행 -->
+                                                    <Button Content="TILT GO"
+                                                            Height="30"
+                                                            Style="{StaticResource EoControlButtonStyle}"
+                                                            Command="{Binding MoveTiltAbsoluteCommand}"/>
+                                                </StackPanel>
+                                            </Border>
 
-                                        <Grid>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
+                                            <!-- Relative 위치 이동 영역 -->
+                                            <Border Margin="0,0,0,10"
+                                                    Background="#5F666D"
+                                                    BorderBrush="#95A5B0"
+                                                    BorderThickness="1.5"
+                                                    Padding="10">
 
-                                            <!-- 제목 -->
-                                            <TextBlock Grid.Row="0"
-                                                       Text="ZOOM / FOCUS CONTROL"
-                                                       HorizontalAlignment="Center"
-                                                       Foreground="White"
-                                                       FontWeight="Bold"
-                                                       Margin="0,0,0,5"/>
+                                                <StackPanel>
 
-                                            <!-- [EO] [ZOOM] 제어 -->
-                                            <StackPanel Grid.Row="1"
-                                                        Orientation="Horizontal"
-                                                        HorizontalAlignment="Center"
-                                                        Margin="0,0,0,10">
+                                                    <!-- Relative 이동 제목 -->
+                                                    <TextBlock Text="RELATIVE MOVE"
+                                                               HorizontalAlignment="Center"
+                                                               Foreground="White"
+                                                               FontWeight="Bold"
+                                                               Margin="0,0,0,8"/>
 
-                                                <!-- [EO] [ZOOM] 확대 -->
-                                                <Button Content="ZOOM +"
-                                                        Width="85"
-                                                        Margin="5"
-                                                        Focusable="False"
-                                                        Style="{StaticResource EoControlButtonStyle}"
-                                                        PreviewMouseDown="ZoomIn_MouseDown"
-                                                        PreviewMouseUp="MoveStop_MouseUp"
-                                                        MouseLeave="MoveStop_MouseUp"/>
+                                                    <!-- Pan Relative 이동 각도 입력 라벨 -->
+                                                    <TextBlock Text="Pan Relative"
+                                                               Foreground="White"
+                                                               FontSize="12"/>
 
-                                                <!-- [EO] [ZOOM] 축소 -->
-                                                <Button Content="ZOOM -"
-                                                        Width="85"
-                                                        Margin="5"
-                                                        Focusable="False"
-                                                        Style="{StaticResource EoControlButtonStyle}"
-                                                        PreviewMouseDown="ZoomOut_MouseDown"
-                                                        PreviewMouseUp="MoveStop_MouseUp"
-                                                        MouseLeave="MoveStop_MouseUp"/>
-                                            </StackPanel>
+                                                    <!-- Pan Relative 이동 각도 입력 -->
+                                                    <TextBox Text="{Binding PanRelativeValue, UpdateSourceTrigger=PropertyChanged}"
+                                                             Height="24"
+                                                             Margin="0,3,0,5"
+                                                             FontWeight="Bold"
+                                                             VerticalContentAlignment="Center"/>
 
-                                            <!-- [EO] [FOCUS] 제어 -->
-                                            <StackPanel Grid.Row="2"
-                                                        Orientation="Horizontal"
-                                                        HorizontalAlignment="Center"
-                                                        Margin="0,0,0,10">
+                                                    <!-- Pan Relative 이동 실행 -->
+                                                    <Button Content="PAN RELATIVE"
+                                                            Height="30"
+                                                            Margin="0,0,0,8"
+                                                            Style="{StaticResource EoControlButtonStyle}"
+                                                            Command="{Binding MovePanRelativeCommand}"/>
 
-                                                <!-- [EO] [FOCUS] [Far] -->
-                                                <Button Content="FOCUS +"
-                                                        Width="85"
-                                                        Margin="5"
-                                                        Focusable="False"
-                                                        Style="{StaticResource EoControlButtonStyle}"
-                                                        PreviewMouseDown="FocusFar_MouseDown"
-                                                        PreviewMouseUp="MoveStop_MouseUp"
-                                                        MouseLeave="MoveStop_MouseUp"/>
+                                                    <!-- Tilt Relative 이동 각도 입력 라벨 -->
+                                                    <TextBlock Text="Tilt Relative"
+                                                               Foreground="White"
+                                                               FontSize="12"/>
 
-                                                <!-- [EO] [FOCUS] [Near] -->
-                                                <Button Content="FOCUS -"
-                                                        Width="85"
-                                                        Margin="5"
-                                                        Focusable="False"
-                                                        Style="{StaticResource EoControlButtonStyle}"
-                                                        PreviewMouseDown="FocusNear_MouseDown"
-                                                        PreviewMouseUp="MoveStop_MouseUp"
-                                                        MouseLeave="MoveStop_MouseUp"/>
-                                            </StackPanel>
+                                                    <!-- Tilt Relative 이동 각도 입력 -->
+                                                    <TextBox Text="{Binding TiltRelativeValue, UpdateSourceTrigger=PropertyChanged}"
+                                                             Height="24"
+                                                             Margin="0,3,0,5"
+                                                             FontWeight="Bold"
+                                                             VerticalContentAlignment="Center"/>
 
-                                            <Button Grid.Row="3"
-                                                    Content="AUTO FOCUS"
-                                                    Width="180"
-                                                    Margin="5"
-                                                    HorizontalAlignment="Center"
-                                                    Style="{StaticResource AutoFocusButtonStyle}"
-                                                    Command="{Binding AutoFocusCommand}"/>
-                                        </Grid>
-                                    </Border>
+                                                    <!-- Tilt Relative 이동 실행 -->
+                                                    <Button Content="TILT RELATIVE"
+                                                            Height="30"
+                                                            Style="{StaticResource EoControlButtonStyle}"
+                                                            Command="{Binding MoveTiltRelativeCommand}"/>
+                                                </StackPanel>
+                                            </Border>
 
-                                    <!-- 상태 표시 -->
-                                    <Border Margin="0,10,10,0"
-                                            Background="#5F666D"
-                                            BorderBrush="#95A5B0"
-                                            BorderThickness="1.5"
-                                            Padding="10">
+                                            <!-- Home / Zero 제어 영역 -->
+                                            <Border Margin="0,0,0,10"
+                                                    Background="#5F666D"
+                                                    BorderBrush="#95A5B0"
+                                                    BorderThickness="1.5"
+                                                    Padding="10">
 
-                                        <Grid>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
+                                                <StackPanel>
 
-                                            <TextBlock Grid.Row="0"
-                                                       Text="STATUS"
-                                                       HorizontalAlignment="Center"
-                                                       Foreground="White"
-                                                       FontWeight="Bold"
-                                                       Margin="0,0,0,8"/>
+                                                    <!-- Home / Zero 제목 -->
+                                                    <TextBlock Text="HOME / ZERO"
+                                                               HorizontalAlignment="Center"
+                                                               Foreground="White"
+                                                               FontWeight="Bold"
+                                                               Margin="0,0,0,8"/>
 
-                                            <TextBlock Grid.Row="1"
-                                                       Text="PAN / TILT / ZOOM / FOCUS"
-                                                       Foreground="White"
-                                                       FontSize="12"
-                                                       FontWeight="Bold"
-                                                       Margin="0,0,0,4"/>
+                                                    <!--
+                                                        Home Position 이동
 
-                                            <TextBlock Grid.Row="2"
-                                                       Text="{Binding CurrentPan, Mode=OneWay, StringFormat=Pan : {0:F2}}"
-                                                       Foreground="White"
-                                                       FontSize="12"/>
+                                                        Set0가 아니라
+                                                        실제 Pan / Tilt를 0도 위치로 이동한다.
+                                                    -->
+                                                    <Button Content="HOME POSITION"
+                                                            Height="30"
+                                                            Margin="0,0,0,8"
+                                                            Style="{StaticResource AutoFocusButtonStyle}"
+                                                            Command="{Binding MoveHomePositionCommand}"/>
 
-                                            <TextBlock Grid.Row="3"
-                                                       Text="{Binding CurrentTilt, Mode=OneWay, StringFormat=Tilt : {0:F2}}"
-                                                       Foreground="White"
-                                                       FontSize="12"/>
+                                                    <!-- Pan / Tilt Zero 버튼 배치 영역 -->
+                                                    <StackPanel Orientation="Horizontal"
+                                                                HorizontalAlignment="Center">
 
-                                            <TextBlock Grid.Row="4"
-                                                       Text="{Binding CurrentZoom, Mode=OneWay, StringFormat=Zoom : {0:F2}}"
-                                                       Foreground="White"
-                                                       FontSize="12"/>
+                                                        <!-- Pan 현재 위치를 0으로 재정의 -->
+                                                        <Button Content="PAN ZERO"
+                                                                Width="85"
+                                                                Margin="5"
+                                                                Style="{StaticResource EoControlButtonStyle}"
+                                                                Command="{Binding SetPanZeroCommand}"/>
 
-                                            <TextBlock Grid.Row="5"
-                                                       Text="{Binding CurrentFocus, Mode=OneWay, StringFormat=Focus : {0:F2}}"
-                                                       Foreground="White"
-                                                       FontSize="12"/>
-                                        </Grid>
-                                    </Border>
+                                                        <!-- Tilt 현재 위치를 0으로 재정의 -->
+                                                        <Button Content="TILT ZERO"
+                                                                Width="85"
+                                                                Margin="5"
+                                                                Style="{StaticResource EoControlButtonStyle}"
+                                                                Command="{Binding SetTiltZeroCommand}"/>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Border>
 
-                                </StackPanel>
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </TabItem>
 
-                            </ScrollViewer>
+                                <!--
+                                    ZOOM / FOCUS Tab
 
+                                    Zoom / Focus 연속 제어
+                                    Zoom / Focus 위치 이동
+                                    Auto Focus 기능을 제공한다.
+                                -->
+                                <TabItem Header="ZOOM / FOCUS">
+
+                                    <!-- ZOOM / FOCUS Tab 내부 Scroll 영역 -->
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Disabled">
+
+                                        <StackPanel Margin="0,10,0,10">
+
+                                            <!-- Zoom / Focus 위치 제어 영역 -->
+                                            <Border Margin="0,0,0,10"
+                                                    Background="#5F666D"
+                                                    BorderBrush="#95A5B0"
+                                                    BorderThickness="1.5"
+                                                    Padding="10">
+
+                                                <StackPanel>
+
+                                                    <!-- Position Control 제목 -->
+                                                    <TextBlock Text="POSITION CONTROL"
+                                                               HorizontalAlignment="Center"
+                                                               Foreground="White"
+                                                               FontWeight="Bold"
+                                                               Margin="0,0,0,8"/>
+
+                                                    <!-- Zoom 목표 위치 입력 라벨 -->
+                                                    <TextBlock Text="Zoom Position"
+                                                               Foreground="White"
+                                                               FontSize="12"/>
+
+                                                    <!-- Zoom 목표 위치 입력 -->
+                                                    <TextBox Text="{Binding ZoomPositionValue, UpdateSourceTrigger=PropertyChanged}"
+                                                             Height="24"
+                                                             Margin="0,3,0,5"
+                                                             FontWeight="Bold"
+                                                             VerticalContentAlignment="Center"/>
+
+                                                    <!-- Zoom 위치 이동 실행 -->
+                                                    <Button Content="SET ZOOM"
+                                                            Height="30"
+                                                            Margin="0,0,0,8"
+                                                            Style="{StaticResource EoControlButtonStyle}"
+                                                            Command="{Binding SetZoomPositionCommand}"/>
+
+                                                    <!-- Focus 목표 위치 입력 라벨 -->
+                                                    <TextBlock Text="Focus Position"
+                                                               Foreground="White"
+                                                               FontSize="12"/>
+
+                                                    <!-- Focus 목표 위치 입력 -->
+                                                    <TextBox Text="{Binding FocusPositionValue, UpdateSourceTrigger=PropertyChanged}"
+                                                             Height="24"
+                                                             Margin="0,3,0,5"
+                                                             FontWeight="Bold"
+                                                             VerticalContentAlignment="Center"/>
+
+                                                    <!-- Focus 위치 이동 실행 -->
+                                                    <Button Content="SET FOCUS"
+                                                            Height="30"
+                                                            Style="{StaticResource EoControlButtonStyle}"
+                                                            Command="{Binding SetFocusPositionCommand}"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </TabItem>
+
+                            </TabControl>
                         </Grid>
                     </Border>
                 </Grid>
@@ -645,3 +932,4 @@
         </Border>
     </Grid>
 </Window>
+    

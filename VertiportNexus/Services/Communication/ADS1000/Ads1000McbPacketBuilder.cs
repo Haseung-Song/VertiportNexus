@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Text;
+using VertiportNexus.Common;
 
 namespace VertiportNexus.Services.ADS1000
 {
@@ -39,15 +40,6 @@ namespace VertiportNexus.Services.ADS1000
         /// [Tilt] 모터 [Cmd1]
         /// </summary>
         private const byte CMD1_TILT = 0x02;
-
-        /// <summary>
-        /// 모터 엔코더 해상도
-        /// 
-        /// 문서 기준:
-        /// 속도 = 2^19 / 360 * 각속도
-        /// 위치 = 2^19 / 360 * 각도
-        /// </summary>
-        private const double ENCODER_RESOLUTION = 524288.0;
 
         /// <summary>
         /// [MCB] 기본 가속도
@@ -137,6 +129,90 @@ namespace VertiportNexus.Services.ADS1000
 
         #endregion
 
+        #region [Position Packet]
+
+        /// <summary>
+        /// [Pan] 절대 위치 이동 [Packet]
+        /// </summary>
+        public byte[] BuildPanAbsolutePositionPacket(
+            double angle)
+        {
+            return BuildAbsolutePositionPacket(
+                CMD1_PAN,
+                angle);
+        }
+
+        /// <summary>
+        /// [Tilt] 절대 위치 이동 [Packet]
+        /// </summary>
+        public byte[] BuildTiltAbsolutePositionPacket(
+            double angle)
+        {
+            return BuildAbsolutePositionPacket(
+                CMD1_TILT,
+                angle);
+        }
+
+        /// <summary>
+        /// [Pan] 상대 위치 이동 [Packet]
+        /// </summary>
+        public byte[] BuildPanRelativePositionPacket(
+            double angle)
+        {
+            return BuildRelativePositionPacket(
+                CMD1_PAN,
+                angle);
+        }
+
+        /// <summary>
+        /// [Tilt] 상대 위치 이동 [Packet]
+        /// </summary>
+        public byte[] BuildTiltRelativePositionPacket(
+            double angle)
+        {
+            return BuildRelativePositionPacket(
+                CMD1_TILT,
+                angle);
+        }
+
+        /// <summary>
+        /// [Pan] 현재 위치를 [0]으로 설정
+        ///
+        /// 모터 Disable 후
+        /// 현재 Encoder 값을 [0]으로 설정한 뒤
+        /// 다시 Enable 한다.
+        ///
+        /// MO=0;
+        /// PX=0;
+        /// MO=1;
+        /// </summary>
+        public byte[] BuildPanSetZeroPacket()
+        {
+            return BuildTextPacket(
+                CMD1_PAN,
+                "MO=0;PX=0;MO=1;");
+        }
+
+        /// <summary>
+        /// [Tilt] 현재 위치를 [0]으로 설정
+        /// 
+        /// 모터 Disable 후
+        /// 현재 Encoder 값을 [0]으로 설정한 뒤
+        /// 다시 Enable 한다.
+        ///
+        /// MO=0;
+        /// PX=0;
+        /// MO=1;
+        /// </summary>
+        public byte[] BuildTiltSetZeroPacket()
+        {
+            return BuildTextPacket(
+                CMD1_TILT,
+                "MO=0;PX=0;MO=1;");
+        }
+
+        #endregion
+
         #region [Common Packet Builder]
 
         /// <summary>
@@ -151,7 +227,7 @@ namespace VertiportNexus.Services.ADS1000
         {
             int motorSpeed =
                 Convert.ToInt32(
-                    ENCODER_RESOLUTION / 360.0 * degreePerSecond);
+                    Ads1000Constants.MOTOR_ENCODER_RESOLUTION / 360.0 * degreePerSecond);
 
             //Console.WriteLine(
             //    "[PT SPEED] DegreePerSecond : " +
@@ -166,6 +242,84 @@ namespace VertiportNexus.Services.ADS1000
                 + motorSpeed
                 + ";AC="
                 + DEFAULT_ACCELERATION
+                + ";BG;";
+
+            return BuildTextPacket(
+                cmd1,
+                commandText);
+        }
+
+        /// <summary>
+        /// [MCB] 절대 위치 이동 [Packet]
+        /// 
+        /// ADS3000 프로토콜 기준:
+        /// PA = 위치;
+        /// SP = 속도;
+        /// BG;
+        /// 
+        /// 지정한 목표 위치까지
+        /// 설정된 속도로 이동한다.
+        /// </summary>
+        private byte[] BuildAbsolutePositionPacket(
+            byte cmd1,
+            double angle)
+        {
+            int motorPosition =
+                Convert.ToInt32(
+                    Ads1000Constants.MOTOR_ENCODER_RESOLUTION
+                    / 360.0
+                    * angle);
+
+            int motorSpeed =
+                Convert.ToInt32(
+                    Ads1000Constants.MOTOR_ENCODER_RESOLUTION
+                    / 360.0
+                    * Ads1000Constants.DEFAULT_POSITION_SPEED);
+
+            string commandText =
+                "PA="
+                + motorPosition
+                + ";SP="
+                + motorSpeed
+                + ";BG;";
+
+            return BuildTextPacket(
+                cmd1,
+                commandText);
+        }
+
+        /// <summary>
+        /// [MCB] 상대 위치 이동 [Packet]
+        /// 
+        /// ADS3000 프로토콜 기준:
+        /// PR = 위치;
+        /// SP = 속도;
+        /// BG;
+        /// 
+        /// 현재 위치 기준으로
+        /// 지정한 각도만큼 상대 이동한다.
+        /// </summary>
+        private byte[] BuildRelativePositionPacket(
+            byte cmd1,
+            double angle)
+        {
+            int motorPosition =
+                Convert.ToInt32(
+                    Ads1000Constants.MOTOR_ENCODER_RESOLUTION
+                    / 360.0
+                    * angle);
+
+            int motorSpeed =
+                Convert.ToInt32(
+                    Ads1000Constants.MOTOR_ENCODER_RESOLUTION
+                    / 360.0
+                    * Ads1000Constants.DEFAULT_POSITION_SPEED);
+
+            string commandText =
+                "PR="
+                + motorPosition
+                + ";SP="
+                + motorSpeed
                 + ";BG;";
 
             return BuildTextPacket(

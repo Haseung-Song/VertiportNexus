@@ -52,9 +52,19 @@
         private const byte CMD2_ZOOM = 0x31;
 
         /// <summary>
+        /// [Zoom] 위치 이동 [Cmd2]
+        /// </summary>
+        private const byte CMD2_ZOOM_POSITION = 0x37;
+
+        /// <summary>
         /// [Focus] 제어 [Cmd2]
         /// </summary>
         private const byte CMD2_FOCUS = 0x33;
+
+        /// <summary>
+        /// [Focus] 위치 이동 [Cmd2]
+        /// </summary>
+        private const byte CMD2_FOCUS_POSITION = 0x39;
 
         /// <summary>
         /// [Auto Focus] 제어 [Cmd2]
@@ -157,6 +167,23 @@
                 DEFAULT_SPEED);
         }
 
+        /// <summary>
+        /// [Zoom] 위치 이동 [Packet] 생성
+        /// 
+        /// 문서 기준:
+        /// Cmd2   = 0x37
+        /// Option = 0x00
+        /// Data   = 0 ~ 1000
+        /// </summary>
+        public byte[] BuildZoomPositionPacket(
+            ushort zoomValue)
+        {
+            return BuildCommonPacket(
+                CMD2_ZOOM_POSITION,
+                OPTION_STOP,
+                zoomValue);
+        }
+
         #endregion
 
         #region [Focus Packet]
@@ -198,6 +225,23 @@
                 CMD2_FOCUS,
                 OPTION_STOP,
                 DEFAULT_SPEED);
+        }
+
+        /// <summary>
+        /// [Focus] 위치 이동 [Packet] 생성
+        /// 
+        /// 문서 기준:
+        /// Cmd2   = 0x39
+        /// Option = 0x00
+        /// Data   = 0 ~ 1000
+        /// </summary>
+        public byte[] BuildFocusPositionPacket(
+            ushort focusValue)
+        {
+            return BuildCommonPacket(
+                CMD2_FOCUS_POSITION,
+                OPTION_STOP,
+                focusValue);
         }
 
         #endregion
