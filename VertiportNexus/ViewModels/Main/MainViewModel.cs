@@ -24,7 +24,7 @@ namespace VertiportNexus.ViewModels.Main
     /// 메인 클래스 역할:
     /// 1. [MCB] / [SCB] [TCP] 연결 상태 관리
     /// 2. [ADS1000] [Packet Builder]를 통한 장비 제어 [Packet] 생성
-    /// 3. [MCB] [Pan] / [Tilt] 제어 0
+    /// 3. [MCB] [Pan] / [Tilt] 제어
     /// 4. [SCB] [Zoom] / [Focus] 제어
     /// 5. [Console] 로그 및 [XAML] 상태 표시
     /// 
@@ -64,9 +64,13 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         private const int DEFAULT_SCB_PORT = 4002;
 
-        #endregion
+        /// <summary>
+        /// [EO] [RTSP] 테스트 주소
+        /// </summary>
+        private const string DEFAULT_EO_RTSP_ADDRESS =
+            "rtsp://service:Xhddlf1!@192.168.0.110:554/rtsp_tunnel";
 
-        #region [Fields]
+        #endregion
 
         #region [Service Fields]
 
@@ -114,20 +118,6 @@ namespace VertiportNexus.ViewModels.Main
         /// [CSE] 명령 처리 서비스
         /// </summary>
         private readonly CseCommandHandler _cseCommandHandler;
-
-        #endregion
-
-        #region [Builder Fields]
-
-        /// <summary>
-        /// [MCB] [Pan] / [Tilt] [Packet] 생성 객체
-        /// </summary>
-        private readonly Ads1000McbPacketBuilder _mcbPacketBuilder;
-
-        /// <summary>
-        /// [SCB] [Zoom] / [Focus] [Packet] 생성 객체
-        /// </summary>
-        private readonly Ads1000ScbPacketBuilder _scbPacketBuilder;
 
         #endregion
 
@@ -240,32 +230,32 @@ namespace VertiportNexus.ViewModels.Main
         /// <summary>
         /// [Pan] Absolute 이동 입력값
         /// </summary>
-        private double _panAbsoluteValue = 30;
+        private double _panAbsoluteValue;
 
         /// <summary>
         /// [Tilt] Absolute 이동 입력값
         /// </summary>
-        private double _tiltAbsoluteValue = 10;
+        private double _tiltAbsoluteValue;
 
         /// <summary>
         /// [Pan] Relative 이동 입력값
         /// </summary>
-        private double _panRelativeValue = 10;
+        private double _panRelativeValue;
 
         /// <summary>
         /// [Tilt] Relative 이동 입력값
         /// </summary>
-        private double _tiltRelativeValue = 5;
+        private double _tiltRelativeValue;
 
         /// <summary>
         /// [Zoom] 위치 이동 입력값
         /// </summary>
-        private int _zoomPositionValue = 300;
+        private int _zoomPositionValue;
 
         /// <summary>
         /// [Focus] 위치 이동 입력값
         /// </summary>
-        private int _focusPositionValue = 500;
+        private int _focusPositionValue;
 
         #endregion
 
@@ -276,6 +266,14 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         private BitmapSource _eoCameraImage;
 
+        /// <summary>
+        /// [EO] 영상 표시 허용 여부
+        /// 
+        /// 연결 해제 또는 연결 중 해제 시,
+        /// 뒤늦게 들어온 [Frame]이 화면에 다시 표시되지 않도록 제어한다.
+        /// </summary>
+        private bool _isEoVideoDisplayEnabled;
+
         #endregion
 
         #region [Camera Service Fields]
@@ -285,17 +283,9 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         private readonly EoCameraService _eoCameraService;
 
-        /// <summary>
-        /// [EO] [RTSP] 테스트 주소
-        /// </summary>
-        private string _eoRtspAddress =
-            "rtsp://service:Xhddlf1!@192.168.0.110:554/rtsp_tunnel";
-
         #endregion
 
-        #endregion
-
-        #region [ICommand]
+        #region [Command Properties]
 
         /// <summary>
         /// [TCP] 연결 요청 [Command]
@@ -433,90 +423,71 @@ namespace VertiportNexus.ViewModels.Main
         {
             #region [Service Initialize]
 
-            /// <summary>
-            /// [MCB] [TCP] 통신 서비스 생성
-            /// </summary>
+            // [MCB] [TCP] 통신 서비스 생성
             _mcbTcpClientService =
                 new TcpClientService("MCB");
 
-            /// <summary>
-            /// [SCB] [TCP] 통신 서비스 생성
-            /// </summary>
+            // [SCB] [TCP] 통신 서비스 생성
             _scbTcpClientService =
                 new TcpClientService("SCB");
 
-            /// <summary>
-            /// [MCB] 수신 이벤트 연결
-            /// </summary>
+            // [MCB] 수신 이벤트 연결
             _mcbTcpClientService.MessageReceived +=
                 OnMcbMessageReceived;
 
-            /// <summary>
-            /// [SCB] 수신 이벤트 연결
-            /// </summary>
+            // [SCB] 수신 이벤트 연결
             _scbTcpClientService.MessageReceived +=
                 OnScbMessageReceived;
 
-            /// <summary>
-            /// [ADS1000] 장비 [TCP] 연결 서비스 생성
-            /// </summary>
+            // [ADS1000] 장비 [TCP] 연결 서비스 생성
             _ads1000ConnectionService =
                 new Ads1000ConnectionService(
                     _mcbTcpClientService,
                     _scbTcpClientService);
 
-            /// <summary>
-            /// [EO] [Camera] 영상 서비스 생성
-            /// </summary>
+            // [EO] [Camera] 영상 서비스 생성
             _eoCameraService =
                 new EoCameraService();
 
-            /// <summary>
-            /// [EO] 영상 [Frame] 수신 이벤트 연결
-            /// </summary>
+            // [EO] 영상 [Frame] 수신 이벤트 연결
             _eoCameraService.FrameReceived +=
                 OnEoCameraFrameReceived;
 
-            /// <summary>
-            /// [EO] 영상 상태 변경 이벤트 연결
-            /// </summary>
+            // [EO] 영상 상태 변경 이벤트 연결
             _eoCameraService.StatusChanged +=
                 OnEoCameraStatusChanged;
-
 
             #endregion
 
             #region [Builder Initialize]
 
-            /// <summary>
-            /// [MCB] [Packet Builder] 생성
-            /// </summary>
-            _mcbPacketBuilder =
+            // [MCB] [Packet Builder] 생성
+            //
+            // [Ads1000CameraControlService] 생성 시
+            // Packet 생성 객체로 전달한다.
+            Ads1000McbPacketBuilder mcbPacketBuilder =
                 new Ads1000McbPacketBuilder();
 
-            /// <summary>
-            /// [SCB] [Packet Builder] 생성
-            /// </summary>
-            _scbPacketBuilder =
+            // [SCB] [Packet Builder] 생성
+            //
+            // [Ads1000CameraControlService] 생성 시
+            // Packet 생성 객체로 전달한다.
+            Ads1000ScbPacketBuilder scbPacketBuilder =
                 new Ads1000ScbPacketBuilder();
 
             #endregion
 
             #region [Control Service Initialize]
 
-            /// <summary>
-            /// [ADS1000] [Camera] 제어 서비스 생성
-            /// </summary>
+            // [ADS1000] [Camera] 제어 서비스 생성
             _ads1000CameraControlService =
                 new Ads1000CameraControlService(
                     _mcbTcpClientService,
                     _scbTcpClientService,
-                    _mcbPacketBuilder,
-                    _scbPacketBuilder);
+                    mcbPacketBuilder,
+                    scbPacketBuilder);
 
-            /// <summary>
-            /// [ADS1000] [Packet] 송신 결과 이벤트 연결
-            /// </summary>
+            // [ADS1000] [Packet] 송신 결과 이벤트 연결
             _ads1000CameraControlService.SendResultChanged +=
                 OnAds1000SendResultChanged;
 
@@ -524,9 +495,7 @@ namespace VertiportNexus.ViewModels.Main
 
             #region [Status Service Initialize]
 
-            /// <summary>
-            /// [ADS1000] 상태 [Packet] 처리 서비스 생성
-            /// </summary>
+            // [ADS1000] 상태 [Packet] 처리 서비스 생성
             _ads1000StatusService =
                 new Ads1000StatusService();
 
@@ -534,58 +503,42 @@ namespace VertiportNexus.ViewModels.Main
 
             #region [CSE Initialize]
 
-            /// <summary>
-            /// [Mock] [MQ] 수신 서비스 생성
-            /// </summary>
+            // [Mock] [MQ] 수신 서비스 생성
             _mockMqReceiver =
                 new MockMqReceiver();
 
-            /// <summary>
-            /// [CSE] 명령 수신 서비스 생성
-            /// </summary>
+            // [CSE] 명령 수신 서비스 생성
             _cseCommandReceiveService =
                 new CseCommandReceiveService(
                     _mockMqReceiver);
 
-            /// <summary>
-            /// 내부 카메라 명령 처리 서비스 생성
-            /// </summary>
+            // 내부 카메라 명령 처리 서비스 생성
             _cameraCommandService =
                 new CameraCommandService(
                     _ads1000CameraControlService);
 
-            /// <summary>
-            /// [CSE] 명령 처리 서비스 생성
-            /// </summary>
+            // [CSE] 명령 처리 서비스 생성
             _cseCommandHandler =
                 new CseCommandHandler(
                     _cameraCommandService);
 
-            /// <summary>
-            /// [CSE] 명령 수신 이벤트 연결
-            /// </summary>
+            // [CSE] 명령 수신 이벤트 연결
             _cseCommandReceiveService.CommandReceived +=
                 OnCseCommandReceived;
 
-            /// <summary>
-            /// [CSE] 명령 수신 시작
-            /// </summary>
+            // [CSE] 명령 수신 시작
             _cseCommandReceiveService.StartReceive();
 
-            /// <summary>
-            /// [CSE] [PTZ Move] 명령 수신 테스트
-            /// 
-            /// [continuous] [Pan Right] 이동 명령을
-            /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
-            /// </summary>
+            // [CSE] [PTZ Move] 명령 수신 테스트
+            //
+            // [continuous] [Pan Right] 이동 명령을
+            // [Mock MQ]를 통해 수신한 것처럼 테스트한다.
             //TestCsePtzMove();
 
-            /// <summary>
-            /// [CSE] [PTZ Stop] 명령 수신 테스트
-            /// 
-            /// [PTZ] 정지 명령을
-            /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
-            /// </summary>
+            // [CSE] [PTZ Stop] 명령 수신 테스트
+            //
+            // [PTZ] 정지 명령을
+            // [Mock MQ]를 통해 수신한 것처럼 테스트한다.
             //TestCsePtzStop();
 
             #endregion
@@ -598,15 +551,11 @@ namespace VertiportNexus.ViewModels.Main
             DisconnectTcpCommand =
                 new RelayCommand(DisconnectMq);
 
-            /// <summary>
-            /// [MCB] / [SCB] 직접 [TCP] 연결 시작 [Command]
-            /// </summary>
+            // [MCB] / [SCB] 직접 [TCP] 연결 시작 [Command]
             StartTcpReceiveCommand =
                 new AsyncRelayCommand(ConnectDevicesAsync);
 
-            /// <summary>
-            /// [MCB] / [SCB] 직접 [TCP] 연결 해제 [Command]
-            /// </summary>
+            // [MCB] / [SCB] 직접 [TCP] 연결 해제 [Command]
             StopTcpReceiveCommand =
                 new AsyncRelayCommand(DisconnectDevicesAsync);
 
@@ -713,8 +662,11 @@ namespace VertiportNexus.ViewModels.Main
 
         #endregion
 
-        #region [Bindable Properties]
+        #region [Network Properties]
 
+        /// <summary>
+        /// [MCB] 연결 대상 [IP]
+        /// </summary>
         public string McbIpAddress
         {
             get => _mcbIpAddress;
@@ -730,6 +682,9 @@ namespace VertiportNexus.ViewModels.Main
 
         }
 
+        /// <summary>
+        /// [MCB] 연결 대상 [Port]
+        /// </summary>
         public int McbPort
         {
             get => _mcbPort;
@@ -745,6 +700,9 @@ namespace VertiportNexus.ViewModels.Main
 
         }
 
+        /// <summary>
+        /// [SCB] 연결 대상 [IP]
+        /// </summary>
         public string ScbIpAddress
         {
             get => _scbIpAddress;
@@ -760,6 +718,9 @@ namespace VertiportNexus.ViewModels.Main
 
         }
 
+        /// <summary>
+        /// [SCB] 연결 대상 [Port]
+        /// </summary>
         public int ScbPort
         {
             get => _scbPort;
@@ -775,7 +736,9 @@ namespace VertiportNexus.ViewModels.Main
 
         }
 
-
+        /// <summary>
+        /// 기존 [TCP] UI 바인딩 호환용 [Port]
+        /// </summary>
         public int TcpLocalReceivePort
         {
             get => _tcpLocalReceivePort;
@@ -791,6 +754,13 @@ namespace VertiportNexus.ViewModels.Main
 
         }
 
+        #endregion
+
+        #region [MQ Properties]
+
+        /// <summary>
+        /// [MQ] 연결 상태 표시 문자열
+        /// </summary>
         public string MqStatusText
         {
             get => _mqStatusText;
@@ -806,6 +776,9 @@ namespace VertiportNexus.ViewModels.Main
 
         }
 
+        /// <summary>
+        /// 마지막 [MQ] 수신 메시지 표시 문자열
+        /// </summary>
         public string LastMqMessageText
         {
             get => _lastMqMessageText;
@@ -821,8 +794,12 @@ namespace VertiportNexus.ViewModels.Main
 
         }
 
+        #endregion
+
+        #region [Connection Status Properties]
+
         /// <summary>
-        /// [MCB] 연결 상태 표시
+        /// [MCB] 연결 상태 표시 문자열
         /// </summary>
         public string McbConnectionStatusText
         {
@@ -845,7 +822,7 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
-        /// [MCB] 연결 상태 색상
+        /// [MCB] 연결 상태 표시 색상
         /// </summary>
         public Brush McbConnectionStatusBrush
         {
@@ -868,7 +845,7 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
-        /// [SCB] 연결 상태 표시
+        /// [SCB] 연결 상태 표시 문자열
         /// </summary>
         public string ScbConnectionStatusText
         {
@@ -891,7 +868,7 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
-        /// [SCB] 연결 상태 색상
+        /// [SCB] 연결 상태 표시 색상
         /// </summary>
         public Brush ScbConnectionStatusBrush
         {
@@ -913,6 +890,13 @@ namespace VertiportNexus.ViewModels.Main
 
         }
 
+        #endregion
+
+        #region [Main Status Properties]
+
+        /// <summary>
+        /// 프로그램 전체 상태 표시 문자열
+        /// </summary>
         public string MainStatusText
         {
             get => _mainStatusText;
@@ -928,6 +912,9 @@ namespace VertiportNexus.ViewModels.Main
 
         }
 
+        /// <summary>
+        /// 현재 운용 모드 표시 문자열
+        /// </summary>
         public string OperationModeText
         {
             get => _operationModeText;
@@ -943,6 +930,13 @@ namespace VertiportNexus.ViewModels.Main
 
         }
 
+        #endregion
+
+        #region [Camera Status Properties]
+
+        /// <summary>
+        /// 현재 [Pan] 위치값
+        /// </summary>
         public double CurrentPan
         {
             get => _currentPan;
@@ -958,6 +952,9 @@ namespace VertiportNexus.ViewModels.Main
 
         }
 
+        /// <summary>
+        /// 현재 [Tilt] 위치값
+        /// </summary>
         public double CurrentTilt
         {
             get => _currentTilt;
@@ -973,11 +970,20 @@ namespace VertiportNexus.ViewModels.Main
 
         }
 
+        /// <summary>
+        /// 현재 [Pan] / [Tilt] 제어 속도
+        /// 
+        /// [Ads1000CameraControlService]에서 관리하는
+        /// 현재 운용 속도를 화면에 표시한다.
+        /// </summary>
         public double PanTiltSpeedLevel
         {
-            get => _ads1000CameraControlService.PanTiltSpeedLevel;
+            get => _ads1000CameraControlService.PanTiltSpeedLevel = 50;
         }
 
+        /// <summary>
+        /// 현재 [Zoom] 위치값
+        /// </summary>
         public double CurrentZoom
         {
             get => _currentZoom;
@@ -993,6 +999,9 @@ namespace VertiportNexus.ViewModels.Main
 
         }
 
+        /// <summary>
+        /// 현재 [Focus] 위치값
+        /// </summary>
         public double CurrentFocus
         {
             get => _currentFocus;
@@ -1008,6 +1017,13 @@ namespace VertiportNexus.ViewModels.Main
 
         }
 
+        #endregion
+
+        #region [Camera Control Input Properties]
+
+        /// <summary>
+        /// [Pan] Absolute 이동 입력값
+        /// </summary>
         public double PanAbsoluteValue
         {
             get => _panAbsoluteValue;
@@ -1023,6 +1039,9 @@ namespace VertiportNexus.ViewModels.Main
 
         }
 
+        /// <summary>
+        /// [Tilt] Absolute 이동 입력값
+        /// </summary>
         public double TiltAbsoluteValue
         {
             get => _tiltAbsoluteValue;
@@ -1038,6 +1057,9 @@ namespace VertiportNexus.ViewModels.Main
 
         }
 
+        /// <summary>
+        /// [Pan] Relative 이동 입력값
+        /// </summary>
         public double PanRelativeValue
         {
             get => _panRelativeValue;
@@ -1053,6 +1075,9 @@ namespace VertiportNexus.ViewModels.Main
 
         }
 
+        /// <summary>
+        /// [Tilt] Relative 이동 입력값
+        /// </summary>
         public double TiltRelativeValue
         {
             get => _tiltRelativeValue;
@@ -1068,6 +1093,9 @@ namespace VertiportNexus.ViewModels.Main
 
         }
 
+        /// <summary>
+        /// [Zoom] 위치 이동 입력값
+        /// </summary>
         public int ZoomPositionValue
         {
             get => _zoomPositionValue;
@@ -1083,6 +1111,9 @@ namespace VertiportNexus.ViewModels.Main
 
         }
 
+        /// <summary>
+        /// [Focus] 위치 이동 입력값
+        /// </summary>
         public int FocusPositionValue
         {
             get => _focusPositionValue;
@@ -1098,6 +1129,13 @@ namespace VertiportNexus.ViewModels.Main
 
         }
 
+        #endregion
+
+        #region [Image Properties]
+
+        /// <summary>
+        /// [EO] 영상 출력용 [Image]
+        /// </summary>
         public BitmapSource EOCameraImage
         {
             get => _eoCameraImage;
@@ -1187,9 +1225,7 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         private async Task ConnectDevicesAsync()
         {
-            /// <summary>
-            /// 장비 연결 진행 중이면 중복 연결 방지
-            /// </summary>
+            // 장비 연결 진행 중이면 중복 연결 방지
             if (_isDeviceConnecting)
             {
                 ConsoleLogHelper.PrintLine();
@@ -1199,9 +1235,7 @@ namespace VertiportNexus.ViewModels.Main
                 return;
             }
 
-            /// <summary>
-            /// 이미 [MCB] / [SCB] 중 하나라도 연결되어 있으면 중복 연결 방지
-            /// </summary>
+            // 이미 [MCB] / [SCB] 중 하나라도 연결되어 있으면 중복 연결 방지
             if (_mcbConnectionState == ConnectionState.Connected ||
                 _scbConnectionState == ConnectionState.Connected)
             {
@@ -1223,9 +1257,7 @@ namespace VertiportNexus.ViewModels.Main
                 _isDeviceConnecting =
                     true;
 
-                /// <summary>
-                /// [MCB] / [SCB] 연결 시도 상태 표시
-                /// </summary>
+                // [MCB] / [SCB] 연결 시도 상태 표시
                 SetDeviceConnectionState(
                     ConnectionState.Connecting,
                     ConnectionState.Connecting);
@@ -1240,103 +1272,12 @@ namespace VertiportNexus.ViewModels.Main
                 ApplyDeviceConnectionResult(
                     connectionResult);
 
-                /// <summary>
-                /// [EO] [RTSP] 테스트 영상 연결
-                /// </summary>
+                // [EO] 영상 표시 허용
+                _isEoVideoDisplayEnabled = true;
+
+                // [EO] [RTSP] 테스트 영상 연결
                 _eoCameraService.Connect(
-                    _eoRtspAddress);
-
-                //if (connectionResult.IsMcbConnected)
-                //{
-                //    await Task.Delay(
-                //        3000);
-
-                //    /// <summary>
-                //    /// [Pan] Absolute 이동 테스트
-                //    /// 
-                //    /// [Pan] 축을 [30도] 위치로 이동한다.
-                //    /// </summary>
-                //    TestPanAbsolute();
-
-                //    await Task.Delay(
-                //        5000);
-
-                //    /// <summary>
-                //    /// [Pan] Relative 이동 테스트
-                //    /// 
-                //    /// 현재 [Pan] 위치 기준으로
-                //    /// [+10도] 상대 이동한다.
-                //    /// </summary>
-                //    TestPanRelative();
-
-                //    await Task.Delay(
-                //        3000);
-
-                //    /// <summary>
-                //    /// [Tilt] Absolute 이동 테스트
-                //    /// 
-                //    /// [Tilt] 축을 [10도] 위치로 이동한다.
-                //    /// </summary>
-                //    TestTiltAbsolute();
-
-                //    await Task.Delay(
-                //        7000);
-
-                //    /// <summary>
-                //    /// [Tilt] Relative 이동 테스트
-                //    /// 
-                //    /// 현재 [Tilt] 위치 기준으로
-                //    /// [+5도] 상대 이동한다.
-                //    /// </summary>
-                //    TestTiltRelative();
-
-                //    await Task.Delay(
-                //        7000);
-
-                //    /// <summary>
-                //    /// [Home Position] 이동 테스트
-                //    /// 
-                //    /// 실제 [Pan] / [Tilt]를
-                //    /// 원점 [0도] 위치로 이동시킨다.
-                //    /// </summary>
-                //    TestHomePosition();
-
-                //    await Task.Delay(
-                //        5000);
-
-                //    /// <summary>
-                //    /// [Zoom] 위치 이동 테스트
-                //    /// 
-                //    /// [Zoom] 값을 [300] 위치로 이동시킨다.
-                //    /// </summary>
-                //    TestZoomPosition();
-
-                //    await Task.Delay(
-                //        5000);
-
-                //    /// <summary>
-                //    /// [Focus] 위치 이동 테스트
-                //    /// 
-                //    /// [Focus] 값을 [500] 위치로 이동시킨다.
-                //    /// </summary>
-                //    TestFocusPosition();
-
-                //    await Task.Delay(
-                //        7000);
-
-                //    /// <summary>
-                //    /// [Pan] 현재 위치를 [0]으로 설정
-                //    /// </summary>
-                //    TestPanSetZero();
-
-                //    await Task.Delay(
-                //        3000);
-
-                //    /// <summary>
-                //    /// [Tilt] 현재 위치를 [0]으로 설정
-                //    /// </summary>
-                //    TestTiltSetZero();
-                //}
+                    DEFAULT_EO_RTSP_ADDRESS);
 
             }
             finally
@@ -1359,17 +1300,13 @@ namespace VertiportNexus.ViewModels.Main
             await Task.Delay(
                 2500);
 
-            /// <summary>
-            /// [CSE] [PTZ Move] 명령 수신 테스트
-            /// </summary>
+            // [CSE] [PTZ Move] 명령 수신 테스트
             TestCsePtzMove();
 
             await Task.Delay(
                 5000);
 
-            /// <summary>
-            /// [CSE] [PTZ Stop] 명령 수신 테스트
-            /// </summary>
+            // [CSE] [PTZ Stop] 명령 수신 테스트
             TestCsePtzStop();
         }
 
@@ -1465,9 +1402,7 @@ namespace VertiportNexus.ViewModels.Main
                 return Task.CompletedTask;
             }
 
-            /// <summary>
-            /// 이미 연결 해제 상태이면 중복 해제 방지
-            /// </summary>
+            // 이미 연결 해제 상태이면 중복 해제 방지
             if (_mcbConnectionState == ConnectionState.Disconnected &&
                 _scbConnectionState == ConnectionState.Disconnected)
             {
@@ -1491,22 +1426,31 @@ namespace VertiportNexus.ViewModels.Main
                 OperationModeText =
                     "STANDBY";
 
-                /// <summary>
-                /// 장비 연결 해제 상태 반영
-                /// </summary>
+                // 장비 연결 해제 상태 반영
                 SetDeviceConnectionState(
                     ConnectionState.Disconnected,
                     ConnectionState.Disconnected);
 
-                /// <summary>
-                /// [EO] [RTSP] 테스트 영상 연결 해제
-                /// </summary>
+                // [EO] 영상 표시 차단
+                //
+                // 연결 중 해제 시에도
+                // 뒤늦게 수신되는 [Frame] 표시를 방지한다.
+                _isEoVideoDisplayEnabled =
+                    false;
+
+                // [EO] [RTSP] 테스트 영상 연결 해제
                 _eoCameraService.Disconnect();
+
+                // [EO] 영상 화면 초기화
+                //
+                // [RTSP] 연결 해제 후에도
+                // 마지막 [Frame]이 화면에 남지 않도록
+                // [Image] 바인딩 값을 비운다.
+                EOCameraImage = null;
             }
             finally
             {
-                _isDeviceDisconnecting =
-                    false;
+                _isDeviceDisconnecting = false;
             }
             return Task.CompletedTask;
         }
@@ -1644,7 +1588,7 @@ namespace VertiportNexus.ViewModels.Main
         /// <summary>
         /// [EO] 영상 [Frame] 수신 처리
         /// 
-        /// [EoCameraService]에서 전달받은 [BitmapSource]를
+        /// [EO] 영상 표시 허용 상태에서만
         /// [XAML]에 바인딩된 [EOCameraImage]에 반영한다.
         /// </summary>
         /// <param name="bitmap">
@@ -1655,7 +1599,23 @@ namespace VertiportNexus.ViewModels.Main
         {
             App.Current.Dispatcher.Invoke(() =>
             {
-                EOCameraImage = bitmap;
+                // [EO] 영상 초기화 요청
+                if (bitmap == null)
+                {
+                    EOCameraImage =
+                        null;
+
+                    return;
+                }
+
+                // [EO] 영상 표시 차단 상태
+                if (!_isEoVideoDisplayEnabled)
+                {
+                    return;
+                }
+
+                EOCameraImage =
+                    bitmap;
             });
 
         }
@@ -1664,7 +1624,7 @@ namespace VertiportNexus.ViewModels.Main
         /// [EO] 영상 상태 변경 처리
         /// 
         /// [EoCameraService]에서 전달받은 상태 메시지를
-        /// [CameraStatusText]에 반영한다.
+        /// [OperationModeText]에 반영한다.
         /// </summary>
         /// <param name="statusText">
         /// [EO] 영상 상태 문자열
@@ -1692,10 +1652,10 @@ namespace VertiportNexus.ViewModels.Main
 
         #endregion
 
-        #region [Camera Control Methods]
+        #region [Camera Continuous Control Methods]
 
         /// <summary>
-        /// [Pan] 왼쪽 이동
+        /// [Pan] 왼쪽 연속 이동
         /// </summary>
         public void StartPanLeftMove()
         {
@@ -1703,7 +1663,7 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
-        /// [Pan] 오른쪽 이동
+        /// [Pan] 오른쪽 연속 이동
         /// </summary>
         public void StartPanRightMove()
         {
@@ -1711,7 +1671,7 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
-        /// [Tilt] 위쪽 이동
+        /// [Tilt] 위쪽 연속 이동
         /// </summary>
         public void StartTiltUpMove()
         {
@@ -1719,7 +1679,7 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
-        /// [Tilt] 아래쪽 이동
+        /// [Tilt] 아래쪽 연속 이동
         /// </summary>
         public void StartTiltDownMove()
         {
@@ -1727,7 +1687,7 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
-        /// [Zoom] 확대
+        /// [Zoom] 확대 연속 이동
         /// </summary>
         public void StartZoomInMove()
         {
@@ -1735,7 +1695,7 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
-        /// [Zoom] 축소
+        /// [Zoom] 축소 연속 이동
         /// </summary>
         public void StartZoomOutMove()
         {
@@ -1743,7 +1703,7 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
-        /// [Focus] Near
+        /// [Focus] Near 연속 이동
         /// </summary>
         public void StartFocusNearMove()
         {
@@ -1751,20 +1711,27 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
-        /// [Focus] Far
+        /// [Focus] Far 연속 이동
         /// </summary>
         public void StartFocusFarMove()
         {
             _ads1000CameraControlService.FocusFar();
         }
 
+        /// <summary>
+        /// [Pan] / [Tilt] / [Zoom] / [Focus] 연속 이동 정지
+        /// </summary>
         public void StopContinuousMove()
         {
             _ads1000CameraControlService.StopMove();
         }
 
+        #endregion
+
+        #region [Camera Absolute Control Methods]
+
         /// <summary>
-        /// [Pan] Absolute 이동
+        /// [Pan] 절대 위치 이동
         /// </summary>
         private void MovePanAbsolute()
         {
@@ -1774,7 +1741,7 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
-        /// [Tilt] Absolute 이동
+        /// [Tilt] 절대 위치 이동
         /// </summary>
         private void MoveTiltAbsolute()
         {
@@ -1783,8 +1750,12 @@ namespace VertiportNexus.ViewModels.Main
                     TiltAbsoluteValue);
         }
 
+        #endregion
+
+        #region [Camera Relative Control Methods]
+
         /// <summary>
-        /// [Pan] Relative 이동
+        /// [Pan] 상대 위치 이동
         /// </summary>
         private void MovePanRelative()
         {
@@ -1794,7 +1765,7 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
-        /// [Tilt] Relative 이동
+        /// [Tilt] 상대 위치 이동
         /// </summary>
         private void MoveTiltRelative()
         {
@@ -1803,8 +1774,12 @@ namespace VertiportNexus.ViewModels.Main
                     TiltRelativeValue);
         }
 
+        #endregion
+
+        #region [Zoom / Focus Position Control Methods]
+
         /// <summary>
-        /// [Zoom] 위치 이동
+        /// [Zoom] 지정 위치 이동
         /// </summary>
         private void SetZoomPosition()
         {
@@ -1817,7 +1792,7 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
-        /// [Focus] 위치 이동
+        /// [Focus] 지정 위치 이동
         /// </summary>
         private void SetFocusPosition()
         {
@@ -1879,11 +1854,23 @@ namespace VertiportNexus.ViewModels.Main
 
         #endregion
 
-        #region [Utility]
+        #region [Utility Methods]
 
         /// <summary>
-        /// 값 범위 제한
+        /// 입력값을 지정 범위 안으로 제한
         /// </summary>
+        /// <param name="value">
+        /// 원본 값
+        /// </param>
+        /// <param name="min">
+        /// 최소 허용값
+        /// </param>
+        /// <param name="max">
+        /// 최대 허용값
+        /// </param>
+        /// <returns>
+        /// 범위 제한이 적용된 값
+        /// </returns>
         private double Clamp(
             double value,
             double min,
@@ -1900,18 +1887,13 @@ namespace VertiportNexus.ViewModels.Main
 
         #endregion
 
-        #region [CSE Test Methods]
-
         #region [CSE Receive Event Methods]
 
         /// <summary>
         /// [CSE] 명령 수신 처리
         /// 
         /// [MQ] 수신부에서 [JSON] 파싱이 완료된 명령을 전달받아,
-        /// 현재는 수신 명령 로그만 출력한다.
-        /// 
-        /// 이후 [CseCommandHandler]를 통해
-        /// [ADS1000] 카메라 제어 서비스와 연결한다.
+        /// [CseCommandHandler]를 통해 실제 카메라 제어 명령으로 처리한다.
         /// </summary>
         /// <param name="message">
         /// [CSE] 명령 메시지
@@ -1925,7 +1907,7 @@ namespace VertiportNexus.ViewModels.Main
 
         #endregion
 
-        #region [CSE Test Methods]
+        #region [CSE Mock Test Methods]
 
         /// <summary>
         /// [CSE] [PTZ Move] 테스트
@@ -1969,9 +1951,7 @@ namespace VertiportNexus.ViewModels.Main
 
         #endregion
 
-        #region [Camera Control Test]
-
-        #region [Pan / Tilt Test]
+        #region [Debug Pan / Tilt Test Methods]
 
         /// <summary>
         /// [ADS1000] Pan Absolute 이동 테스트
@@ -2042,7 +2022,7 @@ namespace VertiportNexus.ViewModels.Main
 
         #endregion
 
-        #region [Zoom / Focus Test]
+        #region [Debug Zoom / Focus Test Methods]
 
         /// <summary>
         /// [ADS1000] Zoom 위치 이동 테스트
@@ -2070,11 +2050,7 @@ namespace VertiportNexus.ViewModels.Main
 
         #endregion
 
-        #region [Auto Focus Test]
-
-        #endregion
-
-        #region [Home Position Test]
+        #region [Debug Home Position Test Methods]
 
         /// <summary>
         /// [ADS1000] Home Position 이동 테스트
@@ -2087,14 +2063,19 @@ namespace VertiportNexus.ViewModels.Main
 
         #endregion
 
-        #endregion
-
-        #endregion
-
         #region [INotifyPropertyChanged]
 
+        /// <summary>
+        /// [Property] 변경 이벤트
+        /// </summary>
         public event PropertyChangedEventHandler PropertyChanged;
 
+        /// <summary>
+        /// [XAML] 바인딩 갱신 알림
+        /// </summary>
+        /// <param name="propertyName">
+        /// 변경된 [Property] 이름
+        /// </param>
         private void OnPropertyChanged(
             [CallerMemberName] string propertyName = null)
         {

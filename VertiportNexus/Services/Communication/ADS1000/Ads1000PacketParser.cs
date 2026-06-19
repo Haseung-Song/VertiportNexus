@@ -96,8 +96,11 @@ namespace VertiportNexus.Services.ADS1000
             }
 
             result.Sync0 = packet[0];
+
             result.Sync1 = packet[1];
+
             result.Cmd1 = packet[2];
+
             result.Length = packet[3];
 
             int expectedLength =

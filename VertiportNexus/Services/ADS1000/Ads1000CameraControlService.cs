@@ -86,10 +86,13 @@ namespace VertiportNexus.Services.ADS1000
         #region [Properties]
 
         /// <summary>
-        /// [PAN / TILT] 현재 속도
+        /// [PAN / TILT] 현재 속도 
         /// </summary>
-        public double PanTiltSpeedLevel =>
-            DEFAULT_PAN_TILT_SPEED;
+        public double PanTiltSpeedLevel
+        {
+            get;
+            set;
+        }
 
         #endregion
 
@@ -392,6 +395,7 @@ namespace VertiportNexus.Services.ADS1000
             /// <summary>
             /// 연결되지 않은 상태에서
             /// [Stop Packet] 송신 시,
+            /// 
             /// 불필요한 [Send Failed] 로그가 발생하므로
             /// 연결 여부를 먼저 확인한다.
             /// </summary>

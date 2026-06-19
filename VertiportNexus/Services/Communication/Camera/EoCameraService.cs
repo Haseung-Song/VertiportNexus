@@ -63,8 +63,7 @@ namespace VertiportNexus.Services.Camera
         /// </summary>
         public EoCameraService()
         {
-            _eoDecoder =
-                new FFmpegDecoderService("EO");
+            _eoDecoder = new FFmpegDecoderService("EO");
         }
 
         #endregion
@@ -157,30 +156,46 @@ namespace VertiportNexus.Services.Camera
         public void Disconnect(
             bool isReconnectCleanup = false)
         {
-            if (isReconnectCleanup)
-            {
-                Console.WriteLine("[EO VIDEO] RTSP Cleanup Before Connect Complete");
-                ConsoleLogHelper.PrintLine();
-            }
-            else
-            {
-                Console.WriteLine("[EO VIDEO] RTSP Disconnect Complete");
-                ConsoleLogHelper.PrintLine();
-            }
-
             try
             {
+                /// <summary>
+                /// [EO] 영상 수신 작업 취소 요청
+                /// 
+                /// 기존 영상 수신 루프가
+                /// 더 이상 [Frame]을 전달하지 않도록 중지 신호를 보낸다.
+                /// </summary>
                 _eoVideoCts?.Cancel();
-                _eoVideoCts?.Dispose();
-                _eoVideoCts = null;
 
+                /// <summary>
+                /// [EO] Decoder 종료
+                /// 
+                /// RTSP / FFmpeg Decoder 리소스를 정리한다.
+                /// </summary>
                 _eoDecoder.Close();
 
                 /// <summary>
                 /// 화면에서 기존 [EO] 영상을 제거하기 위해
                 /// [null] Frame을 전달한다.
                 /// </summary>
-                FrameReceived?.Invoke(null);
+                FrameReceived?.Invoke(
+                    null);
+
+                /// <summary>
+                /// [EO] 영상 수신 [CancellationTokenSource] 정리
+                /// </summary>
+                _eoVideoCts?.Dispose();
+                _eoVideoCts =
+                    null;
+
+                if (isReconnectCleanup)
+                {
+                    Console.WriteLine("[EO VIDEO] RTSP Cleanup Before Connect Complete");
+                }
+                else
+                {
+                    Console.WriteLine("[EO VIDEO] RTSP Disconnect Complete");
+                }
+                ConsoleLogHelper.PrintLine();
             }
             catch (Exception ex)
             {

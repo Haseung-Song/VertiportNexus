@@ -10,6 +10,7 @@ namespace VertiportNexus.Services.ADS1000
     /// [MCB]는 [Pan] / [Tilt] 모터 제어를 담당한다.
     /// 
     /// 기본 [Packet] 구조:
+    /// 
     /// [0] Sync[0]  = 0xAA
     /// [1] Sync[1]  = 0xAA
     /// [2] Cmd1     = 0x01 또는 0x02
