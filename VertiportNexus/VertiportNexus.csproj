@@ -150,6 +150,7 @@
     <Compile Include="Models\Vertiport\CseCommandType.cs" />
     <Compile Include="Models\Vertiport\CseInterfaceId.cs" />
     <Compile Include="Models\Vertiport\CseMqQueue.cs" />
+    <Compile Include="Models\Vertiport\CsePtzStatePayload.cs" />
     <Compile Include="Services\ADS1000\Ads1000CameraControlService.cs" />
     <Compile Include="Services\ADS1000\Ads1000StatusService.cs" />
     <Compile Include="Services\Command\CameraCommandService.cs" />

@@ -10,7 +10,8 @@ namespace VertiportNexus.Services.Vertiport
     /// [CSE] 명령 응답 송신 서비스
     /// 
     /// [CSE] 명령 처리 결과를 응답 [JSON]으로 생성하고,
-    /// [q.command.res] / [q.status.res] Queue로 송신한다.
+    /// [q.command.res] / 
+    /// [q.status.res] Queue로 송신한다.
     /// </summary>
     internal class CseCommandResponseService
     {
@@ -34,7 +35,10 @@ namespace VertiportNexus.Services.Vertiport
         public CseCommandResponseService(
             IMqSender mqSender)
         {
-            _mqSender = mqSender;
+            _mqSender =
+                mqSender
+                ?? throw new ArgumentNullException(
+                    nameof(mqSender));
         }
 
         #endregion
@@ -42,30 +46,59 @@ namespace VertiportNexus.Services.Vertiport
         #region [Public Methods]
 
         /// <summary>
-        /// [Command] 응답 송신
+        /// [Command] 성공 응답 송신
         /// 
-        /// [카메라 제어] 요청에 대한 처리 결과를
+        /// [카메라 제어] 요청에 대한 처리 성공 결과를
         /// [q.command.res] Queue로 송신한다.
         /// </summary>
         /// <param name="request">
         /// 원본 요청 메시지
         /// </param>
-        /// <param name="success">
-        /// 처리 성공 여부
-        /// </param>
-        /// <param name="resultMessage">
+        /// <param name="message">
         /// 결과 메시지
         /// </param>
         public void SendCommandResponse(
             CseCommandMessage request,
-            bool success,
-            string resultMessage)
+            string message)
         {
             CseCommandResponse response =
                 CreateBaseResponse(
                     request,
-                    success,
-                    resultMessage);
+                    "success",
+                    message,
+                    null);
+
+            SendResponse(
+                CseMqQueue.CommandResponse,
+                response);
+        }
+
+        /// <summary>
+        /// [Command] 실패 응답 송신
+        /// 
+        /// [카메라 제어] 요청 처리 중 오류가 발생한 경우
+        /// [q.command.res] Queue로 실패 결과를 송신한다.
+        /// </summary>
+        /// <param name="request">
+        /// 원본 요청 메시지
+        /// </param>
+        /// <param name="errorCode">
+        /// 에러 코드
+        /// </param>
+        /// <param name="message">
+        /// 에러 메시지
+        /// </param>
+        public void SendCommandErrorResponse(
+            CseCommandMessage request,
+            string errorCode,
+            string message)
+        {
+            CseCommandResponse response =
+                CreateBaseResponse(
+                    request,
+                    "error",
+                    message,
+                    errorCode);
 
             SendResponse(
                 CseMqQueue.CommandResponse,
@@ -91,11 +124,44 @@ namespace VertiportNexus.Services.Vertiport
             CseCommandResponse response =
                 CreateBaseResponse(
                     request,
-                    true,
-                    "OK");
+                    "success",
+                    "OK",
+                    null);
 
             response.Payload =
                 payload;
+
+            SendResponse(
+                CseMqQueue.StatusResponse,
+                response);
+        }
+
+        /// <summary>
+        /// [Status] 실패 응답 송신
+        /// 
+        /// 상태 조회 요청 처리 중 오류가 발생한 경우
+        /// [q.status.res] Queue로 실패 결과를 송신한다.
+        /// </summary>
+        /// <param name="request">
+        /// 원본 요청 메시지
+        /// </param>
+        /// <param name="errorCode">
+        /// 에러 코드
+        /// </param>
+        /// <param name="message">
+        /// 에러 메시지
+        /// </param>
+        public void SendStatusErrorResponse(
+            CseCommandMessage request,
+            string errorCode,
+            string message)
+        {
+            CseCommandResponse response =
+                CreateBaseResponse(
+                    request,
+                    "error",
+                    message,
+                    errorCode);
 
             SendResponse(
                 CseMqQueue.StatusResponse,
@@ -112,19 +178,23 @@ namespace VertiportNexus.Services.Vertiport
         /// <param name="request">
         /// 원본 요청 메시지
         /// </param>
-        /// <param name="success">
-        /// 처리 성공 여부
+        /// <param name="status">
+        /// 처리 상태
         /// </param>
-        /// <param name="resultMessage">
+        /// <param name="message">
         /// 결과 메시지
+        /// </param>
+        /// <param name="errorCode">
+        /// 에러 코드
         /// </param>
         /// <returns>
         /// 기본 응답 메시지
         /// </returns>
         private CseCommandResponse CreateBaseResponse(
             CseCommandMessage request,
-            bool success,
-            string resultMessage)
+            string status,
+            string message,
+            string errorCode)
         {
             return new CseCommandResponse
             {
@@ -142,16 +212,17 @@ namespace VertiportNexus.Services.Vertiport
                     Guid.NewGuid().ToString(),
 
                 Timestamp =
-                    DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss"),
+                    DateTime.Now.ToString(
+                        "yyyy-MM-ddTHH:mm:ss"),
 
-                Success =
-                    success,
+                Status =
+                    status,
 
-                ResultCode =
-                    success ? "OK" : "FAIL",
+                ErrorCode =
+                    errorCode,
 
-                ResultMessage =
-                    resultMessage
+                Message =
+                    message
             };
 
         }
@@ -203,6 +274,7 @@ namespace VertiportNexus.Services.Vertiport
                     {
                         WriteIndented =
                             true,
+
                         DefaultIgnoreCondition =
                             JsonIgnoreCondition.WhenWritingNull
                     });

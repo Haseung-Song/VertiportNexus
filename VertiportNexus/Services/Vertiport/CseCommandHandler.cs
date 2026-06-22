@@ -291,6 +291,7 @@ namespace VertiportNexus.Services.Vertiport
         /// [탐지 활성화] 명령 처리
         /// 
         /// ICD 기준 [IF-GUIS-CSE-001] 요청을 처리한다.
+        /// 
         /// 현재 단계에서는 수신 / 분기 확인 후
         /// 처리 결과 응답을 송신한다.
         /// </summary>
@@ -303,13 +304,20 @@ namespace VertiportNexus.Services.Vertiport
             Console.WriteLine("[CSE][CMD] Detect Enable");
             Console.WriteLine("[CSE][CMD] InterfaceId : " + message.InterfaceId);
 
-            // [Command] 응답 송신
+            if (message.Payload != null)
+            {
+                Console.WriteLine("[CSE][CMD] TrackId : " + message.Payload.TrackId);
+                Console.WriteLine("[CSE][CMD] Latitude : " + message.Payload.Latitude);
+                Console.WriteLine("[CSE][CMD] Longitude : " + message.Payload.Longitude);
+                Console.WriteLine("[CSE][CMD] Altitude : " + message.Payload.Altitude);
+            }
+
+            // [Detect Enable] 명령 응답 송신
             //
-            // 현재 단계에서는 실제 탐지 기능 연결 전이므로
-            // 명령 수신 성공 기준으로 응답한다.
+            // 실제 탐지 기능은 아직 구현되지 않았으므로
+            // 명령 수신 성공 여부만 응답한다.
             _responseService.SendCommandResponse(
                 message,
-                true,
                 "Detect Enable Command Accepted");
         }
 
@@ -317,6 +325,7 @@ namespace VertiportNexus.Services.Vertiport
         /// [탐지 활성화 취소] 명령 처리
         /// 
         /// ICD 기준 [IF-GUIS-CSE-002] 요청을 처리한다.
+        /// 
         /// 현재 단계에서는 수신 / 분기 확인 후
         /// 처리 결과 응답을 송신한다.
         /// </summary>
@@ -329,13 +338,12 @@ namespace VertiportNexus.Services.Vertiport
             Console.WriteLine("[CSE][CMD] Detect Disable");
             Console.WriteLine("[CSE][CMD] InterfaceId : " + message.InterfaceId);
 
-            // [Command] 응답 송신
+            // [Detect Disable] 명령 응답 송신
             //
-            // 실제 탐지 활성화 취소 기능 연결 전까지는
-            // 명령 수신 성공 기준으로 응답한다.
+            // 실제 탐지 기능은 아직 구현되지 않았으므로
+            // 명령 수신 성공 여부만 응답한다.
             _responseService.SendCommandResponse(
                 message,
-                true,
                 "Detect Disable Command Accepted");
         }
 
@@ -343,6 +351,7 @@ namespace VertiportNexus.Services.Vertiport
         /// [탐지] 명령 처리
         /// 
         /// ICD 기준 [IF-GUIS-CSE-003] 요청을 처리한다.
+        /// 
         /// 현재 단계에서는 요청 데이터 확인 후
         /// 처리 결과 응답을 송신한다.
         /// </summary>
@@ -357,20 +366,21 @@ namespace VertiportNexus.Services.Vertiport
 
             if (message.Payload != null)
             {
-                Console.WriteLine("[CSE][CMD] TrackId : " + message.Payload.TrackId);
+                Console.WriteLine("[CSE][CMD] FrameId : " + message.Payload.FrameId);
                 Console.WriteLine("[CSE][CMD] X1 : " + message.Payload.X1);
                 Console.WriteLine("[CSE][CMD] Y1 : " + message.Payload.Y1);
                 Console.WriteLine("[CSE][CMD] X2 : " + message.Payload.X2);
                 Console.WriteLine("[CSE][CMD] Y2 : " + message.Payload.Y2);
+                Console.WriteLine("[CSE][CMD] ClassId : " + message.Payload.ClassId);
+                Console.WriteLine("[CSE][CMD] Confidence : " + message.Payload.Confidence);
             }
 
-            // [Command] 응답 송신
+            // [Detect On] 명령 응답 송신
             //
-            // 현재 단계에서는 탐지 좌표 수신 여부만 확인하고
-            // 실제 추적 / ROI 연동은 이후 단계에서 처리한다.
+            // 실제 탐지 기능은 아직 구현되지 않았으므로
+            // 명령 수신 성공 여부만 응답한다.
             _responseService.SendCommandResponse(
                 message,
-                true,
                 "Detect On Command Accepted");
         }
 
@@ -378,6 +388,7 @@ namespace VertiportNexus.Services.Vertiport
         /// [탐지 해제] 명령 처리
         /// 
         /// ICD 기준 [IF-GUIS-CSE-004] 요청을 처리한다.
+        /// 
         /// 현재 단계에서는 수신 / 분기 확인 후
         /// 처리 결과 응답을 송신한다.
         /// </summary>
@@ -390,13 +401,12 @@ namespace VertiportNexus.Services.Vertiport
             Console.WriteLine("[CSE][CMD] Detect Off");
             Console.WriteLine("[CSE][CMD] InterfaceId : " + message.InterfaceId);
 
-            // [Command] 응답 송신
+            // [Detect Off] 명령 응답 송신
             //
-            // 실제 탐지 해제 기능 연결 전까지는
-            // 명령 수신 성공 기준으로 응답한다.
+            // 실제 탐지 기능은 아직 구현되지 않았으므로
+            // 명령 수신 성공 여부만 응답한다.
             _responseService.SendCommandResponse(
                 message,
-                true,
                 "Detect Off Command Accepted");
         }
 
@@ -404,6 +414,7 @@ namespace VertiportNexus.Services.Vertiport
         /// [탐지 계속] 명령 처리
         /// 
         /// ICD 기준 [IF-GUIS-CSE-005] 요청을 처리한다.
+        /// 
         /// 현재 단계에서는 요청 데이터 확인 후
         /// 처리 결과 응답을 송신한다.
         /// </summary>
@@ -418,20 +429,21 @@ namespace VertiportNexus.Services.Vertiport
 
             if (message.Payload != null)
             {
-                Console.WriteLine("[CSE][CMD] TrackId : " + message.Payload.TrackId);
+                Console.WriteLine("[CSE][CMD] FrameId : " + message.Payload.FrameId);
                 Console.WriteLine("[CSE][CMD] X1 : " + message.Payload.X1);
                 Console.WriteLine("[CSE][CMD] Y1 : " + message.Payload.Y1);
                 Console.WriteLine("[CSE][CMD] X2 : " + message.Payload.X2);
                 Console.WriteLine("[CSE][CMD] Y2 : " + message.Payload.Y2);
+                Console.WriteLine("[CSE][CMD] ClassId : " + message.Payload.ClassId);
+                Console.WriteLine("[CSE][CMD] Confidence : " + message.Payload.Confidence);
             }
 
-            // [Command] 응답 송신
+            // [Detect Continue] 명령 응답 송신
             //
-            // 현재 단계에서는 탐지 계속 요청 수신 여부만 확인하고
-            // 실제 연속 추적 연동은 이후 단계에서 처리한다.
+            // 실제 탐지 기능은 아직 구현되지 않았으므로
+            // 명령 수신 성공 여부만 응답한다.
             _responseService.SendCommandResponse(
                 message,
-                true,
                 "Detect Continue Command Accepted");
         }
 
@@ -443,6 +455,7 @@ namespace VertiportNexus.Services.Vertiport
         /// [PTZ] 이동 명령 처리
         /// 
         /// ICD 기준 [IF-GUIS-CSE-006] 요청을 처리한다.
+        /// 
         /// [payload]의 [mode] / [pan] / [tilt] / [zoom] / [focus] 값을
         /// 내부 카메라 명령으로 변환하여 장비 제어 서비스로 전달한다.
         /// </summary>
@@ -459,9 +472,9 @@ namespace VertiportNexus.Services.Vertiport
             {
                 Console.WriteLine("[CSE][CMD] PTZ Move Failed : Payload is null");
 
-                _responseService.SendCommandResponse(
+                _responseService.SendCommandErrorResponse(
                     message,
-                    false,
+                    "INVALID_PAYLOAD",
                     "PTZ Move Failed : Payload is null");
 
                 return;
@@ -473,7 +486,6 @@ namespace VertiportNexus.Services.Vertiport
             Console.WriteLine("[CSE][CMD] Pan : " + payload.Pan);
             Console.WriteLine("[CSE][CMD] Tilt : " + payload.Tilt);
             Console.WriteLine("[CSE][CMD] Zoom : " + payload.Zoom);
-            Console.WriteLine("[CSE][CMD] Focus : " + payload.Focus);
             Console.WriteLine();
 
             // [CSE] 명령을 내부 카메라 명령으로 변환
@@ -498,9 +510,6 @@ namespace VertiportNexus.Services.Vertiport
                     Zoom =
                         payload.Zoom,
 
-                    Focus =
-                        payload.Focus,
-
                     SourceMsgId =
                         message.MsgId
                 };
@@ -508,13 +517,12 @@ namespace VertiportNexus.Services.Vertiport
             _cameraCommandService.HandleCommand(
                 cameraCommand);
 
-            // [Command] 응답 송신
+            // [PTZ Move] 명령 응답 송신
             //
-            // 장비 제어 명령 전달이 완료되면
-            // [q.command.res] Queue로 처리 결과를 응답한다.
+            // 현재 단계에서는 실제 장비 응답 확인 전이므로
+            // 명령 수신 성공 여부만 응답한다.
             _responseService.SendCommandResponse(
                 message,
-                true,
                 "PTZ Move Command Accepted");
         }
 
@@ -522,6 +530,7 @@ namespace VertiportNexus.Services.Vertiport
         /// [PTZ] 정지 명령 처리
         /// 
         /// ICD 기준 [IF-GUIS-CSE-007] 요청을 처리한다.
+        /// 
         /// 현재 동작 중인 [Pan] / [Tilt] / [Zoom] / [Focus]
         /// 연속 제어를 정지한다.
         /// </summary>
@@ -549,13 +558,12 @@ namespace VertiportNexus.Services.Vertiport
             _cameraCommandService.HandleCommand(
                 cameraCommand);
 
-            // [Command] 응답 송신
+            // [PTZ Stop] 명령 응답 송신
             //
-            // 정지 명령 처리 후
-            // [q.command.res] Queue로 응답한다.
+            // 현재 단계에서는 실제 장비 응답 확인 전이므로
+            // 명령 수신 성공 여부만 응답한다.
             _responseService.SendCommandResponse(
                 message,
-                true,
                 "PTZ Stop Command Accepted");
         }
 
@@ -567,6 +575,7 @@ namespace VertiportNexus.Services.Vertiport
         /// [PTZ 제어 모드] 명령 처리
         /// 
         /// ICD 기준 [IF-GUIS-CSE-008] 요청을 처리한다.
+        /// 
         /// 현재 구조에서는 [PTZ Move] 요청의 [payload.mode]를 우선 사용하므로,
         /// 본 명령은 수신 / 응답 구조 확인용으로 처리한다.
         /// </summary>
@@ -584,13 +593,13 @@ namespace VertiportNexus.Services.Vertiport
                 Console.WriteLine("[CSE][CMD] Mode : " + message.Payload.Mode);
             }
 
-            // [Command] 응답 송신
+            // [PTZ Mode] 명령 응답 송신
             //
-            // 현재 단계에서는 별도 모드 상태 저장 없이
-            // 명령 수신 성공 기준으로 응답한다.
+            // 실제 [AUTO] / [MANUAL] 제어는
+            // 아직 구현되지 않았으므로
+            // 명령 수신 성공 여부만 응답한다.
             _responseService.SendCommandResponse(
                 message,
-                true,
                 "PTZ Mode Command Accepted");
         }
 
@@ -598,7 +607,8 @@ namespace VertiportNexus.Services.Vertiport
         /// [영상 설정] 명령 처리
         /// 
         /// ICD 기준 [IF-GUIS-CSE-009] 요청을 처리한다.
-        /// 현재 단계에서는 영상 채널 설정 요청을 수신하고,
+        /// 
+        /// 현재 단계에서는 영상 밝기 / 대비 / Focus Mode 설정 요청을 수신하고,
         /// 처리 결과 응답을 송신한다.
         /// </summary>
         /// <param name="message">
@@ -612,16 +622,18 @@ namespace VertiportNexus.Services.Vertiport
 
             if (message.Payload != null)
             {
-                Console.WriteLine("[CSE][CMD] Channel : " + message.Payload.Channel);
+                Console.WriteLine("[CSE][CMD] Brightness : " + message.Payload.Brightness);
+                Console.WriteLine("[CSE][CMD] Contrast : " + message.Payload.Contrast);
+                Console.WriteLine("[CSE][CMD] FocusMode : " + message.Payload.FocusMode);
             }
 
-            // [Command] 응답 송신
+            // [Set Image] 명령 응답 송신
             //
-            // 실제 영상 채널 전환 기능은 이후 단계에서 연결하고,
-            // 현재는 수신 성공 기준으로 응답한다.
+            // 실제 영상 설정 적용 기능은
+            // 아직 구현되지 않았으므로
+            // 명령 수신 성공 여부만 응답한다.
             _responseService.SendCommandResponse(
                 message,
-                true,
                 "Set Image Command Accepted");
         }
 
@@ -629,6 +641,7 @@ namespace VertiportNexus.Services.Vertiport
         /// [영상 플립] 명령 처리
         /// 
         /// ICD 기준 [IF-GUIS-CSE-010] 요청을 처리한다.
+        /// 
         /// 현재 단계에서는 영상 반전 요청값을 확인하고,
         /// 처리 결과 응답을 송신한다.
         /// </summary>
@@ -646,13 +659,13 @@ namespace VertiportNexus.Services.Vertiport
                 Console.WriteLine("[CSE][CMD] Flip : " + message.Payload.Flip);
             }
 
-            // [Command] 응답 송신
+            // [Set Flip] 명령 응답 송신
             //
-            // 실제 영상 반전 적용은 이후 영상 처리 단계에서 연결하고,
-            // 현재는 수신 성공 기준으로 응답한다.
+            // 실제 영상 반전 기능은
+            // 아직 구현되지 않았으므로
+            // 명령 수신 성공 여부만 응답한다.
             _responseService.SendCommandResponse(
                 message,
-                true,
                 "Set Flip Command Accepted");
         }
 
@@ -664,13 +677,14 @@ namespace VertiportNexus.Services.Vertiport
         /// [카메라 상태 - 설정 조회] 명령 처리
         /// 
         /// ICD 기준 [IF-GUIS-CSE-011] 요청을 처리한다.
-        /// 현재 단계에서는 응답 송신 구조 확인을 위해
-        /// 기본 설정 응답 [Payload]를 생성하여 송신한다.
+        /// 
+        /// 현재 영상 설정 / 탐지 설정 상태를 조회하여
+        /// [q.status.res] Queue로 응답한다.
         /// 
         /// 실제 설정값 연동은 영상 / 탐지 / 장비 상태 모델 정리 후 반영한다.
         /// </summary>
         /// <param name="message">
-        /// [카메라 설정 조회 요청 메시지]
+        /// 카메라 설정 조회 요청 메시지
         /// </param>
         private void HandleGetConfig(
             CseCommandMessage message)
@@ -686,18 +700,26 @@ namespace VertiportNexus.Services.Vertiport
             CseCommandResponsePayload payload =
                 new CseCommandResponsePayload
                 {
-                    Channel =
-                        "EO",
+                    Brightness =
+                        null,
+
+                    Contrast =
+                        null,
+
+                    FocusMode =
+                        "AUTO",
+
                     Flip =
                         false,
+
                     DetectEnabled =
                         false
                 };
 
             // [Status] 응답 송신
             //
-            // 설정 조회는 상태성 요청이므로
-            // [q.status.res] Queue로 응답을 송신한다.
+            // 현재 단계에서는 실제 설정 저장소 대신
+            // 기본 설정 정보를 응답한다.
             _responseService.SendStatusResponse(
                 message,
                 payload);
@@ -707,7 +729,8 @@ namespace VertiportNexus.Services.Vertiport
         /// [카메라 상태 - PTZ 조회] 명령 처리
         /// 
         /// ICD 기준 [IF-GUIS-CSE-012] 요청을 처리한다.
-        /// 현재 [Pan] / [Tilt] / [Zoom] / [Focus]
+        /// 
+        /// 현재 장비 연결 상태와 [Pan] / [Tilt] / [Zoom]
         /// 상태 정보를 조회하여
         /// [q.status.res] Queue로 응답한다.
         /// </summary>
@@ -724,21 +747,28 @@ namespace VertiportNexus.Services.Vertiport
             // [PTZ] 상태 응답 [Payload] 생성
             //
             // [ADS1000] 수신 [Packet]에서 갱신된
-            // 현재 [Pan] / [Tilt] / [Zoom] / [Focus] 값을 사용한다.
+            // 현재 [Pan] / [Tilt] / [Zoom] 값을 사용한다.
             CseCommandResponsePayload payload =
                 new CseCommandResponsePayload
                 {
-                    Pan =
-                        _cameraStateProvider.CurrentPan,
+                    Connected =
+                        _cameraStateProvider.IsConnected,
 
-                    Tilt =
-                        _cameraStateProvider.CurrentTilt,
+                    Ptz =
+                        new CsePtzStatePayload
+                        {
+                            Pan =
+                                _cameraStateProvider.CurrentPan,
 
-                    Zoom =
-                        _cameraStateProvider.CurrentZoom,
+                            Tilt =
+                                _cameraStateProvider.CurrentTilt,
 
-                    Focus =
-                        _cameraStateProvider.CurrentFocus,
+                            Zoom =
+                                _cameraStateProvider.CurrentZoom
+                        },
+
+                    IsFlipped =
+                        false,
 
                     UpdatedTime =
                         _cameraStateProvider.LastUpdatedTime?.ToString(
@@ -747,8 +777,8 @@ namespace VertiportNexus.Services.Vertiport
 
             // [Status] 응답 송신
             //
-            // [PTZ] 상태 조회는 상태성 요청이므로
-            // [q.status.res] Queue로 응답을 송신한다.
+            // 현재 단계에서는 [CameraStateProvider]에 저장된
+            // 상태 정보를 기반으로 응답한다.
             _responseService.SendStatusResponse(
                 message,
                 payload);

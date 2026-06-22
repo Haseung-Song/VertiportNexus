@@ -20,10 +20,10 @@ namespace VertiportNexus.Services.Camera
         /// 
         /// [TCP] 수신 Thread와
         /// [MQ] 명령 처리 Thread가 동시에 접근할 수 있으므로
+        /// 
         /// lock 기준으로 상태값을 보호한다.
         /// </summary>
-        private readonly object _syncLock =
-            new object();
+        private readonly object _syncLock = new object();
 
         /// <summary>
         /// 현재 [Pan] 값
@@ -41,14 +41,14 @@ namespace VertiportNexus.Services.Camera
         private double? _currentZoom;
 
         /// <summary>
-        /// 현재 [Focus] 값
-        /// </summary>
-        private double? _currentFocus;
-
-        /// <summary>
         /// 마지막 상태 갱신 시간
         /// </summary>
         private DateTime? _lastUpdatedTime;
+
+        /// <summary>
+        /// 카메라 연결 상태
+        /// </summary>
+        private bool _isConnected;
 
         #endregion
 
@@ -103,22 +103,6 @@ namespace VertiportNexus.Services.Camera
         }
 
         /// <summary>
-        /// 현재 [Focus] 값
-        /// </summary>
-        public double? CurrentFocus
-        {
-            get
-            {
-                lock (_syncLock)
-                {
-                    return _currentFocus;
-                }
-
-            }
-
-        }
-
-        /// <summary>
         /// 마지막 상태 갱신 시간
         /// </summary>
         public DateTime? LastUpdatedTime
@@ -128,6 +112,22 @@ namespace VertiportNexus.Services.Camera
                 lock (_syncLock)
                 {
                     return _lastUpdatedTime;
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// 카메라 연결 상태
+        /// </summary>
+        public bool IsConnected
+        {
+            get
+            {
+                lock (_syncLock)
+                {
+                    return _isConnected;
                 }
 
             }
@@ -199,26 +199,6 @@ namespace VertiportNexus.Services.Camera
         }
 
         /// <summary>
-        /// [Focus] 상태값 갱신
-        /// </summary>
-        /// <param name="focus">
-        /// 현재 [Focus] 값
-        /// </param>
-        public void UpdateFocus(
-            double focus)
-        {
-            lock (_syncLock)
-            {
-                _currentFocus =
-                    focus;
-
-                _lastUpdatedTime =
-                    DateTime.Now;
-            }
-
-        }
-
-        /// <summary>
         /// [PTZ] 상태값 일괄 갱신
         /// 
         /// 수신 [Packet]에 포함된 값만 갱신하고,
@@ -233,14 +213,10 @@ namespace VertiportNexus.Services.Camera
         /// <param name="zoom">
         /// 현재 [Zoom] 값
         /// </param>
-        /// <param name="focus">
-        /// 현재 [Focus] 값
-        /// </param>
         public void UpdateState(
             double? pan,
             double? tilt,
-            double? zoom,
-            double? focus)
+            double? zoom)
         {
             lock (_syncLock)
             {
@@ -262,11 +238,25 @@ namespace VertiportNexus.Services.Camera
                         zoom.Value;
                 }
 
-                if (focus.HasValue)
-                {
-                    _currentFocus =
-                        focus.Value;
-                }
+                _lastUpdatedTime =
+                    DateTime.Now;
+            }
+
+        }
+
+        /// <summary>
+        /// 카메라 연결 상태 갱신
+        /// </summary>
+        /// <param name="isConnected">
+        /// 연결 여부
+        /// </param>
+        public void UpdateConnectionState(
+            bool isConnected)
+        {
+            lock (_syncLock)
+            {
+                _isConnected =
+                    isConnected;
 
                 _lastUpdatedTime =
                     DateTime.Now;

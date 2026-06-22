@@ -18,43 +18,34 @@ namespace VertiportNexus.Models.Vertiport
     /// </summary>
     public class CseCommandResponsePayload
     {
-        #region [PTZ State Properties]
+        #region [State Properties]
 
         /// <summary>
-        /// 현재 [Pan] 위치 값
+        /// 카메라 연결 상태
         /// 
-        /// [ADS1000] 수신 [Packet]에서 파싱된
-        /// 현재 [Pan] 상태값을 반환한다.
+        /// [IF-GUIS-CSE-012] 상태 조회 응답에서
+        /// 현재 카메라 제어 장비 연결 여부를 반환한다.
         /// </summary>
-        [JsonPropertyName("pan")]
-        public double? Pan { get; set; }
+        [JsonPropertyName("connected")]
+        public bool? Connected { get; set; }
 
         /// <summary>
-        /// 현재 [Tilt] 위치 값
+        /// [PTZ] 상태 정보
         /// 
-        /// [ADS1000] 수신 [Packet]에서 파싱된
-        /// 현재 [Tilt] 상태값을 반환한다.
+        /// [IF-GUIS-CSE-012] 상태 조회 응답에서
+        /// 현재 [Pan] / [Tilt] / [Zoom] 상태값을 반환한다.
         /// </summary>
-        [JsonPropertyName("tilt")]
-        public double? Tilt { get; set; }
+        [JsonPropertyName("ptz")]
+        public CsePtzStatePayload Ptz { get; set; }
 
         /// <summary>
-        /// 현재 [Zoom] 위치 값
+        /// 영상 반전 설정 여부
         /// 
-        /// [ADS1000] 수신 [Packet]에서 파싱된
-        /// 현재 [Zoom] 상태값을 반환한다.
+        /// [IF-GUIS-CSE-012] 상태 조회 응답에서
+        /// 현재 영상의 [Flip] 적용 상태를 반환한다.
         /// </summary>
-        [JsonPropertyName("zoom")]
-        public double? Zoom { get; set; }
-
-        /// <summary>
-        /// 현재 [Focus] 위치 값
-        /// 
-        /// [ADS1000] 수신 [Packet]에서 파싱된
-        /// 현재 [Focus] 상태값을 반환한다.
-        /// </summary>
-        [JsonPropertyName("focus")]
-        public double? Focus { get; set; }
+        [JsonPropertyName("is_flipped")]
+        public bool? IsFlipped { get; set; }
 
         /// <summary>
         /// 상태 갱신 시간
@@ -70,20 +61,40 @@ namespace VertiportNexus.Models.Vertiport
         #region [Config Properties]
 
         /// <summary>
-        /// 영상 채널 정보
+        /// 영상 밝기 설정값
         /// 
-        /// 현재 사용 중인 영상 채널 정보를 반환한다.
+        /// [IF-GUIS-CSE-011] 설정 조회 응답에서
+        /// 현재 영상 밝기 값을 반환한다.
+        /// </summary>
+        [JsonPropertyName("brightness")]
+        public int? Brightness { get; set; }
+
+        /// <summary>
+        /// 영상 대비 설정값
+        /// 
+        /// [IF-GUIS-CSE-011] 설정 조회 응답에서
+        /// 현재 영상 대비 값을 반환한다.
+        /// </summary>
+        [JsonPropertyName("contrast")]
+        public int? Contrast { get; set; }
+
+        /// <summary>
+        /// [Focus] 모드
+        /// 
+        /// [IF-GUIS-CSE-011] 설정 조회 응답에서
+        /// 현재 [Focus] 모드 값을 반환한다.
         /// 
         /// 예)
-        /// EO
-        /// IR
+        /// AUTO
+        /// MANUAL
         /// </summary>
-        [JsonPropertyName("channel")]
-        public string Channel { get; set; }
+        [JsonPropertyName("focus_mode")]
+        public string FocusMode { get; set; }
 
         /// <summary>
         /// 영상 반전 설정 여부
         /// 
+        /// [IF-GUIS-CSE-011] 설정 조회 응답에서
         /// 현재 영상의 [Flip] 적용 상태를 반환한다.
         /// </summary>
         [JsonPropertyName("flip")]
@@ -92,8 +103,8 @@ namespace VertiportNexus.Models.Vertiport
         /// <summary>
         /// 탐지 활성화 여부
         /// 
-        /// 현재 객체 탐지 기능의
-        /// 활성화 상태를 반환한다.
+        /// [IF-GUIS-CSE-011] 설정 조회 응답에서
+        /// 현재 객체 탐지 기능의 활성화 상태를 반환한다.
         /// </summary>
         [JsonPropertyName("detect_enabled")]
         public bool? DetectEnabled { get; set; }

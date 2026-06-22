@@ -1327,12 +1327,8 @@ namespace VertiportNexus.ViewModels.Main
         /// <summary>
         /// [CSE] [Mock MQ] 통합 명령 수신 테스트
         /// 
-        /// ICD 기준 주요 명령을 순차적으로 수신한 것처럼 테스트한다.
-        /// 
-        /// [IF-GUIS-CSE-006] PTZ Move
-        /// [IF-GUIS-CSE-007] PTZ Stop
-        /// [IF-GUIS-CSE-011] Get Config
-        /// [IF-GUIS-CSE-012] Get PTZ State
+        /// ICD 기준 [IF-GUIS-CSE-001] ~ [IF-GUIS-CSE-012]
+        /// 명령을 순차적으로 수신한 것처럼 테스트한다.
         /// 
         /// 장비 연결 없이 [CSE] 수신 / 파싱 / 분기 / 응답 송신 흐름을 확인한다.
         /// </summary>
@@ -1341,37 +1337,73 @@ namespace VertiportNexus.ViewModels.Main
             await Task.Delay(
                 2500);
 
-            // [CSE] [PTZ Move] 명령 수신 테스트
-            //
-            // ICD 기준 [IF-GUIS-CSE-006] 요청을
-            // [Mock MQ]를 통해 수신한 것처럼 테스트한다.
+            // [IF-GUIS-CSE-001] 탐지 활성화 요청
+            TestCseDetectEnable();
+
+            await Task.Delay(
+                500);
+
+            // [IF-GUIS-CSE-002] 탐지 활성화 취소 요청
+            TestCseDetectDisable();
+
+            await Task.Delay(
+                500);
+
+            // [IF-GUIS-CSE-003] 탐지 요청
+            TestCseDetectOn();
+
+            await Task.Delay(
+                500);
+
+            // [IF-GUIS-CSE-004] 탐지 정지 요청
+            TestCseDetectOff();
+
+            await Task.Delay(
+                500);
+
+            // [IF-GUIS-CSE-005] 탐지 계속 요청
+            TestCseDetectContinue();
+
+            await Task.Delay(
+                500);
+
+            // [IF-GUIS-CSE-006] PTZ 제어 요청
             TestCsePtzMove();
 
             await Task.Delay(
-                1000);
+                500);
 
-            // [CSE] [PTZ Stop] 명령 수신 테스트
-            //
-            // ICD 기준 [IF-GUIS-CSE-007] 요청을
-            // [Mock MQ]를 통해 수신한 것처럼 테스트한다.
+            // [IF-GUIS-CSE-007] PTZ 제어 해제 요청
             TestCsePtzStop();
 
             await Task.Delay(
-                1000);
+                500);
 
-            // [CSE] [Get Config] 명령 수신 테스트
-            //
-            // ICD 기준 [IF-GUIS-CSE-011] 요청을
-            // [Mock MQ]를 통해 수신한 것처럼 테스트한다.
+            // [IF-GUIS-CSE-008] PTZ 제어 모드 요청
+            TestCsePtzMode();
+
+            await Task.Delay(
+                500);
+
+            // [IF-GUIS-CSE-009] 영상 설정 요청
+            TestCseSetImage();
+
+            await Task.Delay(
+                500);
+
+            // [IF-GUIS-CSE-010] 영상 플립 요청
+            TestCseSetFlip();
+
+            await Task.Delay(
+                500);
+
+            // [IF-GUIS-CSE-011] 설정 조회 요청
             TestCseGetConfig();
 
             await Task.Delay(
-                1000);
+                500);
 
-            // [CSE] [Get PTZ State] 명령 수신 테스트
-            //
-            // ICD 기준 [IF-GUIS-CSE-012] 요청을
-            // [Mock MQ]를 통해 수신한 것처럼 테스트한다.
+            // [IF-GUIS-CSE-012] PTZ 상태 조회 요청
             TestCseGetPtzState();
         }
 
@@ -1451,6 +1483,14 @@ namespace VertiportNexus.ViewModels.Main
                 connectionResult.IsScbConnected
                     ? ConnectionState.Connected
                     : ConnectionState.Disconnected);
+
+            // [Camera] 연결 상태 저장
+            //
+            // [CSE] [Get PTZ State] 응답에서 사용할 수 있도록
+            // [MCB] / [SCB] 중 하나 이상 연결된 경우 연결 상태로 판단한다.
+            _cameraStateProvider.UpdateConnectionState(
+                connectionResult.IsMcbConnected ||
+                connectionResult.IsScbConnected);
         }
 
         /// <summary>
@@ -1495,6 +1535,13 @@ namespace VertiportNexus.ViewModels.Main
                 SetDeviceConnectionState(
                     ConnectionState.Disconnected,
                     ConnectionState.Disconnected);
+
+                // [Camera] 연결 상태 저장
+                //
+                // 연결 해제 시 [CSE] 상태 조회 응답에서
+                // 미연결 상태로 반환될 수 있도록 갱신한다.
+                _cameraStateProvider.UpdateConnectionState(
+                    false);
 
                 // [EO] 영상 표시 차단
                 //
@@ -1889,9 +1936,6 @@ namespace VertiportNexus.ViewModels.Main
             double? updatedZoom =
                 null;
 
-            double? updatedFocus =
-                null;
-
             if (parsedPacket.HasPanValue)
             {
                 CurrentPan =
@@ -1928,18 +1972,6 @@ namespace VertiportNexus.ViewModels.Main
                     CurrentZoom;
             }
 
-            if (parsedPacket.HasFocusValue)
-            {
-                CurrentFocus =
-                    Clamp(
-                        parsedPacket.FocusValue,
-                        0,
-                        1000);
-
-                updatedFocus =
-                    CurrentFocus;
-            }
-
             // [Camera] 상태 저장소 갱신
             //
             // [CSE] 상태 조회 응답에서 사용할 수 있도록
@@ -1947,8 +1979,7 @@ namespace VertiportNexus.ViewModels.Main
             _cameraStateProvider.UpdateState(
                 updatedPan,
                 updatedTilt,
-                updatedZoom,
-                updatedFocus);
+                updatedZoom);
         }
 
         #endregion
@@ -2009,52 +2040,275 @@ namespace VertiportNexus.ViewModels.Main
         #region [CSE Mock Test Methods]
 
         /// <summary>
-        /// [CSE] [PTZ Move] 테스트
+        /// [CSE] [Detect Enable] 명령 수신 테스트
+        /// 
+        /// ICD 기준 [IF-GUIS-CSE-001] 요청을
+        /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
+        /// </summary>
+        private void TestCseDetectEnable()
+        {
+            string json =
+                @"{
+            ""interface_id"": ""IF-GUIS-CSE-001"",
+            ""msg_type"": ""detect_enable"",
+            ""msg_id"": ""CMD-0001"",
+            ""timestamp"": ""2026-06-22T10:00:00"",
+            ""reply_to"": ""q.command.res"",
+            ""payload"": {
+                ""track_id"": 1,
+                ""latitude"": 36.350411,
+                ""longitude"": 127.384548,
+                ""altitude"": 120.5
+            }
+
+        }";
+
+            _mockMqReceiver.InjectMessage(
+                json);
+        }
+
+        /// <summary>
+        /// [CSE] [Detect Disable] 명령 수신 테스트
+        /// 
+        /// ICD 기준 [IF-GUIS-CSE-002] 요청을
+        /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
+        /// </summary>
+        private void TestCseDetectDisable()
+        {
+            string json =
+                @"{
+            ""interface_id"": ""IF-GUIS-CSE-002"",
+            ""msg_type"": ""detect_disable"",
+            ""msg_id"": ""CMD-0002"",
+            ""timestamp"": ""2026-06-22T10:00:01"",
+            ""reply_to"": ""q.command.res"",
+            ""payload"": {
+            }
+
+        }";
+
+            _mockMqReceiver.InjectMessage(
+                json);
+        }
+
+        /// <summary>
+        /// [CSE] [Detect On] 명령 수신 테스트
+        /// 
+        /// ICD 기준 [IF-GUIS-CSE-003] 요청을
+        /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
+        /// </summary>
+        private void TestCseDetectOn()
+        {
+            string json =
+                @"{
+            ""interface_id"": ""IF-GUIS-CSE-003"",
+            ""msg_type"": ""detect_on"",
+            ""msg_id"": ""CMD-0003"",
+            ""timestamp"": ""2026-06-22T10:00:02"",
+            ""reply_to"": ""q.command.res"",
+            ""payload"": {
+                ""frame_id"": 1001,
+                ""x1"": 120.5,
+                ""y1"": 240.0,
+                ""x2"": 300.5,
+                ""y2"": 420.0,
+                ""class_id"": 1,
+                ""confidence"": 0.92
+            }
+
+        }";
+
+            _mockMqReceiver.InjectMessage(
+                json);
+        }
+
+        /// <summary>
+        /// [CSE] [Detect Off] 명령 수신 테스트
+        /// 
+        /// ICD 기준 [IF-GUIS-CSE-004] 요청을
+        /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
+        /// </summary>
+        private void TestCseDetectOff()
+        {
+            string json =
+                @"{
+            ""interface_id"": ""IF-GUIS-CSE-004"",
+            ""msg_type"": ""detect_off"",
+            ""msg_id"": ""CMD-0004"",
+            ""timestamp"": ""2026-06-22T10:00:03"",
+            ""reply_to"": ""q.command.res"",
+            ""payload"": {
+            }
+
+        }";
+
+            _mockMqReceiver.InjectMessage(
+                json);
+        }
+
+        /// <summary>
+        /// [CSE] [Detect Continue] 명령 수신 테스트
+        /// 
+        /// ICD 기준 [IF-GUIS-CSE-005] 요청을
+        /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
+        /// </summary>
+        private void TestCseDetectContinue()
+        {
+            string json =
+                @"{
+            ""interface_id"": ""IF-GUIS-CSE-005"",
+            ""msg_type"": ""detect_cont"",
+            ""msg_id"": ""CMD-0005"",
+            ""timestamp"": ""2026-06-22T10:00:04"",
+            ""reply_to"": ""q.command.res"",
+            ""payload"": {
+                ""frame_id"": 1002,
+                ""x1"": 125.0,
+                ""y1"": 245.0,
+                ""x2"": 305.0,
+                ""y2"": 425.0,
+                ""class_id"": 1,
+                ""confidence"": 0.94
+            }
+
+        }";
+
+            _mockMqReceiver.InjectMessage(
+                json);
+        }
+
+        /// <summary>
+        /// [CSE] [PTZ Move] 명령 수신 테스트
+        /// 
+        /// ICD 기준 [IF-GUIS-CSE-006] 요청을
+        /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
         /// </summary>
         private void TestCsePtzMove()
         {
             string json =
                 @"{
-                    ""interface_id"":""IF-GUIS-CSE-006"",
-                    ""msg_type"":""ptz_move"",
-                    ""msg_id"": ""CMD-0001"",
-                    ""timestamp"": ""2026-06-17T10:00:00"",
-                    ""reply_to"": ""q.command.res"",
-                    ""payload"": {
-                        ""mode"": ""continuous"",
-                        ""pan"": 1.0
-                    }
+            ""interface_id"": ""IF-GUIS-CSE-006"",
+            ""msg_type"": ""ptz_move"",
+            ""msg_id"": ""CMD-0006"",
+            ""timestamp"": ""2026-06-22T10:00:06"",
+            ""reply_to"": ""q.command.res"",
+            ""payload"": {
+                ""mode"": ""continuous"",
+                ""pan"": 1.0
+            }
 
-                }";
+        }";
+
             _mockMqReceiver.InjectMessage(
                 json);
         }
 
         /// <summary>
-        /// [CSE] [PTZ Stop] 테스트
+        /// [CSE] [PTZ Stop] 명령 수신 테스트
+        /// 
+        /// ICD 기준 [IF-GUIS-CSE-007] 요청을
+        /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
         /// </summary>
         private void TestCsePtzStop()
         {
             string json =
                 @"{
-                    ""interface_id"":""IF-GUIS-CSE-007"",
-                    ""msg_type"":""ptz_stop"",
-                    ""msg_id"": ""CMD-0002"",
-                    ""timestamp"": ""2026-06-17T10:00:01"",
-                    ""reply_to"": ""q.command.res"",
-                    ""payload"": {
-                    }
+            ""interface_id"": ""IF-GUIS-CSE-007"",
+            ""msg_type"": ""ptz_stop"",
+            ""msg_id"": ""CMD-0007"",
+            ""timestamp"": ""2026-06-22T10:00:07"",
+            ""reply_to"": ""q.command.res"",
+            ""payload"": {
+            }
 
-                }";
+        }";
+
             _mockMqReceiver.InjectMessage(
                 json);
         }
 
         /// <summary>
-        /// [CSE] [Get Config] 테스트
+        /// [CSE] [PTZ Mode] 명령 수신 테스트
         /// 
-        /// ICD 기준 [IF-GUIS-CSE-011] 설정 조회 요청을
-        /// [Mock MQ]로 수신한 것처럼 테스트한다.
+        /// ICD 기준 [IF-GUIS-CSE-008] 요청을
+        /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
+        /// </summary>
+        private void TestCsePtzMode()
+        {
+            string json =
+                @"{
+            ""interface_id"": ""IF-GUIS-CSE-008"",
+            ""msg_type"": ""ptz_mode"",
+            ""msg_id"": ""CMD-0008"",
+            ""timestamp"": ""2026-06-22T10:00:08"",
+            ""reply_to"": ""q.command.res"",
+            ""payload"": {
+                ""mode"": ""AUTO""
+            }
+
+        }";
+
+            _mockMqReceiver.InjectMessage(
+                json);
+        }
+
+        /// <summary>
+        /// [CSE] [Set Image] 명령 수신 테스트
+        /// 
+        /// ICD 기준 [IF-GUIS-CSE-009] 요청을
+        /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
+        /// </summary>
+        private void TestCseSetImage()
+        {
+            string json =
+                @"{
+            ""interface_id"": ""IF-GUIS-CSE-009"",
+            ""msg_type"": ""set_image"",
+            ""msg_id"": ""CMD-0009"",
+            ""timestamp"": ""2026-06-22T10:00:09"",
+            ""reply_to"": ""q.command.res"",
+            ""payload"": {
+                ""brightness"": 60,
+                ""contrast"": 55,
+                ""focus_mode"": ""AUTO""
+            }
+
+        }";
+
+            _mockMqReceiver.InjectMessage(
+                json);
+        }
+
+        /// <summary>
+        /// [CSE] [Set Flip] 명령 수신 테스트
+        /// 
+        /// ICD 기준 [IF-GUIS-CSE-010] 요청을
+        /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
+        /// </summary>
+        private void TestCseSetFlip()
+        {
+            string json =
+                @"{
+            ""interface_id"": ""IF-GUIS-CSE-010"",
+            ""msg_type"": ""set_flip"",
+            ""msg_id"": ""CMD-0010"",
+            ""timestamp"": ""2026-06-22T10:00:10"",
+            ""reply_to"": ""q.command.res"",
+            ""payload"": {
+                ""flip"": true
+            }
+
+        }";
+
+            _mockMqReceiver.InjectMessage(
+                json);
+        }
+
+        /// <summary>
+        /// [CSE] [Get Config] 명령 수신 테스트
+        /// 
+        /// ICD 기준 [IF-GUIS-CSE-011] 요청을
+        /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
         /// </summary>
         private void TestCseGetConfig()
         {
@@ -2063,10 +2317,11 @@ namespace VertiportNexus.ViewModels.Main
             ""interface_id"": ""IF-GUIS-CSE-011"",
             ""msg_type"": ""get_conf"",
             ""msg_id"": ""CMD-0011"",
-            ""timestamp"": ""2026-06-22T10:00:00"",
+            ""timestamp"": ""2026-06-22T10:00:11"",
             ""reply_to"": ""q.status.res"",
             ""payload"": {
             }
+
         }";
 
             _mockMqReceiver.InjectMessage(
@@ -2074,10 +2329,10 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
-        /// [CSE] [Get PTZ State] 테스트
+        /// [CSE] [Get PTZ State] 명령 수신 테스트
         /// 
-        /// ICD 기준 [IF-GUIS-CSE-012] PTZ 상태 조회 요청을
-        /// [Mock MQ]로 수신한 것처럼 테스트한다.
+        /// ICD 기준 [IF-GUIS-CSE-012] 요청을
+        /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
         /// </summary>
         private void TestCseGetPtzState()
         {
@@ -2086,10 +2341,11 @@ namespace VertiportNexus.ViewModels.Main
             ""interface_id"": ""IF-GUIS-CSE-012"",
             ""msg_type"": ""get_state"",
             ""msg_id"": ""CMD-0012"",
-            ""timestamp"": ""2026-06-22T10:00:01"",
+            ""timestamp"": ""2026-06-22T10:00:12"",
             ""reply_to"": ""q.status.res"",
             ""payload"": {
             }
+
         }";
 
             _mockMqReceiver.InjectMessage(
