@@ -561,18 +561,6 @@ namespace VertiportNexus.ViewModels.Main
 
             #endregion
 
-#if DEBUG
-
-            // [CSE] [Mock MQ] 통합 명령 수신 테스트
-            //
-            // ICD 기준 명령 수신 / 분기 / 응답 흐름을
-            // 장비 연결 없이 순차 테스트한다.
-            //
-            // 테스트 완료 후 실제 운용 시에는 제거한다.
-            _ = RunCseMockTestAsync();
-
-#endif
-
             #region [Command Initialize]
 
             ConnectTcpCommand =
@@ -1302,11 +1290,34 @@ namespace VertiportNexus.ViewModels.Main
                 ApplyDeviceConnectionResult(
                     connectionResult);
 
-                // [CSE] [Mock MQ] 명령 수신 테스트
-                //
-                // [MCB] / [SCB] 연결 완료 후
-                // ICD 명령 수신 흐름을 테스트한다.
-                //_ = RunCseMockTestAsync();
+                if (_mcbConnectionState == ConnectionState.Connected &&
+                    _scbConnectionState == ConnectionState.Connected)
+                {
+                    // [CSE] [Mock MQ] 통합 명령 수신 테스트
+                    //
+                    // ICD 기준 [IF-GUIS-CSE-001] ~ [IF-GUIS-CSE-012]
+                    // 명령 수신 / 파싱 / 분기 / 응답 송신 흐름을
+                    // 순차 테스트한다.
+                    //
+                    // 테스트 완료 후 실제 운용 시에는 주석 처리한다.
+                    //_ = RunCseMockTestAsync();
+
+                    // [CSE] [PTZ] 장비 연동 테스트
+                    //
+                    // [MCB] / [SCB] 연결 완료 후
+                    // [IF-GUIS-CSE-006] / [IF-GUIS-CSE-007]
+                    // 명령을 순차 테스트한다.
+                    //
+                    // [Continuous]
+                    // [Relative]
+                    // [Absolute]
+                    // [Stop]
+                    //
+                    // 제어 및 상태 조회 흐름을 확인한다.
+                    //
+                    // 테스트 완료 후 실제 운용 시에는 주석 처리한다.
+                    //_ = RunCsePtzDeviceTestAsync();
+                }
 
                 // [EO] 영상 표시 허용
                 _isEoVideoDisplayEnabled = true;
@@ -1367,8 +1378,20 @@ namespace VertiportNexus.ViewModels.Main
             await Task.Delay(
                 500);
 
-            // [IF-GUIS-CSE-006] PTZ 제어 요청
-            TestCsePtzMove();
+            // [IF-GUIS-CSE-006] PTZ 위치 연속 이동 요청
+            TestCsePtzMoveContinuous();
+
+            await Task.Delay(
+                500);
+
+            // [IF-GUIS-CSE-006] PTZ 상대 위치 이동 요청
+            TestCsePtzMoveRelative();
+
+            await Task.Delay(
+                500);
+
+            // [IF-GUIS-CSE-006] PTZ 절대 위치 이동 요청
+            TestCsePtzMoveAbsolute();
 
             await Task.Delay(
                 500);
@@ -1936,6 +1959,9 @@ namespace VertiportNexus.ViewModels.Main
             double? updatedZoom =
                 null;
 
+            double? updatedFocus =
+                null;
+
             if (parsedPacket.HasPanValue)
             {
                 CurrentPan =
@@ -1970,6 +1996,18 @@ namespace VertiportNexus.ViewModels.Main
 
                 updatedZoom =
                     CurrentZoom;
+            }
+
+            if (parsedPacket.HasFocusValue)
+            {
+                CurrentFocus =
+                    Clamp(
+                        parsedPacket.FocusValue,
+                        0,
+                        1000);
+
+                updatedFocus =
+                    CurrentFocus;
             }
 
             // [Camera] 상태 저장소 갱신
@@ -2178,23 +2216,78 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
-        /// [CSE] [PTZ Move] 명령 수신 테스트
+        /// [CSE] [PTZ Move Continuous] 명령 수신 테스트
         /// 
-        /// ICD 기준 [IF-GUIS-CSE-006] 요청을
+        /// ICD 기준 [IF-GUIS-CSE-006] 위치 연속 이동 요청을
         /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
         /// </summary>
-        private void TestCsePtzMove()
+        private void TestCsePtzMoveContinuous()
         {
             string json =
                 @"{
             ""interface_id"": ""IF-GUIS-CSE-006"",
             ""msg_type"": ""ptz_move"",
-            ""msg_id"": ""CMD-0006"",
+            ""msg_id"": ""CMD-0006-CONT"",
             ""timestamp"": ""2026-06-22T10:00:06"",
             ""reply_to"": ""q.command.res"",
             ""payload"": {
                 ""mode"": ""continuous"",
                 ""pan"": 1.0
+            }
+
+        }";
+
+            _mockMqReceiver.InjectMessage(
+                json);
+        }
+
+        /// <summary>
+        /// [CSE] [PTZ Move Relative] 명령 수신 테스트
+        /// 
+        /// ICD 기준 [IF-GUIS-CSE-006] 상대 위치 이동 요청을
+        /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
+        /// </summary>
+        private void TestCsePtzMoveRelative()
+        {
+            string json =
+                @"{
+            ""interface_id"": ""IF-GUIS-CSE-006"",
+            ""msg_type"": ""ptz_move"",
+            ""msg_id"": ""CMD-0006-REL"",
+            ""timestamp"": ""2026-06-22T10:00:07"",
+            ""reply_to"": ""q.command.res"",
+            ""payload"": {
+                ""mode"": ""relative"",
+                ""pan"": 10.0,
+                ""tilt"": -5.0
+            }
+
+        }";
+
+            _mockMqReceiver.InjectMessage(
+                json);
+        }
+
+        /// <summary>
+        /// [CSE] [PTZ Move Absolute] 명령 수신 테스트
+        /// 
+        /// ICD 기준 [IF-GUIS-CSE-006] 절대 위치 이동 요청을
+        /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
+        /// </summary>
+        private void TestCsePtzMoveAbsolute()
+        {
+            string json =
+                @"{
+            ""interface_id"": ""IF-GUIS-CSE-006"",
+            ""msg_type"": ""ptz_move"",
+            ""msg_id"": ""CMD-0006-ABS"",
+            ""timestamp"": ""2026-06-22T10:00:08"",
+            ""reply_to"": ""q.command.res"",
+            ""payload"": {
+                ""mode"": ""absolute"",
+                ""pan"": 120.0,
+                ""tilt"": 15.0,
+                ""zoom"": 0.0
             }
 
         }";
@@ -2350,6 +2443,62 @@ namespace VertiportNexus.ViewModels.Main
 
             _mockMqReceiver.InjectMessage(
                 json);
+        }
+
+        #endregion
+
+        #region [CSE Device Test Methods]
+
+        /// <summary>
+        /// [CSE] [Mock MQ] [PTZ] 장비 동작 테스트
+        /// 
+        /// ICD 기준 [IF-GUIS-CSE-006] / [IF-GUIS-CSE-007]
+        /// 명령을 장비 연결 상태에서 순차 테스트한다.
+        /// 
+        /// 각 명령 사이에 충분한 대기 시간을 두어
+        /// 장비 이동 / 정지 / 상태 조회 흐름을 확인한다.
+        /// </summary>
+        private async Task RunCsePtzDeviceTestAsync()
+        {
+            await Task.Delay(
+                2500);
+
+            // [IF-GUIS-CSE-006] PTZ 위치 연속 이동 요청
+            //
+            // [continuous] 모드로 [Pan] 오른쪽 이동 명령을 송신한다.
+            TestCsePtzMoveContinuous();
+
+            await Task.Delay(
+                3000);
+
+            // [IF-GUIS-CSE-007] PTZ 제어 해제 요청
+            //
+            // 연속 이동 중인 [Pan] 제어를 정지한다.
+            TestCsePtzStop();
+
+            await Task.Delay(
+                3000);
+
+            // [IF-GUIS-CSE-006] PTZ 상대 위치 이동 요청
+            //
+            // 현재 위치 기준으로 [Pan] / [Tilt] 상대 이동 명령을 송신한다.
+            TestCsePtzMoveRelative();
+
+            await Task.Delay(
+                5000);
+
+            // [IF-GUIS-CSE-006] PTZ 절대 위치 이동 요청
+            //
+            // 지정된 [Pan] / [Tilt] / [Zoom] 위치로 이동 명령을 송신한다.
+            TestCsePtzMoveAbsolute();
+
+            await Task.Delay(
+                7000);
+
+            // [IF-GUIS-CSE-012] PTZ 상태 조회 요청
+            //
+            // 장비 이동 후 현재 [PTZ] 상태 응답을 확인한다.
+            TestCseGetPtzState();
         }
 
         #endregion
