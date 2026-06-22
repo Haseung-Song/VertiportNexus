@@ -559,20 +559,19 @@ namespace VertiportNexus.ViewModels.Main
             // [CSE] 명령 수신 시작
             _cseCommandReceiveService.StartReceive();
 
+            #endregion
 
-            #region [Test Initialize]
+#if DEBUG
 
             // [CSE] [Mock MQ] 통합 명령 수신 테스트
             //
             // ICD 기준 명령 수신 / 분기 / 응답 흐름을
             // 장비 연결 없이 순차 테스트한다.
             //
-            // 테스트 완료 후 실제 운용 시에는 주석 처리한다.
+            // 테스트 완료 후 실제 운용 시에는 제거한다.
             _ = RunCseMockTestAsync();
 
-            #endregion
-
-            #endregion
+#endif
 
             #region [Command Initialize]
 
