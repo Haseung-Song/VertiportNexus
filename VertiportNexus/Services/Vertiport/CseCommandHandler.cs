@@ -2,6 +2,7 @@
 using VertiportNexus.Common;
 using VertiportNexus.Models.Camera;
 using VertiportNexus.Models.Vertiport;
+using VertiportNexus.Services.Camera;
 using VertiportNexus.Services.Command;
 
 namespace VertiportNexus.Services.Vertiport
@@ -20,9 +21,19 @@ namespace VertiportNexus.Services.Vertiport
         #region [Fields]
 
         /// <summary>
-        /// 내부 카메라 명령 처리 서비스
+        /// [Camera] 명령 처리 서비스
         /// </summary>
         private readonly CameraCommandService _cameraCommandService;
+
+        /// <summary>
+        /// [CSE] 명령 응답 송신 서비스
+        /// </summary>
+        private readonly CseCommandResponseService _responseService;
+
+        /// <summary>
+        /// [Camera] 상태 저장 서비스
+        /// </summary>
+        private readonly CameraStateProvider _cameraStateProvider;
 
         #endregion
 
@@ -32,13 +43,33 @@ namespace VertiportNexus.Services.Vertiport
         /// [CseCommandHandler] 생성자
         /// </summary>
         /// <param name="cameraCommandService">
-        /// 내부 카메라 명령 처리 서비스
+        /// [Camera] 명령 처리 서비스
+        /// </param>
+        /// <param name="responseService">
+        /// [CSE] 명령 응답 송신 서비스
+        /// </param>
+        /// <param name="cameraStateProvider">
+        /// [Camera] 상태 저장 서비스
         /// </param>
         public CseCommandHandler(
-            CameraCommandService cameraCommandService)
+            CameraCommandService cameraCommandService,
+            CseCommandResponseService responseService,
+            CameraStateProvider cameraStateProvider)
         {
             _cameraCommandService =
-                cameraCommandService;
+                cameraCommandService
+                ?? throw new ArgumentNullException(
+                    nameof(cameraCommandService));
+
+            _responseService =
+                responseService
+                ?? throw new ArgumentNullException(
+                    nameof(responseService));
+
+            _cameraStateProvider =
+                cameraStateProvider
+                ?? throw new ArgumentNullException(
+                    nameof(cameraStateProvider));
         }
 
         #endregion
@@ -63,9 +94,126 @@ namespace VertiportNexus.Services.Vertiport
             ConsoleLogHelper.PrintLine();
             Console.WriteLine("[CSE][CMD] Handle Start");
             Console.WriteLine();
+            Console.WriteLine("[CSE][CMD] InterfaceId : " + message.InterfaceId);
             Console.WriteLine("[CSE][CMD] MsgType : " + message.MsgType);
             Console.WriteLine("[CSE][CMD] MsgId : " + message.MsgId);
 
+            /// <summary>
+            /// [ICD] 인터페이스 ID 우선 처리
+            /// 
+            /// 실제 연동 메시지는 [interface_id] 기준으로 분기하고,
+            /// 기존 개발용 [Mock] 메시지는 [msg_type] 기준으로 보조 처리한다.
+            /// </summary>
+            if (!string.IsNullOrWhiteSpace(message.InterfaceId))
+            {
+                HandleCommandByInterfaceId(
+                    message);
+            }
+            else
+            {
+                HandleCommandByMsgType(
+                    message);
+            }
+            Console.WriteLine("[CSE][CMD] Handle End");
+        }
+
+        #endregion
+
+        #region [Command Route Methods]
+
+        /// <summary>
+        /// [CSE] 명령 [InterfaceId] 기준 처리
+        /// 
+        /// ICD 문서의 [IF-GUIS-CSE-001] ~ [IF-GUIS-CSE-012]
+        /// 인터페이스 식별자를 기준으로 명령을 분기한다.
+        /// </summary>
+        /// <param name="message">
+        /// [CSE] 명령 메시지
+        /// </param>
+        private void HandleCommandByInterfaceId(
+            CseCommandMessage message)
+        {
+            switch (message.InterfaceId)
+            {
+                case CseInterfaceId.DetectEnable:
+                    HandleDetectEnable(
+                        message);
+                    break;
+
+                case CseInterfaceId.DetectDisable:
+                    HandleDetectDisable(
+                        message);
+                    break;
+
+                case CseInterfaceId.DetectOn:
+                    HandleDetectOn(
+                        message);
+                    break;
+
+                case CseInterfaceId.DetectOff:
+                    HandleDetectOff(
+                        message);
+                    break;
+
+                case CseInterfaceId.DetectContinue:
+                    HandleDetectContinue(
+                        message);
+                    break;
+
+                case CseInterfaceId.PtzMove:
+                    HandlePtzMove(
+                        message);
+                    break;
+
+                case CseInterfaceId.PtzStop:
+                    HandlePtzStop(
+                        message);
+                    break;
+
+                case CseInterfaceId.PtzMode:
+                    HandlePtzMode(
+                        message);
+                    break;
+
+                case CseInterfaceId.SetImage:
+                    HandleSetImage(
+                        message);
+                    break;
+
+                case CseInterfaceId.SetFlip:
+                    HandleSetFlip(
+                        message);
+                    break;
+
+                case CseInterfaceId.GetConfig:
+                    HandleGetConfig(
+                        message);
+                    break;
+
+                case CseInterfaceId.GetPtzState:
+                    HandleGetState(
+                        message);
+                    break;
+
+                default:
+                    Console.WriteLine("[CSE][CMD] Unsupported InterfaceId : " + message.InterfaceId);
+                    break;
+            }
+
+        }
+
+        /// <summary>
+        /// [CSE] 명령 [MsgType] 기준 처리
+        /// 
+        /// 기존 개발용 [Mock] JSON 테스트와
+        /// 임시 메시지 구조를 유지하기 위한 보조 분기이다.
+        /// </summary>
+        /// <param name="message">
+        /// [CSE] 명령 메시지
+        /// </param>
+        private void HandleCommandByMsgType(
+            CseCommandMessage message)
+        {
             switch (message.MsgType)
             {
                 case CseCommandType.PtzMove:
@@ -88,11 +236,203 @@ namespace VertiportNexus.Services.Vertiport
                         message);
                     break;
 
+                case CseCommandType.DetectEnable:
+                    HandleDetectEnable(
+                        message);
+                    break;
+
+                case CseCommandType.DetectDisable:
+                    HandleDetectDisable(
+                        message);
+                    break;
+
+                case CseCommandType.DetectOn:
+                    HandleDetectOn(
+                        message);
+                    break;
+
+                case CseCommandType.DetectOff:
+                    HandleDetectOff(
+                        message);
+                    break;
+
+                case CseCommandType.DetectContinue:
+                    HandleDetectContinue(
+                        message);
+                    break;
+
+                case CseCommandType.PtzMode:
+                    HandlePtzMode(
+                        message);
+                    break;
+
+                case CseCommandType.SetImage:
+                    HandleSetImage(
+                        message);
+                    break;
+
+                case CseCommandType.SetFlip:
+                    HandleSetFlip(
+                        message);
+                    break;
+
                 default:
                     Console.WriteLine("[CSE][CMD] Unsupported MsgType : " + message.MsgType);
                     break;
             }
-            Console.WriteLine("[CSE][CMD] Handle End");
+
+        }
+
+        #endregion
+
+        #region [Detect Command Methods]
+
+        /// <summary>
+        /// [탐지 활성화] 명령 처리
+        /// 
+        /// ICD 기준 [IF-GUIS-CSE-001] 요청을 처리한다.
+        /// 현재 단계에서는 수신 / 분기 확인 후
+        /// 처리 결과 응답을 송신한다.
+        /// </summary>
+        /// <param name="message">
+        /// [탐지 활성화 요청 메시지]
+        /// </param>
+        private void HandleDetectEnable(
+            CseCommandMessage message)
+        {
+            Console.WriteLine("[CSE][CMD] Detect Enable");
+            Console.WriteLine("[CSE][CMD] InterfaceId : " + message.InterfaceId);
+
+            // [Command] 응답 송신
+            //
+            // 현재 단계에서는 실제 탐지 기능 연결 전이므로
+            // 명령 수신 성공 기준으로 응답한다.
+            _responseService.SendCommandResponse(
+                message,
+                true,
+                "Detect Enable Command Accepted");
+        }
+
+        /// <summary>
+        /// [탐지 활성화 취소] 명령 처리
+        /// 
+        /// ICD 기준 [IF-GUIS-CSE-002] 요청을 처리한다.
+        /// 현재 단계에서는 수신 / 분기 확인 후
+        /// 처리 결과 응답을 송신한다.
+        /// </summary>
+        /// <param name="message">
+        /// [탐지 활성화 취소 요청 메시지]
+        /// </param>
+        private void HandleDetectDisable(
+            CseCommandMessage message)
+        {
+            Console.WriteLine("[CSE][CMD] Detect Disable");
+            Console.WriteLine("[CSE][CMD] InterfaceId : " + message.InterfaceId);
+
+            // [Command] 응답 송신
+            //
+            // 실제 탐지 활성화 취소 기능 연결 전까지는
+            // 명령 수신 성공 기준으로 응답한다.
+            _responseService.SendCommandResponse(
+                message,
+                true,
+                "Detect Disable Command Accepted");
+        }
+
+        /// <summary>
+        /// [탐지] 명령 처리
+        /// 
+        /// ICD 기준 [IF-GUIS-CSE-003] 요청을 처리한다.
+        /// 현재 단계에서는 요청 데이터 확인 후
+        /// 처리 결과 응답을 송신한다.
+        /// </summary>
+        /// <param name="message">
+        /// [탐지 요청 메시지]
+        /// </param>
+        private void HandleDetectOn(
+            CseCommandMessage message)
+        {
+            Console.WriteLine("[CSE][CMD] Detect On");
+            Console.WriteLine("[CSE][CMD] InterfaceId : " + message.InterfaceId);
+
+            if (message.Payload != null)
+            {
+                Console.WriteLine("[CSE][CMD] TrackId : " + message.Payload.TrackId);
+                Console.WriteLine("[CSE][CMD] X1 : " + message.Payload.X1);
+                Console.WriteLine("[CSE][CMD] Y1 : " + message.Payload.Y1);
+                Console.WriteLine("[CSE][CMD] X2 : " + message.Payload.X2);
+                Console.WriteLine("[CSE][CMD] Y2 : " + message.Payload.Y2);
+            }
+
+            // [Command] 응답 송신
+            //
+            // 현재 단계에서는 탐지 좌표 수신 여부만 확인하고
+            // 실제 추적 / ROI 연동은 이후 단계에서 처리한다.
+            _responseService.SendCommandResponse(
+                message,
+                true,
+                "Detect On Command Accepted");
+        }
+
+        /// <summary>
+        /// [탐지 해제] 명령 처리
+        /// 
+        /// ICD 기준 [IF-GUIS-CSE-004] 요청을 처리한다.
+        /// 현재 단계에서는 수신 / 분기 확인 후
+        /// 처리 결과 응답을 송신한다.
+        /// </summary>
+        /// <param name="message">
+        /// [탐지 해제 요청 메시지]
+        /// </param>
+        private void HandleDetectOff(
+            CseCommandMessage message)
+        {
+            Console.WriteLine("[CSE][CMD] Detect Off");
+            Console.WriteLine("[CSE][CMD] InterfaceId : " + message.InterfaceId);
+
+            // [Command] 응답 송신
+            //
+            // 실제 탐지 해제 기능 연결 전까지는
+            // 명령 수신 성공 기준으로 응답한다.
+            _responseService.SendCommandResponse(
+                message,
+                true,
+                "Detect Off Command Accepted");
+        }
+
+        /// <summary>
+        /// [탐지 계속] 명령 처리
+        /// 
+        /// ICD 기준 [IF-GUIS-CSE-005] 요청을 처리한다.
+        /// 현재 단계에서는 요청 데이터 확인 후
+        /// 처리 결과 응답을 송신한다.
+        /// </summary>
+        /// <param name="message">
+        /// [탐지 계속 요청 메시지]
+        /// </param>
+        private void HandleDetectContinue(
+            CseCommandMessage message)
+        {
+            Console.WriteLine("[CSE][CMD] Detect Continue");
+            Console.WriteLine("[CSE][CMD] InterfaceId : " + message.InterfaceId);
+
+            if (message.Payload != null)
+            {
+                Console.WriteLine("[CSE][CMD] TrackId : " + message.Payload.TrackId);
+                Console.WriteLine("[CSE][CMD] X1 : " + message.Payload.X1);
+                Console.WriteLine("[CSE][CMD] Y1 : " + message.Payload.Y1);
+                Console.WriteLine("[CSE][CMD] X2 : " + message.Payload.X2);
+                Console.WriteLine("[CSE][CMD] Y2 : " + message.Payload.Y2);
+            }
+
+            // [Command] 응답 송신
+            //
+            // 현재 단계에서는 탐지 계속 요청 수신 여부만 확인하고
+            // 실제 연속 추적 연동은 이후 단계에서 처리한다.
+            _responseService.SendCommandResponse(
+                message,
+                true,
+                "Detect Continue Command Accepted");
         }
 
         #endregion
@@ -102,10 +442,9 @@ namespace VertiportNexus.Services.Vertiport
         /// <summary>
         /// [PTZ] 이동 명령 처리
         /// 
-        /// [ICD] 기준 [ptz_move] 메시지를 처리한다.
-        /// 
-        /// 현재 단계에서는 [mode] / [pan] / [tilt] / [zoom] 값을 확인하고,
-        /// 이후 [ADS1000] 제어 서비스 호출로 확장한다.
+        /// ICD 기준 [IF-GUIS-CSE-006] 요청을 처리한다.
+        /// [payload]의 [mode] / [pan] / [tilt] / [zoom] / [focus] 값을
+        /// 내부 카메라 명령으로 변환하여 장비 제어 서비스로 전달한다.
         /// </summary>
         /// <param name="message">
         /// [PTZ] 이동 명령 메시지
@@ -119,15 +458,28 @@ namespace VertiportNexus.Services.Vertiport
             if (payload == null)
             {
                 Console.WriteLine("[CSE][CMD] PTZ Move Failed : Payload is null");
+
+                _responseService.SendCommandResponse(
+                    message,
+                    false,
+                    "PTZ Move Failed : Payload is null");
+
                 return;
             }
+
             Console.WriteLine("[CSE][CMD] PTZ Move");
+            Console.WriteLine("[CSE][CMD] InterfaceId : " + message.InterfaceId);
             Console.WriteLine("[CSE][CMD] Mode : " + payload.Mode);
             Console.WriteLine("[CSE][CMD] Pan : " + payload.Pan);
             Console.WriteLine("[CSE][CMD] Tilt : " + payload.Tilt);
             Console.WriteLine("[CSE][CMD] Zoom : " + payload.Zoom);
+            Console.WriteLine("[CSE][CMD] Focus : " + payload.Focus);
             Console.WriteLine();
 
+            // [CSE] 명령을 내부 카메라 명령으로 변환
+            //
+            // [CameraCommandService]는 CSE 메시지 구조를 알지 않고,
+            // 내부 공통 명령 모델만 받아 ADS1000 제어로 분기한다.
             CameraCommand cameraCommand =
                 new CameraCommand
                 {
@@ -146,17 +498,32 @@ namespace VertiportNexus.Services.Vertiport
                     Zoom =
                         payload.Zoom,
 
+                    Focus =
+                        payload.Focus,
+
                     SourceMsgId =
                         message.MsgId
                 };
+
             _cameraCommandService.HandleCommand(
                 cameraCommand);
+
+            // [Command] 응답 송신
+            //
+            // 장비 제어 명령 전달이 완료되면
+            // [q.command.res] Queue로 처리 결과를 응답한다.
+            _responseService.SendCommandResponse(
+                message,
+                true,
+                "PTZ Move Command Accepted");
         }
 
         /// <summary>
         /// [PTZ] 정지 명령 처리
         /// 
-        /// [ICD] 기준 [ptz_stop] 메시지를 처리한다.
+        /// ICD 기준 [IF-GUIS-CSE-007] 요청을 처리한다.
+        /// 현재 동작 중인 [Pan] / [Tilt] / [Zoom] / [Focus]
+        /// 연속 제어를 정지한다.
         /// </summary>
         /// <param name="message">
         /// [PTZ] 정지 명령 메시지
@@ -165,8 +532,10 @@ namespace VertiportNexus.Services.Vertiport
             CseCommandMessage message)
         {
             Console.WriteLine("[CSE][CMD] PTZ Stop");
+            Console.WriteLine("[CSE][CMD] InterfaceId : " + message.InterfaceId);
             Console.WriteLine("[CSE][CMD] Request MsgId : " + message.MsgId);
 
+            // [CSE] 정지 명령을 내부 카메라 명령으로 변환
             CameraCommand cameraCommand =
                 new CameraCommand
                 {
@@ -176,8 +545,115 @@ namespace VertiportNexus.Services.Vertiport
                     SourceMsgId =
                         message.MsgId
                 };
+
             _cameraCommandService.HandleCommand(
                 cameraCommand);
+
+            // [Command] 응답 송신
+            //
+            // 정지 명령 처리 후
+            // [q.command.res] Queue로 응답한다.
+            _responseService.SendCommandResponse(
+                message,
+                true,
+                "PTZ Stop Command Accepted");
+        }
+
+        #endregion
+
+        #region [Image Command Methods]
+
+        /// <summary>
+        /// [PTZ 제어 모드] 명령 처리
+        /// 
+        /// ICD 기준 [IF-GUIS-CSE-008] 요청을 처리한다.
+        /// 현재 구조에서는 [PTZ Move] 요청의 [payload.mode]를 우선 사용하므로,
+        /// 본 명령은 수신 / 응답 구조 확인용으로 처리한다.
+        /// </summary>
+        /// <param name="message">
+        /// [PTZ 제어 모드 설정 요청 메시지]
+        /// </param>
+        private void HandlePtzMode(
+            CseCommandMessage message)
+        {
+            Console.WriteLine("[CSE][CMD] PTZ Mode");
+            Console.WriteLine("[CSE][CMD] InterfaceId : " + message.InterfaceId);
+
+            if (message.Payload != null)
+            {
+                Console.WriteLine("[CSE][CMD] Mode : " + message.Payload.Mode);
+            }
+
+            // [Command] 응답 송신
+            //
+            // 현재 단계에서는 별도 모드 상태 저장 없이
+            // 명령 수신 성공 기준으로 응답한다.
+            _responseService.SendCommandResponse(
+                message,
+                true,
+                "PTZ Mode Command Accepted");
+        }
+
+        /// <summary>
+        /// [영상 설정] 명령 처리
+        /// 
+        /// ICD 기준 [IF-GUIS-CSE-009] 요청을 처리한다.
+        /// 현재 단계에서는 영상 채널 설정 요청을 수신하고,
+        /// 처리 결과 응답을 송신한다.
+        /// </summary>
+        /// <param name="message">
+        /// [영상 설정 요청 메시지]
+        /// </param>
+        private void HandleSetImage(
+            CseCommandMessage message)
+        {
+            Console.WriteLine("[CSE][CMD] Set Image");
+            Console.WriteLine("[CSE][CMD] InterfaceId : " + message.InterfaceId);
+
+            if (message.Payload != null)
+            {
+                Console.WriteLine("[CSE][CMD] Channel : " + message.Payload.Channel);
+            }
+
+            // [Command] 응답 송신
+            //
+            // 실제 영상 채널 전환 기능은 이후 단계에서 연결하고,
+            // 현재는 수신 성공 기준으로 응답한다.
+            _responseService.SendCommandResponse(
+                message,
+                true,
+                "Set Image Command Accepted");
+        }
+
+        /// <summary>
+        /// [영상 플립] 명령 처리
+        /// 
+        /// ICD 기준 [IF-GUIS-CSE-010] 요청을 처리한다.
+        /// 현재 단계에서는 영상 반전 요청값을 확인하고,
+        /// 처리 결과 응답을 송신한다.
+        /// </summary>
+        /// <param name="message">
+        /// [영상 플립 설정 요청 메시지]
+        /// </param>
+        private void HandleSetFlip(
+            CseCommandMessage message)
+        {
+            Console.WriteLine("[CSE][CMD] Set Flip");
+            Console.WriteLine("[CSE][CMD] InterfaceId : " + message.InterfaceId);
+
+            if (message.Payload != null)
+            {
+                Console.WriteLine("[CSE][CMD] Flip : " + message.Payload.Flip);
+            }
+
+            // [Command] 응답 송신
+            //
+            // 실제 영상 반전 적용은 이후 영상 처리 단계에서 연결하고,
+            // 현재는 수신 성공 기준으로 응답한다.
+            _responseService.SendCommandResponse(
+                message,
+                true,
+                "Set Flip Command Accepted");
         }
 
         #endregion
@@ -185,33 +661,97 @@ namespace VertiportNexus.Services.Vertiport
         #region [Status Command Methods]
 
         /// <summary>
-        /// 카메라 상태 조회 명령 처리
+        /// [카메라 상태 - 설정 조회] 명령 처리
         /// 
-        /// [ICD] 기준 [get_state] 메시지를 처리한다.
+        /// ICD 기준 [IF-GUIS-CSE-011] 요청을 처리한다.
+        /// 현재 단계에서는 응답 송신 구조 확인을 위해
+        /// 기본 설정 응답 [Payload]를 생성하여 송신한다.
+        /// 
+        /// 실제 설정값 연동은 영상 / 탐지 / 장비 상태 모델 정리 후 반영한다.
         /// </summary>
         /// <param name="message">
-        /// 상태 조회 명령 메시지
-        /// </param>
-        private void HandleGetState(
-            CseCommandMessage message)
-        {
-            Console.WriteLine("[CSE][CMD] Get State");
-            Console.WriteLine("[CSE][CMD] ReplyTo : " + message.ReplyTo);
-        }
-
-        /// <summary>
-        /// 카메라 설정 조회 명령 처리
-        /// 
-        /// [ICD] 기준 [get_conf] 메시지를 처리한다.
-        /// </summary>
-        /// <param name="message">
-        /// 설정 조회 명령 메시지
+        /// [카메라 설정 조회 요청 메시지]
         /// </param>
         private void HandleGetConfig(
             CseCommandMessage message)
         {
             Console.WriteLine("[CSE][CMD] Get Config");
-            Console.WriteLine("[CSE][CMD] ReplyTo : " + message.ReplyTo);
+            Console.WriteLine("[CSE][CMD] InterfaceId : " + message.InterfaceId);
+            Console.WriteLine("[CSE][CMD] Request MsgId : " + message.MsgId);
+
+            // [카메라 설정] 응답 [Payload] 생성
+            //
+            // 현재 단계에서는 실제 설정 저장소가 없으므로
+            // 기본값 기준으로 응답 구조만 먼저 구성한다.
+            CseCommandResponsePayload payload =
+                new CseCommandResponsePayload
+                {
+                    Channel =
+                        "EO",
+                    Flip =
+                        false,
+                    DetectEnabled =
+                        false
+                };
+
+            // [Status] 응답 송신
+            //
+            // 설정 조회는 상태성 요청이므로
+            // [q.status.res] Queue로 응답을 송신한다.
+            _responseService.SendStatusResponse(
+                message,
+                payload);
+        }
+
+        /// <summary>
+        /// [카메라 상태 - PTZ 조회] 명령 처리
+        /// 
+        /// ICD 기준 [IF-GUIS-CSE-012] 요청을 처리한다.
+        /// 현재 [Pan] / [Tilt] / [Zoom] / [Focus]
+        /// 상태 정보를 조회하여
+        /// [q.status.res] Queue로 응답한다.
+        /// </summary>
+        /// <param name="message">
+        /// [PTZ] 상태 조회 요청 메시지
+        /// </param>
+        private void HandleGetState(
+            CseCommandMessage message)
+        {
+            Console.WriteLine("[CSE][CMD] Get PTZ State");
+            Console.WriteLine("[CSE][CMD] InterfaceId : " + message.InterfaceId);
+            Console.WriteLine("[CSE][CMD] Request MsgId : " + message.MsgId);
+
+            // [PTZ] 상태 응답 [Payload] 생성
+            //
+            // [ADS1000] 수신 [Packet]에서 갱신된
+            // 현재 [Pan] / [Tilt] / [Zoom] / [Focus] 값을 사용한다.
+            CseCommandResponsePayload payload =
+                new CseCommandResponsePayload
+                {
+                    Pan =
+                        _cameraStateProvider.CurrentPan,
+
+                    Tilt =
+                        _cameraStateProvider.CurrentTilt,
+
+                    Zoom =
+                        _cameraStateProvider.CurrentZoom,
+
+                    Focus =
+                        _cameraStateProvider.CurrentFocus,
+
+                    UpdatedTime =
+                        _cameraStateProvider.LastUpdatedTime?.ToString(
+                            "yyyy-MM-ddTHH:mm:ss")
+                };
+
+            // [Status] 응답 송신
+            //
+            // [PTZ] 상태 조회는 상태성 요청이므로
+            // [q.status.res] Queue로 응답을 송신한다.
+            _responseService.SendStatusResponse(
+                message,
+                payload);
         }
         #endregion
     }

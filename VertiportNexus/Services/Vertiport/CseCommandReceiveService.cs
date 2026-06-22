@@ -74,12 +74,12 @@ namespace VertiportNexus.Services.Vertiport
         /// <summary>
         /// [CSE] 명령 수신 시작
         /// 
-        /// [ICD] 기준 [q.command.req] Queue를 수신 대상으로 사용한다.
+        /// ICD 기준 [q.command.req] Queue를 수신 대상으로 사용한다.
         /// </summary>
         public void StartReceive()
         {
             _mqReceiver.StartReceive(
-                "q.command.req");
+                CseMqQueue.CommandRequest);
         }
 
         /// <summary>

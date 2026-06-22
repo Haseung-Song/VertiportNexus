@@ -100,14 +100,29 @@ namespace VertiportNexus.ViewModels.Main
         private readonly Ads1000StatusService _ads1000StatusService;
 
         /// <summary>
+        /// [Camera] 상태 저장 서비스
+        /// </summary>
+        private readonly CameraStateProvider _cameraStateProvider;
+
+        /// <summary>
         /// [Mock] [MQ] 수신 서비스
         /// </summary>
         private readonly MockMqReceiver _mockMqReceiver;
 
         /// <summary>
+        /// [Mock] [MQ] 송신 서비스
+        /// </summary>
+        private readonly MockMqSender _mockMqSender;
+
+        /// <summary>
         /// [CSE] 명령 수신 서비스
         /// </summary>
         private readonly CseCommandReceiveService _cseCommandReceiveService;
+
+        /// <summary>
+        /// [CSE] 명령 응답 송신 서비스
+        /// </summary>
+        private readonly CseCommandResponseService _cseCommandResponseService;
 
         /// <summary>
         /// 내부 카메라 명령 처리 서비스
@@ -499,6 +514,10 @@ namespace VertiportNexus.ViewModels.Main
             _ads1000StatusService =
                 new Ads1000StatusService();
 
+            // [Camera] 상태 저장 서비스 생성
+            _cameraStateProvider =
+                new CameraStateProvider();
+
             #endregion
 
             #region [CSE Initialize]
@@ -507,20 +526,31 @@ namespace VertiportNexus.ViewModels.Main
             _mockMqReceiver =
                 new MockMqReceiver();
 
+            // [Mock] [MQ] 송신 서비스 생성
+            _mockMqSender =
+                new MockMqSender();
+
             // [CSE] 명령 수신 서비스 생성
             _cseCommandReceiveService =
                 new CseCommandReceiveService(
                     _mockMqReceiver);
 
-            // 내부 카메라 명령 처리 서비스 생성
+            // 내부 [Camera] 명령 처리 서비스 생성
             _cameraCommandService =
                 new CameraCommandService(
                     _ads1000CameraControlService);
 
+            // [CSE] 명령 응답 송신 서비스 생성
+            _cseCommandResponseService =
+                new CseCommandResponseService(
+                    _mockMqSender);
+
             // [CSE] 명령 처리 서비스 생성
             _cseCommandHandler =
                 new CseCommandHandler(
-                    _cameraCommandService);
+                    _cameraCommandService,
+                    _cseCommandResponseService,
+                    _cameraStateProvider);
 
             // [CSE] 명령 수신 이벤트 연결
             _cseCommandReceiveService.CommandReceived +=
@@ -529,17 +559,18 @@ namespace VertiportNexus.ViewModels.Main
             // [CSE] 명령 수신 시작
             _cseCommandReceiveService.StartReceive();
 
-            // [CSE] [PTZ Move] 명령 수신 테스트
-            //
-            // [continuous] [Pan Right] 이동 명령을
-            // [Mock MQ]를 통해 수신한 것처럼 테스트한다.
-            //TestCsePtzMove();
 
-            // [CSE] [PTZ Stop] 명령 수신 테스트
+            #region [Test Initialize]
+
+            // [CSE] [Mock MQ] 통합 명령 수신 테스트
             //
-            // [PTZ] 정지 명령을
-            // [Mock MQ]를 통해 수신한 것처럼 테스트한다.
-            //TestCsePtzStop();
+            // ICD 기준 명령 수신 / 분기 / 응답 흐름을
+            // 장비 연결 없이 순차 테스트한다.
+            //
+            // 테스트 완료 후 실제 운용 시에는 주석 처리한다.
+            _ = RunCseMockTestAsync();
+
+            #endregion
 
             #endregion
 
@@ -1272,6 +1303,12 @@ namespace VertiportNexus.ViewModels.Main
                 ApplyDeviceConnectionResult(
                     connectionResult);
 
+                // [CSE] [Mock MQ] 명령 수신 테스트
+                //
+                // [MCB] / [SCB] 연결 완료 후
+                // ICD 명령 수신 흐름을 테스트한다.
+                //_ = RunCseMockTestAsync();
+
                 // [EO] 영상 표시 허용
                 _isEoVideoDisplayEnabled = true;
 
@@ -1289,25 +1326,54 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
-        /// [CSE] [Mock MQ] [PTZ] 제어 테스트
+        /// [CSE] [Mock MQ] 통합 명령 수신 테스트
         /// 
-        /// [MCB] 연결 완료 후,
-        /// [continuous] 이동 명령과
-        /// [PTZ Stop] 명령을 순차 테스트한다.
+        /// ICD 기준 주요 명령을 순차적으로 수신한 것처럼 테스트한다.
+        /// 
+        /// [IF-GUIS-CSE-006] PTZ Move
+        /// [IF-GUIS-CSE-007] PTZ Stop
+        /// [IF-GUIS-CSE-011] Get Config
+        /// [IF-GUIS-CSE-012] Get PTZ State
+        /// 
+        /// 장비 연결 없이 [CSE] 수신 / 파싱 / 분기 / 응답 송신 흐름을 확인한다.
         /// </summary>
-        private async Task RunCsePtzMockTestAsync()
+        private async Task RunCseMockTestAsync()
         {
             await Task.Delay(
                 2500);
 
             // [CSE] [PTZ Move] 명령 수신 테스트
+            //
+            // ICD 기준 [IF-GUIS-CSE-006] 요청을
+            // [Mock MQ]를 통해 수신한 것처럼 테스트한다.
             TestCsePtzMove();
 
             await Task.Delay(
-                5000);
+                1000);
 
             // [CSE] [PTZ Stop] 명령 수신 테스트
+            //
+            // ICD 기준 [IF-GUIS-CSE-007] 요청을
+            // [Mock MQ]를 통해 수신한 것처럼 테스트한다.
             TestCsePtzStop();
+
+            await Task.Delay(
+                1000);
+
+            // [CSE] [Get Config] 명령 수신 테스트
+            //
+            // ICD 기준 [IF-GUIS-CSE-011] 요청을
+            // [Mock MQ]를 통해 수신한 것처럼 테스트한다.
+            TestCseGetConfig();
+
+            await Task.Delay(
+                1000);
+
+            // [CSE] [Get PTZ State] 명령 수신 테스트
+            //
+            // ICD 기준 [IF-GUIS-CSE-012] 요청을
+            // [Mock MQ]를 통해 수신한 것처럼 테스트한다.
+            TestCseGetPtzState();
         }
 
         /// <summary>
@@ -1613,9 +1679,7 @@ namespace VertiportNexus.ViewModels.Main
                 {
                     return;
                 }
-
-                EOCameraImage =
-                    bitmap;
+                EOCameraImage = bitmap;
             });
 
         }
@@ -1811,9 +1875,24 @@ namespace VertiportNexus.ViewModels.Main
         /// <summary>
         /// [ADS1000] 파싱 상태값을 화면 표시용 속성에 반영
         /// </summary>
+        /// <param name="parsedPacket">
+        /// [ADS1000] 파싱 [Packet]
+        /// </param>
         private void ApplyParsedStatusValue(
             Ads1000ParsedPacket parsedPacket)
         {
+            double? updatedPan =
+                null;
+
+            double? updatedTilt =
+                null;
+
+            double? updatedZoom =
+                null;
+
+            double? updatedFocus =
+                null;
+
             if (parsedPacket.HasPanValue)
             {
                 CurrentPan =
@@ -1821,6 +1900,9 @@ namespace VertiportNexus.ViewModels.Main
                         parsedPacket.PanValue,
                         -180,
                         180);
+
+                updatedPan =
+                    CurrentPan;
             }
 
             if (parsedPacket.HasTiltValue)
@@ -1830,6 +1912,9 @@ namespace VertiportNexus.ViewModels.Main
                         parsedPacket.TiltValue,
                         -95,
                         95);
+
+                updatedTilt =
+                    CurrentTilt;
             }
 
             if (parsedPacket.HasZoomValue)
@@ -1839,6 +1924,9 @@ namespace VertiportNexus.ViewModels.Main
                         parsedPacket.ZoomValue,
                         0,
                         1000);
+
+                updatedZoom =
+                    CurrentZoom;
             }
 
             if (parsedPacket.HasFocusValue)
@@ -1848,8 +1936,20 @@ namespace VertiportNexus.ViewModels.Main
                         parsedPacket.FocusValue,
                         0,
                         1000);
+
+                updatedFocus =
+                    CurrentFocus;
             }
 
+            // [Camera] 상태 저장소 갱신
+            //
+            // [CSE] 상태 조회 응답에서 사용할 수 있도록
+            // 수신 [Packet]에 포함된 상태값만 저장한다.
+            _cameraStateProvider.UpdateState(
+                updatedPan,
+                updatedTilt,
+                updatedZoom,
+                updatedFocus);
         }
 
         #endregion
@@ -1916,7 +2016,8 @@ namespace VertiportNexus.ViewModels.Main
         {
             string json =
                 @"{
-                    ""msg_type"": ""ptz_move"",
+                    ""interface_id"":""IF-GUIS-CSE-006"",
+                    ""msg_type"":""ptz_move"",
                     ""msg_id"": ""CMD-0001"",
                     ""timestamp"": ""2026-06-17T10:00:00"",
                     ""reply_to"": ""q.command.res"",
@@ -1937,7 +2038,8 @@ namespace VertiportNexus.ViewModels.Main
         {
             string json =
                 @"{
-                    ""msg_type"": ""ptz_stop"",
+                    ""interface_id"":""IF-GUIS-CSE-007"",
+                    ""msg_type"":""ptz_stop"",
                     ""msg_id"": ""CMD-0002"",
                     ""timestamp"": ""2026-06-17T10:00:01"",
                     ""reply_to"": ""q.command.res"",
@@ -1945,6 +2047,52 @@ namespace VertiportNexus.ViewModels.Main
                     }
 
                 }";
+            _mockMqReceiver.InjectMessage(
+                json);
+        }
+
+        /// <summary>
+        /// [CSE] [Get Config] 테스트
+        /// 
+        /// ICD 기준 [IF-GUIS-CSE-011] 설정 조회 요청을
+        /// [Mock MQ]로 수신한 것처럼 테스트한다.
+        /// </summary>
+        private void TestCseGetConfig()
+        {
+            string json =
+                @"{
+            ""interface_id"": ""IF-GUIS-CSE-011"",
+            ""msg_type"": ""get_conf"",
+            ""msg_id"": ""CMD-0011"",
+            ""timestamp"": ""2026-06-22T10:00:00"",
+            ""reply_to"": ""q.status.res"",
+            ""payload"": {
+            }
+        }";
+
+            _mockMqReceiver.InjectMessage(
+                json);
+        }
+
+        /// <summary>
+        /// [CSE] [Get PTZ State] 테스트
+        /// 
+        /// ICD 기준 [IF-GUIS-CSE-012] PTZ 상태 조회 요청을
+        /// [Mock MQ]로 수신한 것처럼 테스트한다.
+        /// </summary>
+        private void TestCseGetPtzState()
+        {
+            string json =
+                @"{
+            ""interface_id"": ""IF-GUIS-CSE-012"",
+            ""msg_type"": ""get_state"",
+            ""msg_id"": ""CMD-0012"",
+            ""timestamp"": ""2026-06-22T10:00:01"",
+            ""reply_to"": ""q.status.res"",
+            ""payload"": {
+            }
+        }";
+
             _mockMqReceiver.InjectMessage(
                 json);
         }

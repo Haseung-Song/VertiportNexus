@@ -13,6 +13,16 @@ namespace VertiportNexus.Models.Vertiport
         #region [Properties]
 
         /// <summary>
+        /// 인터페이스 식별자
+        /// 
+        /// ICD 문서 기준
+        /// [IF-GUIS-CSE-001] ~ 
+        /// [IF-GUIS-CSE-012] 명령을 구분한다.
+        /// </summary>
+        [JsonPropertyName("interface_id")]
+        public string InterfaceId { get; set; }
+
+        /// <summary>
         /// 메시지 타입
         /// 
         /// 예)

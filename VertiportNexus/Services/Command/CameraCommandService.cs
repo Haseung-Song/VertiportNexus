@@ -93,10 +93,8 @@ namespace VertiportNexus.Services.Command
         /// <summary>
         /// [PTZ] 이동 명령 처리
         /// 
-        /// 현재 [ADS1000] 제어 서비스는 연속 제어 함수가 구현되어 있으므로,
-        /// [continuous] 모드부터 실제 장비 제어와 연결한다.
-        /// 
-        /// [absolute] / [relative] 모드는 이후 위치 제어 [Packet] 구현 후 연결한다.
+        /// [continuous] / [absolute] / [relative] 모드에 따라
+        /// 현재 장비 제어 서비스 호출을 분기한다.
         /// </summary>
         /// <param name="command">
         /// 내부 카메라 명령
@@ -115,7 +113,9 @@ namespace VertiportNexus.Services.Command
                 "continuous",
                 StringComparison.OrdinalIgnoreCase))
             {
-                HandleContinuousMove(command);
+                HandleContinuousMove(
+                    command);
+
                 return;
             }
 
@@ -123,8 +123,9 @@ namespace VertiportNexus.Services.Command
                 "absolute",
                 StringComparison.OrdinalIgnoreCase))
             {
-                Console.WriteLine("[CAMERA][CMD] Absolute Move Received");
-                Console.WriteLine("[CAMERA][CMD] Absolute Move is not connected yet");
+                HandleAbsoluteMove(
+                    command);
+
                 return;
             }
 
@@ -132,11 +133,11 @@ namespace VertiportNexus.Services.Command
                 "relative",
                 StringComparison.OrdinalIgnoreCase))
             {
-                Console.WriteLine("[CAMERA][CMD] Relative Move Received");
-                Console.WriteLine("[CAMERA][CMD] Relative Move is not connected yet");
+                HandleRelativeMove(
+                    command);
+
                 return;
             }
-
             Console.WriteLine("[CAMERA][CMD] Unsupported PTZ Mode : " + command.Mode);
         }
 
@@ -147,6 +148,10 @@ namespace VertiportNexus.Services.Command
         {
             _ads1000CameraControlService.StopMove();
         }
+
+        #endregion
+
+        #region [Continuous Move Methods]
 
         /// <summary>
         /// [continuous] 이동 명령 처리
@@ -225,6 +230,129 @@ namespace VertiportNexus.Services.Command
             }
             Console.WriteLine("[CAMERA][CMD] Continuous Move Failed : No direction value");
         }
+
+        #endregion
+
+        #region [Absolute Move Methods]
+
+        /// <summary>
+        /// [absolute] 위치 이동 명령 처리
+        /// 
+        /// [Pan] / [Tilt]는 각도 기반 절대 위치 이동,
+        /// [Zoom] / [Focus]는 위치값 기반 이동으로 처리한다.
+        /// </summary>
+        /// <param name="command">
+        /// 내부 카메라 명령
+        /// </param>
+        private void HandleAbsoluteMove(
+            CameraCommand command)
+        {
+            if (command.Pan.HasValue)
+            {
+                _ads1000CameraControlService
+                    .MovePanAbsolute(
+                        command.Pan.Value);
+            }
+
+            if (command.Tilt.HasValue)
+            {
+                _ads1000CameraControlService
+                    .MoveTiltAbsolute(
+                        command.Tilt.Value);
+            }
+
+            if (command.Zoom.HasValue)
+            {
+                _ads1000CameraControlService
+                    .MoveZoomPosition(
+                        (ushort)Clamp(
+                            command.Zoom.Value,
+                            0,
+                            1000));
+            }
+
+            if (command.Focus.HasValue)
+            {
+                _ads1000CameraControlService
+                    .MoveFocusPosition(
+                        (ushort)Clamp(
+                            command.Focus.Value,
+                            0,
+                            1000));
+            }
+
+        }
+
+        #endregion
+
+        #region [Relative Move Methods]
+
+        /// <summary>
+        /// [relative] 상대 이동 명령 처리
+        /// 
+        /// 현재 위치 기준으로 [Pan] / [Tilt] 상대 이동을 처리한다.
+        /// </summary>
+        /// <param name="command">
+        /// 내부 카메라 명령
+        /// </param>
+        private void HandleRelativeMove(
+            CameraCommand command)
+        {
+            if (command.Pan.HasValue)
+            {
+                _ads1000CameraControlService
+                    .MovePanRelative(
+                        command.Pan.Value);
+            }
+
+            if (command.Tilt.HasValue)
+            {
+                _ads1000CameraControlService
+                    .MoveTiltRelative(
+                        command.Tilt.Value);
+            }
+
+            if (command.Zoom.HasValue ||
+                command.Focus.HasValue)
+            {
+                Console.WriteLine("[CAMERA][CMD] Relative Zoom / Focus is not supported yet");
+            }
+
+        }
+
+        #endregion
+
+        #region [Utility Methods]
+
+        /// <summary>
+        /// 입력값을 지정 범위 안으로 제한
+        /// </summary>
+        /// <param name="value">
+        /// 원본 값
+        /// </param>
+        /// <param name="min">
+        /// 최소 허용값
+        /// </param>
+        /// <param name="max">
+        /// 최대 허용값
+        /// </param>
+        /// <returns>
+        /// 범위 제한이 적용된 값
+        /// </returns>
+        private double Clamp(
+            double value,
+            double min,
+            double max)
+        {
+            if (value < min)
+                return min;
+
+            if (value > max)
+                return max;
+
+            return value;
+        }
+
         #endregion
     }
 

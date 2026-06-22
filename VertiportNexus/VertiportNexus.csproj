@@ -145,7 +145,11 @@
     <Compile Include="Models\Camera\CameraCommandType.cs" />
     <Compile Include="Models\Vertiport\CseCommandMessage.cs" />
     <Compile Include="Models\Vertiport\CseCommandPayload.cs" />
+    <Compile Include="Models\Vertiport\CseCommandResponse.cs" />
+    <Compile Include="Models\Vertiport\CseCommandResponsePayload.cs" />
     <Compile Include="Models\Vertiport\CseCommandType.cs" />
+    <Compile Include="Models\Vertiport\CseInterfaceId.cs" />
+    <Compile Include="Models\Vertiport\CseMqQueue.cs" />
     <Compile Include="Services\ADS1000\Ads1000CameraControlService.cs" />
     <Compile Include="Services\ADS1000\Ads1000StatusService.cs" />
     <Compile Include="Services\Command\CameraCommandService.cs" />
@@ -155,8 +159,11 @@
     <Compile Include="Services\Communication\ADS1000\Ads1000ScbPacketBuilder.cs" />
     <Compile Include="Services\ADS1000\Ads1000ConnectionService.cs" />
     <Compile Include="Models\ADS1000\Ads1000ConnectionResult.cs" />
+    <Compile Include="Services\Communication\Camera\CameraStateProvider.cs" />
     <Compile Include="Services\Communication\MQ\IMqReceiver.cs" />
+    <Compile Include="Services\Communication\MQ\IMqSender.cs" />
     <Compile Include="Services\Communication\MQ\MockMqReceiver.cs" />
+    <Compile Include="Services\Communication\MQ\MockMqSender.cs" />
     <Compile Include="Services\Communication\MQ\MqService.cs" />
     <Compile Include="Services\Communication\TCP\TcpClientService.cs" />
     <Compile Include="Services\Communication\UDP\UdpClientService.cs" />
@@ -164,6 +171,7 @@
     <Compile Include="Services\Communication\Camera\FFmpegDecoderService.cs" />
     <Compile Include="Services\Vertiport\CseCommandHandler.cs" />
     <Compile Include="Services\Vertiport\CseCommandReceiveService.cs" />
+    <Compile Include="Services\Vertiport\CseCommandResponseService.cs" />
     <Compile Include="Services\Vertiport\CseMessageParser.cs" />
     <Compile Include="ViewModels\Main\MainViewModel.cs" />
     <Compile Include="Views\Main\MainWindow.xaml.cs">
