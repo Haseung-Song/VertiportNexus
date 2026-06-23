@@ -17,6 +17,9 @@ namespace VertiportNexus.Services.Vertiport
 
         /// <summary>
         /// [MQ] 수신 서비스
+        /// 
+        /// [Mock MQ] / [RabbitMQ] 수신 서비스를
+        /// 공통 인터페이스로 사용한다.
         /// </summary>
         private readonly IMqReceiver _mqReceiver;
 
@@ -58,7 +61,9 @@ namespace VertiportNexus.Services.Vertiport
             IMqReceiver mqReceiver)
         {
             _mqReceiver =
-                mqReceiver;
+                mqReceiver
+                ?? throw new ArgumentNullException(
+                    nameof(mqReceiver));
 
             _messageParser =
                 new CseMessageParser();
@@ -74,12 +79,12 @@ namespace VertiportNexus.Services.Vertiport
         /// <summary>
         /// [CSE] 명령 수신 시작
         /// 
-        /// ICD 기준 [q.command.req] Queue를 수신 대상으로 사용한다.
+        /// [IMqReceiver] 구현체에서
+        /// ICD 기준 [q.command.req] Queue를 수신한다.
         /// </summary>
         public void StartReceive()
         {
-            _mqReceiver.StartReceive(
-                CseMqQueue.CommandRequest);
+            _mqReceiver.StartReceive();
         }
 
         /// <summary>
@@ -113,6 +118,7 @@ namespace VertiportNexus.Services.Vertiport
             LastMessageChanged?.Invoke(
                 json);
 
+            ConsoleLogHelper.PrintLine();
             Console.WriteLine("[CSE][RECV] Queue : " + queueName);
             Console.WriteLine("[CSE][RECV] JSON Parse Start");
 
@@ -123,6 +129,8 @@ namespace VertiportNexus.Services.Vertiport
             if (message == null)
             {
                 Console.WriteLine("[CSE][RECV] JSON Parse Failed");
+                ConsoleLogHelper.PrintLine();
+
                 return;
             }
 
@@ -130,9 +138,9 @@ namespace VertiportNexus.Services.Vertiport
             Console.WriteLine("[CSE][RECV] MsgId : " + message.MsgId);
             Console.WriteLine("[CSE][RECV] ReplyTo : " + message.ReplyTo);
 
-            CommandReceived?.Invoke(message);
+            CommandReceived?.Invoke(
+                message);
         }
-
         #endregion
     }
 

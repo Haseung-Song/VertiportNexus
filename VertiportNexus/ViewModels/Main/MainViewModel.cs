@@ -105,14 +105,28 @@ namespace VertiportNexus.ViewModels.Main
         private readonly CameraStateProvider _cameraStateProvider;
 
         /// <summary>
-        /// [Mock] [MQ] 수신 서비스
+        /// [MQ] 수신 서비스
+        /// 
+        /// [Mock MQ] / [RabbitMQ] 수신 서비스를
+        /// 공통 인터페이스로 사용한다.
         /// </summary>
-        private readonly MockMqReceiver _mockMqReceiver;
+        private readonly IMqReceiver _mqReceiver;
 
         /// <summary>
-        /// [Mock] [MQ] 송신 서비스
+        /// [MQ] 송신 서비스
+        /// 
+        /// [Mock MQ] / [RabbitMQ] 송신 서비스를
+        /// 공통 인터페이스로 사용한다.
         /// </summary>
-        private readonly MockMqSender _mockMqSender;
+        private readonly IMqSender _mqSender;
+
+        /// <summary>
+        /// [Mock] [MQ] 수신 서비스
+        /// 
+        /// 개발용 테스트 메시지 주입 시 사용한다.
+        /// 실제 운용 수신은 [_mqReceiver]를 통해 처리한다.
+        /// </summary>
+        private readonly MockMqReceiver _mockMqReceiver;
 
         /// <summary>
         /// [CSE] 명령 수신 서비스
@@ -241,6 +255,17 @@ namespace VertiportNexus.ViewModels.Main
         /// 현재 [Focus] 값
         /// </summary>
         private double _currentFocus;
+
+        /// <summary>
+        /// [UI] 연속 이동 제어 진행 여부
+        /// 
+        /// 사용자가 화면 버튼을 통해
+        /// [MouseDown] 연속 이동을 시작한 경우에만 true로 설정한다.
+        /// 
+        /// [RabbitMQ] / [CSE] 연속 이동 명령과
+        /// [UI] MouseUp 정지 처리를 분리하기 위해 사용한다.
+        /// </summary>
+        private bool _isUiContinuousMoveStarted;
 
         /// <summary>
         /// [Pan] Absolute 이동 입력값
@@ -523,17 +548,30 @@ namespace VertiportNexus.ViewModels.Main
             #region [CSE Initialize]
 
             // [Mock] [MQ] 수신 서비스 생성
+            //
+            // 개발 단계에서 [JSON] 테스트 메시지를
+            // 직접 주입하기 위해 별도 보관한다.
             _mockMqReceiver =
                 new MockMqReceiver();
 
-            // [Mock] [MQ] 송신 서비스 생성
-            _mockMqSender =
-                new MockMqSender();
+            // [MQ] 수신 서비스 지정
+            //
+            // 실제 [RabbitMQ]의 [q.command.req] Queue에서
+            // [CSE] 명령 [JSON]을 수신한다.
+            _mqReceiver =
+                new RabbitMqReceiver();
+
+            // [MQ] 송신 서비스 지정
+            //
+            // [CSE] 명령 처리 결과를
+            // 실제 [RabbitMQ] Queue로 송신한다.
+            _mqSender =
+                new RabbitMqSender();
 
             // [CSE] 명령 수신 서비스 생성
             _cseCommandReceiveService =
                 new CseCommandReceiveService(
-                    _mockMqReceiver);
+                    _mqReceiver);
 
             // 내부 [Camera] 명령 처리 서비스 생성
             _cameraCommandService =
@@ -541,9 +579,12 @@ namespace VertiportNexus.ViewModels.Main
                     _ads1000CameraControlService);
 
             // [CSE] 명령 응답 송신 서비스 생성
+            //
+            // [q.command.res] / [q.status.res] Queue로
+            // 명령 처리 결과를 송신한다.
             _cseCommandResponseService =
                 new CseCommandResponseService(
-                    _mockMqSender);
+                    _mqSender);
 
             // [CSE] 명령 처리 서비스 생성
             _cseCommandHandler =
@@ -557,6 +598,8 @@ namespace VertiportNexus.ViewModels.Main
                 OnCseCommandReceived;
 
             // [CSE] 명령 수신 시작
+            //
+            // [RabbitMQ] [q.command.req] Queue 수신을 시작한다.
             _cseCommandReceiveService.StartReceive();
 
             #endregion
@@ -996,7 +1039,7 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         public double PanTiltSpeedLevel
         {
-            get => _ads1000CameraControlService.PanTiltSpeedLevel = 50;
+            get => _ads1000CameraControlService.PanTiltSpeedLevel = 30;
         }
 
         /// <summary>
@@ -1792,6 +1835,9 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         public void StartPanLeftMove()
         {
+            _isUiContinuousMoveStarted =
+                true;
+
             _ads1000CameraControlService.PanLeft();
         }
 
@@ -1800,6 +1846,9 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         public void StartPanRightMove()
         {
+            _isUiContinuousMoveStarted =
+                true;
+
             _ads1000CameraControlService.PanRight();
         }
 
@@ -1808,6 +1857,9 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         public void StartTiltUpMove()
         {
+            _isUiContinuousMoveStarted =
+                true;
+
             _ads1000CameraControlService.TiltUp();
         }
 
@@ -1816,6 +1868,9 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         public void StartTiltDownMove()
         {
+            _isUiContinuousMoveStarted =
+                true;
+
             _ads1000CameraControlService.TiltDown();
         }
 
@@ -1824,6 +1879,9 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         public void StartZoomInMove()
         {
+            _isUiContinuousMoveStarted =
+                true;
+
             _ads1000CameraControlService.ZoomIn();
         }
 
@@ -1832,6 +1890,9 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         public void StartZoomOutMove()
         {
+            _isUiContinuousMoveStarted =
+                true;
+
             _ads1000CameraControlService.ZoomOut();
         }
 
@@ -1840,6 +1901,9 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         public void StartFocusNearMove()
         {
+            _isUiContinuousMoveStarted =
+                true;
+
             _ads1000CameraControlService.FocusNear();
         }
 
@@ -1848,14 +1912,36 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         public void StartFocusFarMove()
         {
+            _isUiContinuousMoveStarted =
+                true;
+
             _ads1000CameraControlService.FocusFar();
         }
 
         /// <summary>
-        /// [Pan] / [Tilt] / [Zoom] / [Focus] 연속 이동 정지
+        /// [Pan] / [Tilt] / [Zoom] / [Focus] = [UI]
+        ///
+        /// 즉, [UI] 연속 이동 정지
+        /// 
+        /// 화면 버튼을 통해 시작된 연속 이동인 경우에만
+        /// [MouseUp] / [MouseLeave] 정지 명령을 송신한다.
+        /// 
+        /// [RabbitMQ] / [CSE] 연속 이동 명령은
+        /// [IF-GUIS-CSE-007] Stop 명령으로만 정지한다.
         /// </summary>
         public void StopContinuousMove()
         {
+            if (!_isUiContinuousMoveStarted)
+            {
+                Console.WriteLine(
+                    "[UI][CMD] Stop Ignored : UI Continuous Move Not Started");
+
+                return;
+            }
+
+            _isUiContinuousMoveStarted =
+                false;
+
             _ads1000CameraControlService.StopMove();
         }
 

@@ -92,11 +92,11 @@ namespace VertiportNexus.Services.Vertiport
             }
 
             ConsoleLogHelper.PrintLine();
-            Console.WriteLine("[CSE][CMD] Handle Start");
-            Console.WriteLine();
+            Console.WriteLine("[CSE][CMD] Command Handle Start");
             Console.WriteLine("[CSE][CMD] InterfaceId : " + message.InterfaceId);
             Console.WriteLine("[CSE][CMD] MsgType : " + message.MsgType);
             Console.WriteLine("[CSE][CMD] MsgId : " + message.MsgId);
+            ConsoleLogHelper.PrintLine();
 
             /// <summary>
             /// [ICD] 인터페이스 ID 우선 처리
@@ -114,7 +114,9 @@ namespace VertiportNexus.Services.Vertiport
                 HandleCommandByMsgType(
                     message);
             }
-            Console.WriteLine("[CSE][CMD] Handle End");
+            ConsoleLogHelper.PrintLine();
+            Console.WriteLine("[CSE][CMD] Command Handle End");
+            ConsoleLogHelper.PrintLine();
         }
 
         #endregion
@@ -480,13 +482,14 @@ namespace VertiportNexus.Services.Vertiport
                 return;
             }
 
-            Console.WriteLine("[CSE][CMD] PTZ Move");
-            Console.WriteLine("[CSE][CMD] InterfaceId : " + message.InterfaceId);
-            Console.WriteLine("[CSE][CMD] Mode : " + payload.Mode);
-            Console.WriteLine("[CSE][CMD] Pan : " + payload.Pan);
-            Console.WriteLine("[CSE][CMD] Tilt : " + payload.Tilt);
-            Console.WriteLine("[CSE][CMD] Zoom : " + payload.Zoom);
-            Console.WriteLine();
+            // [CSE] [PTZ Move] 명령 로그 출력
+            //
+            // ICD 기준 [IF-GUIS-CSE-006] 요청 데이터를
+            // 내부 [Camera] 명령으로 변환하기 전 확인한다.
+            Console.WriteLine("[CSE][CMD][PTZ_MOVE] Mode : " + message.Payload?.Mode);
+            Console.WriteLine("[CSE][CMD][PTZ_MOVE] Pan : " + message.Payload?.Pan);
+            Console.WriteLine("[CSE][CMD][PTZ_MOVE] Tilt : " + message.Payload?.Tilt);
+            Console.WriteLine("[CSE][CMD][PTZ_MOVE] Zoom : " + message.Payload?.Zoom);
 
             // [CSE] 명령을 내부 카메라 명령으로 변환
             //

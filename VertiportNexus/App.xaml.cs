@@ -223,6 +223,7 @@ namespace VertiportNexus
 
             ConsoleLogHelper.PrintLine();
             Console.WriteLine("[CONSOLE] Vertiport Nexus Middleware -> Debug Console Start");
+            ConsoleLogHelper.PrintLine();
 #endif
         }
 

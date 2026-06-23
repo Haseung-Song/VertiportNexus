@@ -35,7 +35,7 @@ namespace VertiportNexus.Services.ADS1000
         /// <summary>
         /// [Pan] / [Tilt] 연속 이동 기본 각속도
         /// </summary>
-        private const double DEFAULT_PAN_TILT_SPEED = 50;
+        private const double DEFAULT_PAN_TILT_SPEED = 30;
 
         #endregion
 

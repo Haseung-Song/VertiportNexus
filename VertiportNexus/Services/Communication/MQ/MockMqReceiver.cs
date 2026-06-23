@@ -1,13 +1,16 @@
 ﻿using System;
 using VertiportNexus.Common;
+using VertiportNexus.Models.Vertiport;
 
 namespace VertiportNexus.Services.Communication.MQ
 {
     /// <summary>
     /// [Mock] [MQ] 수신 서비스
     /// 
-    /// 실제 [MQ] 서버 연결 전,
-    /// 테스트 [JSON] 문자열을 강제로 수신 처리하기 위한 개발용 수신기이다.
+    /// 실제 [RabbitMQ] 서버 연결 전,
+    /// 
+    /// 테스트 [JSON] 문자열을 강제로 수신 처리하기 위한
+    /// 개발용 수신기이다.
     /// </summary>
     internal class MockMqReceiver : IMqReceiver
     {
@@ -15,8 +18,11 @@ namespace VertiportNexus.Services.Communication.MQ
 
         /// <summary>
         /// 현재 수신 중인 [Queue] 이름
+        /// 
+        /// 기본값은 [CSE] 명령 요청 [Queue]이다.
         /// </summary>
-        private string _queueName;
+        private string _queueName =
+            CseMqQueue.CommandRequest;
 
         /// <summary>
         /// 수신 시작 여부
@@ -38,15 +44,14 @@ namespace VertiportNexus.Services.Communication.MQ
 
         /// <summary>
         /// [Mock] [MQ] 수신 시작
+        /// 
+        /// 실제 [MQ] 연결 없이
+        /// 테스트 메시지 수신 가능 상태로 전환한다.
         /// </summary>
-        /// <param name="queueName">
-        /// 수신 [Queue] 이름
-        /// </param>
-        public void StartReceive(
-            string queueName)
+        public void StartReceive()
         {
             _queueName =
-                queueName;
+                CseMqQueue.CommandRequest;
 
             _isReceiving =
                 true;

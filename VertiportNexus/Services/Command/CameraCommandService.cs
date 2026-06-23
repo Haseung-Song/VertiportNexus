@@ -1,4 +1,5 @@
 ﻿using System;
+using VertiportNexus.Common;
 using VertiportNexus.Models.Camera;
 using VertiportNexus.Services.ADS1000;
 
@@ -55,7 +56,8 @@ namespace VertiportNexus.Services.Command
                 return;
             }
 
-            Console.WriteLine("[CAMERA][CMD] Handle Start");
+            ConsoleLogHelper.PrintLine();
+            Console.WriteLine("[CAMERA][CMD] Camera Command Start");
             Console.WriteLine("[CAMERA][CMD] Type : " + command.CommandType);
             Console.WriteLine("[CAMERA][CMD] Mode : " + command.Mode);
             Console.WriteLine("[CAMERA][CMD] Pan : " + command.Pan);
@@ -63,6 +65,7 @@ namespace VertiportNexus.Services.Command
             Console.WriteLine("[CAMERA][CMD] Zoom : " + command.Zoom);
             Console.WriteLine("[CAMERA][CMD] Focus : " + command.Focus);
             Console.WriteLine("[CAMERA][CMD] Source MsgId : " + command.SourceMsgId);
+            ConsoleLogHelper.PrintLine();
 
             switch (command.CommandType)
             {
@@ -83,7 +86,9 @@ namespace VertiportNexus.Services.Command
                     Console.WriteLine("[CAMERA][CMD] Unsupported Command Type : " + command.CommandType);
                     break;
             }
-            Console.WriteLine("[CAMERA][CMD] Handle End");
+            ConsoleLogHelper.PrintLine();
+            Console.WriteLine("[CAMERA][CMD] Camera Command End");
+            ConsoleLogHelper.PrintLine();
         }
 
         #endregion
