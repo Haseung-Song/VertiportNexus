@@ -1,5 +1,4 @@
-﻿
-namespace VertiportNexus.Models.Camera
+﻿namespace VertiportNexus.Models.Camera
 {
     /// <summary>
     /// 내부 카메라 명령 종류
@@ -13,6 +12,9 @@ namespace VertiportNexus.Models.Camera
 
         public const string PtzStop =
             "PtzStop";
+
+        public const string PtzMode =
+            "PtzMode";
 
         public const string ZoomMove =
             "ZoomMove";

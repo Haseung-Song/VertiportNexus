@@ -411,6 +411,7 @@
                                                             <TextBox Grid.Row="1"
                                                                      Grid.Column="1"
                                                                      Text="{Binding McbIpAddress, UpdateSourceTrigger=PropertyChanged}"
+                                                                     IsEnabled="{Binding IsDeviceConnectionSettingEnabled}"
                                                                      Height="24"
                                                                      FontSize="12"
                                                                      FontWeight="Bold"
@@ -421,6 +422,7 @@
                                                             <TextBox Grid.Row="1"
                                                                      Grid.Column="2"
                                                                      Text="{Binding McbPort, UpdateSourceTrigger=PropertyChanged}"
+                                                                     IsEnabled="{Binding IsDeviceConnectionSettingEnabled}"
                                                                      Height="24"
                                                                      FontSize="12"
                                                                      FontWeight="Bold"
@@ -485,6 +487,7 @@
                                                             <TextBox Grid.Row="1"
                                                                      Grid.Column="1"
                                                                      Text="{Binding ScbIpAddress, UpdateSourceTrigger=PropertyChanged}"
+                                                                     IsEnabled="{Binding IsDeviceConnectionSettingEnabled}"
                                                                      Height="24"
                                                                      FontSize="12"
                                                                      FontWeight="Bold"
@@ -495,6 +498,7 @@
                                                             <TextBox Grid.Row="1"
                                                                      Grid.Column="2"
                                                                      Text="{Binding ScbPort, UpdateSourceTrigger=PropertyChanged}"
+                                                                     IsEnabled="{Binding IsDeviceConnectionSettingEnabled}"
                                                                      Height="24"
                                                                      FontSize="12"
                                                                      FontWeight="Bold"
@@ -505,6 +509,57 @@
 
                                                 </StackPanel>
 
+                                            </Border>
+
+                                            <!-- [PTZ 제어 모드 영역] -->
+                                            <Border Margin="0,0,0,10"
+                                                    Background="#5F666D"
+                                                    BorderBrush="#95A5B0"
+                                                    BorderThickness="1.5"
+                                                    CornerRadius="5"
+                                                    Padding="10">
+
+                                                <StackPanel>
+
+                                                    <!-- [PTZ 제어 모드 제목] -->
+                                                    <TextBlock Text="PTZ CONTROL MODE"
+                                                               HorizontalAlignment="Center"
+                                                               Foreground="White"
+                                                               FontWeight="Bold"
+                                                               Margin="0,0,0,8"/>
+
+                                                    <!-- [현재 PTZ 제어 모드 표시] -->
+                                                    <TextBlock Text="{Binding PtzControlModeText, StringFormat=CURRENT MODE : {0}}"
+                                                                              HorizontalAlignment="Center"
+                                                                              Foreground="#D0D7DE"
+                                                                              FontSize="12"
+                                                                              FontWeight="Bold"
+                                                                              Margin="0,0,0,8"/>
+
+                                                    <!-- [PTZ 제어 모드 버튼 영역] -->
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="8"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <!-- [AUTO] 모드 설정 -->
+                                                        <Button Grid.Column="0"
+                                                                Content="AUTO"
+                                                                Height="26"
+                                                                IsEnabled="{Binding IsDeviceControlEnabled}"
+                                                                Command="{Binding SetPtzAutoModeCommand}"/>
+
+                                                        <!-- [MANUAL] 모드 설정 -->
+                                                        <Button Grid.Column="2"
+                                                                Content="MANUAL"
+                                                                Height="26"
+                                                                IsEnabled="{Binding IsDeviceControlEnabled}"
+                                                                Command="{Binding SetPtzManualModeCommand}"/>
+                                                    </Grid>
+
+                                                </StackPanel>
                                             </Border>
 
                                             <!-- [PAN / TILT] 연속 이동 제어 영역 -->
@@ -551,6 +606,7 @@
                                                         <Button Grid.Row="0"
                                                                 Grid.Column="1"
                                                                 Content="▲"
+                                                                IsEnabled="{Binding IsDeviceControlEnabled}"
                                                                 Style="{StaticResource PanTiltDirectionButtonStyle}"
                                                                 PreviewMouseDown="TiltUp_MouseDown"
                                                                 PreviewMouseUp="MoveStop_MouseUp"
@@ -560,6 +616,7 @@
                                                         <Button Grid.Row="1"
                                                                 Grid.Column="0"
                                                                 Content="◀"
+                                                                IsEnabled="{Binding IsDeviceControlEnabled}"
                                                                 Style="{StaticResource PanTiltDirectionButtonStyle}"
                                                                 PreviewMouseDown="PanLeft_MouseDown"
                                                                 PreviewMouseUp="MoveStop_MouseUp"
@@ -576,6 +633,7 @@
                                                             <!-- [PAN / TILT 정지] -->
                                                             <Button Content="STOP"
                                                                     Style="{StaticResource StopButtonStyle}"
+                                                                    IsEnabled="{Binding IsDeviceControlEnabled}"
                                                                     Command="{Binding StopMoveCommand}"/>
                                                         </Border>
 
@@ -583,6 +641,7 @@
                                                         <Button Grid.Row="1"
                                                                 Grid.Column="2"
                                                                 Content="▶"
+                                                                IsEnabled="{Binding IsDeviceControlEnabled}"
                                                                 Style="{StaticResource PanTiltDirectionButtonStyle}"
                                                                 PreviewMouseDown="PanRight_MouseDown"
                                                                 PreviewMouseUp="MoveStop_MouseUp"
@@ -592,6 +651,7 @@
                                                         <Button Grid.Row="2"
                                                                 Grid.Column="1"
                                                                 Content="▼"
+                                                                IsEnabled="{Binding IsDeviceControlEnabled}"
                                                                 Style="{StaticResource PanTiltDirectionButtonStyle}"
                                                                 PreviewMouseDown="TiltDown_MouseDown"
                                                                 PreviewMouseUp="MoveStop_MouseUp"
@@ -636,6 +696,7 @@
                                                                 Width="85"
                                                                 Margin="5"
                                                                 Focusable="False"
+                                                                IsEnabled="{Binding IsDeviceControlEnabled}"
                                                                 Style="{StaticResource EoControlButtonStyle}"
                                                                 PreviewMouseDown="ZoomIn_MouseDown"
                                                                 PreviewMouseUp="MoveStop_MouseUp"
@@ -646,6 +707,7 @@
                                                                 Width="85"
                                                                 Margin="5"
                                                                 Focusable="False"
+                                                                IsEnabled="{Binding IsDeviceControlEnabled}"
                                                                 Style="{StaticResource EoControlButtonStyle}"
                                                                 PreviewMouseDown="ZoomOut_MouseDown"
                                                                 PreviewMouseUp="MoveStop_MouseUp"
@@ -662,6 +724,7 @@
                                                                 Width="85"
                                                                 Margin="5"
                                                                 Focusable="False"
+                                                                IsEnabled="{Binding IsDeviceControlEnabled}"
                                                                 Style="{StaticResource EoControlButtonStyle}"
                                                                 PreviewMouseDown="FocusFar_MouseDown"
                                                                 PreviewMouseUp="MoveStop_MouseUp"
@@ -672,6 +735,7 @@
                                                                 Width="85"
                                                                 Margin="5"
                                                                 Focusable="False"
+                                                                IsEnabled="{Binding IsDeviceControlEnabled}"
                                                                 Style="{StaticResource EoControlButtonStyle}"
                                                                 PreviewMouseDown="FocusNear_MouseDown"
                                                                 PreviewMouseUp="MoveStop_MouseUp"
@@ -683,6 +747,7 @@
                                                             Width="180"
                                                             Margin="5"
                                                             HorizontalAlignment="Center"
+                                                            IsEnabled="{Binding IsDeviceControlEnabled}"
                                                             Style="{StaticResource AutoFocusButtonStyle}"
                                                             Command="{Binding AutoFocusCommand}"/>
                                                 </StackPanel>
@@ -783,7 +848,13 @@
                                                                FontSize="12"/>
 
                                                     <!-- [Pan Absolute] 목표 각도 입력 -->
-                                                    <TextBox Text="{Binding PanAbsoluteValue, UpdateSourceTrigger=PropertyChanged}"
+                                                    <TextBox Text="{Binding PanAbsoluteValue, 
+                                                                            UpdateSourceTrigger=LostFocus, 
+                                                                            TargetNullValue='',
+                                                                            FallbackValue=''}"
+                                                             PreviewTextInput="DecimalNumberOnly_PreviewTextInput"
+                                                             LostFocus="PanAngle_LostFocus"
+                                                             IsEnabled="{Binding IsDeviceControlEnabled}"
                                                              Height="24"
                                                              Margin="0,3,0,5"
                                                              FontWeight="Bold"
@@ -793,6 +864,7 @@
                                                     <Button Content="PAN GO"
                                                             Height="30"
                                                             Margin="0,0,0,10"
+                                                            IsEnabled="{Binding IsDeviceControlEnabled}"
                                                             Style="{StaticResource EoControlButtonStyle}"
                                                             Command="{Binding MovePanAbsoluteCommand}"/>
 
@@ -802,7 +874,13 @@
                                                                FontSize="12"/>
 
                                                     <!-- [Tilt Absolute] 목표 각도 입력 -->
-                                                    <TextBox Text="{Binding TiltAbsoluteValue, UpdateSourceTrigger=PropertyChanged}"
+                                                    <TextBox Text="{Binding TiltAbsoluteValue, 
+                                                                            UpdateSourceTrigger=LostFocus, 
+                                                                            TargetNullValue='',
+                                                                            FallbackValue=''}"
+                                                             PreviewTextInput="DecimalNumberOnly_PreviewTextInput"
+                                                             LostFocus="TiltAngle_LostFocus"
+                                                             IsEnabled="{Binding IsDeviceControlEnabled}"
                                                              Height="24"
                                                              Margin="0,3,0,5"
                                                              FontWeight="Bold"
@@ -812,6 +890,7 @@
                                                     <Button Content="TILT GO"
                                                             Height="30"
                                                             Style="{StaticResource EoControlButtonStyle}"
+                                                            IsEnabled="{Binding IsDeviceControlEnabled}"
                                                             Command="{Binding MoveTiltAbsoluteCommand}"/>
                                                 </StackPanel>
 
@@ -840,7 +919,12 @@
                                                                FontSize="12"/>
 
                                                     <!-- [Pan Relative] 이동 각도 입력 -->
-                                                    <TextBox Text="{Binding PanRelativeValue, UpdateSourceTrigger=PropertyChanged}"
+                                                    <TextBox Text="{Binding PanRelativeValue, 
+                                                                            UpdateSourceTrigger=LostFocus, 
+                                                                            TargetNullValue='0',
+                                                                            FallbackValue=''}"
+                                                             PreviewTextInput="RelativeDecimalNumberOnly_PreviewTextInput"
+                                                             IsEnabled="{Binding IsDeviceControlEnabled}"
                                                              Height="24"
                                                              Margin="0,3,0,5"
                                                              FontWeight="Bold"
@@ -851,6 +935,7 @@
                                                             Height="30"
                                                             Margin="0,0,0,10"
                                                             Style="{StaticResource EoControlButtonStyle}"
+                                                            IsEnabled="{Binding IsDeviceControlEnabled}"
                                                             Command="{Binding MovePanRelativeCommand}"/>
 
                                                     <!-- [Tilt Relative] 이동 각도 입력 라벨 -->
@@ -859,7 +944,12 @@
                                                                FontSize="12"/>
 
                                                     <!-- [Tilt Relative] 이동 각도 입력 -->
-                                                    <TextBox Text="{Binding TiltRelativeValue, UpdateSourceTrigger=PropertyChanged}"
+                                                    <TextBox Text="{Binding TiltRelativeValue, 
+                                                                            UpdateSourceTrigger=LostFocus, 
+                                                                            TargetNullValue='0',
+                                                                            FallbackValue=''}"
+                                                             PreviewTextInput="RelativeDecimalNumberOnly_PreviewTextInput"
+                                                             IsEnabled="{Binding IsDeviceControlEnabled}"
                                                              Height="24"
                                                              Margin="0,3,0,5"
                                                              FontWeight="Bold"
@@ -869,6 +959,7 @@
                                                     <Button Content="TILT RELATIVE"
                                                             Height="30"
                                                             Style="{StaticResource EoControlButtonStyle}"
+                                                            IsEnabled="{Binding IsDeviceControlEnabled}"
                                                             Command="{Binding MoveTiltRelativeCommand}"/>
                                                 </StackPanel>
                                             </Border>
@@ -896,7 +987,13 @@
                                                                FontSize="12"/>
 
                                                     <!-- [Zoom] 목표 위치 입력 -->
-                                                    <TextBox Text="{Binding ZoomPositionValue, UpdateSourceTrigger=PropertyChanged}"
+                                                    <TextBox Text="{Binding ZoomPositionValue, 
+                                                                            UpdateSourceTrigger=LostFocus,
+                                                                            TargetNullValue='',
+                                                                            FallbackValue=''}"
+                                                             PreviewTextInput="IntegerNumberOnly_PreviewTextInput"
+                                                             LostFocus="PositionValue_LostFocus"
+                                                             IsEnabled="{Binding IsDeviceControlEnabled}"
                                                              Height="24"
                                                              Margin="0,3,0,5"
                                                              FontWeight="Bold"
@@ -907,6 +1004,7 @@
                                                             Height="30"
                                                             Margin="0,0,0,10"
                                                             Style="{StaticResource EoControlButtonStyle}"
+                                                            IsEnabled="{Binding IsDeviceControlEnabled}"
                                                             Command="{Binding SetZoomPositionCommand}"/>
 
                                                     <!-- [Focus] 목표 위치 입력 라벨 -->
@@ -915,7 +1013,13 @@
                                                                FontSize="12"/>
 
                                                     <!-- [Focus] 목표 위치 입력 -->
-                                                    <TextBox Text="{Binding FocusPositionValue, UpdateSourceTrigger=PropertyChanged}"
+                                                    <TextBox Text="{Binding FocusPositionValue, 
+                                                                            UpdateSourceTrigger=LostFocus,
+                                                                            TargetNullValue='',
+                                                                            FallbackValue=''}"
+                                                             PreviewTextInput="IntegerNumberOnly_PreviewTextInput"
+                                                             LostFocus="PositionValue_LostFocus"
+                                                             IsEnabled="{Binding IsDeviceControlEnabled}"
                                                              Height="24"
                                                              Margin="0,3,0,5"
                                                              FontWeight="Bold"
@@ -925,6 +1029,7 @@
                                                     <Button Content="SET FOCUS"
                                                             Height="30"
                                                             Style="{StaticResource EoControlButtonStyle}"
+                                                            IsEnabled="{Binding IsDeviceControlEnabled}"
                                                             Command="{Binding SetFocusPositionCommand}"/>
                                                 </StackPanel>
                                             </Border>
@@ -956,6 +1061,7 @@
                                                             Height="30"
                                                             Margin="0,0,0,5"
                                                             Style="{StaticResource AutoFocusButtonStyle}"
+                                                            IsEnabled="{Binding IsDeviceControlEnabled}"
                                                             Command="{Binding MoveHomePositionCommand}"/>
 
                                                     <!-- [Pan / Tilt Zero] 버튼 배치 영역 -->
@@ -967,6 +1073,7 @@
                                                                 Width="85"
                                                                 Margin="5"
                                                                 Style="{StaticResource EoControlButtonStyle}"
+                                                                IsEnabled="{Binding IsDeviceControlEnabled}"
                                                                 Command="{Binding SetPanZeroCommand}"/>
 
                                                         <!-- [Tilt 현재 위치]를 0으로 재정의 -->
@@ -974,6 +1081,7 @@
                                                                 Width="85"
                                                                 Margin="5"
                                                                 Style="{StaticResource EoControlButtonStyle}"
+                                                                IsEnabled="{Binding IsDeviceControlEnabled}"
                                                                 Command="{Binding SetTiltZeroCommand}"/>
                                                     </StackPanel>
 

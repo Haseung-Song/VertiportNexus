@@ -232,6 +232,14 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         private string _operationModeText;
 
+        /// <summary>
+        /// 현재 [PTZ] 제어 모드 표시 문자열
+        /// 
+        /// [IF-GUIS-CSE-008] 요청 또는
+        /// 화면 버튼 조작으로 설정된 [AUTO] / [MANUAL] 값을 표시한다.
+        /// </summary>
+        private string _ptzControlModeText;
+
         #endregion
 
         #region [Camera State Fields]
@@ -268,34 +276,66 @@ namespace VertiportNexus.ViewModels.Main
         private bool _isUiContinuousMoveStarted;
 
         /// <summary>
+        /// [Pan] 위치 입력값 초기 반영 여부
+        /// 
+        /// [ADS1000] [Pan] 상태값을 최초 수신했을 때만
+        /// [Pan Absolute] 입력칸의 기본값으로 반영한다.
+        /// </summary>
+        private bool _isPanPositionInputInitialized;
+
+        /// <summary>
+        /// [Tilt] 위치 입력값 초기 반영 여부
+        /// 
+        /// [ADS1000] [Tilt] 상태값을 최초 수신했을 때만
+        /// [Tilt Absolute] 입력칸의 기본값으로 반영한다.
+        /// </summary>
+        private bool _isTiltPositionInputInitialized;
+
+        /// <summary>
+        /// [Zoom] 위치 입력값 초기 반영 여부
+        /// 
+        /// [ADS1000] [Zoom] 상태값을 최초 수신했을 때만
+        /// [Zoom Position] 입력칸의 기본값으로 반영한다.
+        /// </summary>
+        private bool _isZoomPositionInputInitialized;
+
+        /// <summary>
+        /// [Focus] 위치 입력값 초기 반영 여부
+        /// 
+        /// [ADS1000] [Focus] 상태값을 최초 수신했을 때만
+        /// [Focus Position] 입력칸의 기본값으로 반영한다.
+        /// </summary>
+        private bool _isFocusPositionInputInitialized;
+
+        /// <summary>
         /// [Pan] Absolute 이동 입력값
         /// </summary>
-        private double _panAbsoluteValue;
+        private double? _panAbsoluteValue;
 
         /// <summary>
         /// [Tilt] Absolute 이동 입력값
         /// </summary>
-        private double _tiltAbsoluteValue;
+        private double? _tiltAbsoluteValue;
 
         /// <summary>
         /// [Pan] Relative 이동 입력값
         /// </summary>
-        private double _panRelativeValue;
+        private double? _panRelativeValue;
 
         /// <summary>
         /// [Tilt] Relative 이동 입력값
         /// </summary>
-        private double _tiltRelativeValue;
+        private double? _tiltRelativeValue;
 
         /// <summary>
         /// [Zoom] 위치 이동 입력값
         /// </summary>
-        private int _zoomPositionValue;
+        private int? _zoomPositionValue;
 
         /// <summary>
         /// [Focus] 위치 이동 입력값
         /// </summary>
-        private int _focusPositionValue;
+        private int? _focusPositionValue;
 
         #endregion
 
@@ -452,6 +492,16 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         public ICommand RequestStatusCommand { get; }
 
+        /// <summary>
+        /// [PTZ] [AUTO] 모드 설정 요청 [Command]
+        /// </summary>
+        public ICommand SetPtzAutoModeCommand { get; }
+
+        /// <summary>
+        /// [PTZ] [MANUAL] 모드 설정 요청 [Command]
+        /// </summary>
+        public ICommand SetPtzManualModeCommand { get; }
+
         #endregion
 
         #region [Constructor]
@@ -542,6 +592,13 @@ namespace VertiportNexus.ViewModels.Main
             // [Camera] 상태 저장 서비스 생성
             _cameraStateProvider =
                 new CameraStateProvider();
+
+            // [PTZ] 제어 모드 변경 이벤트 연결
+            //
+            // [MQ] 수신으로 [AUTO] / [MANUAL] 모드가 변경된 경우
+            // 화면 표시값을 즉시 갱신한다.
+            _cameraStateProvider.PtzControlModeChanged +=
+                OnPtzControlModeChanged;
 
             #endregion
 
@@ -703,6 +760,14 @@ namespace VertiportNexus.ViewModels.Main
             RequestStatusCommand =
                 new RelayCommand(
                     _ads1000CameraControlService.SendVersionQuery);
+
+            SetPtzAutoModeCommand =
+                new RelayCommand(
+                    SetPtzAutoMode);
+
+            SetPtzManualModeCommand =
+                new RelayCommand(
+                     SetPtzManualMode);
 
             #endregion
 
@@ -951,6 +1016,45 @@ namespace VertiportNexus.ViewModels.Main
 
         }
 
+        /// <summary>
+        /// 장비 제어 가능 여부
+        /// 
+        /// [MCB] / [SCB] 중 하나 이상 연결된 경우
+        /// [PTZ] / [Zoom] / [Focus] 제어 영역을 활성화한다.
+        /// 
+        /// 장비 미연결 상태에서 버튼 오조작으로
+        /// 불필요한 제어 명령이 발생하지 않도록 사용한다.
+        /// </summary>
+        public bool IsDeviceControlEnabled
+        {
+            get
+            {
+                return _mcbConnectionState == ConnectionState.Connected ||
+                       _scbConnectionState == ConnectionState.Connected;
+            }
+
+        }
+
+        /// <summary>
+        /// 장비 통신 설정 입력 가능 여부
+        /// 
+        /// [MCB] / [SCB] 연결 전 상태에서만
+        /// IP / Port 입력값을 수정할 수 있도록 한다.
+        /// 
+        /// 연결 중 또는 연결 완료 상태에서는
+        /// 통신 대상 정보 변경을 방지한다.
+        /// </summary>
+        public bool IsDeviceConnectionSettingEnabled
+        {
+            get
+            {
+                return _mcbConnectionState == ConnectionState.Disconnected &&
+                       _scbConnectionState == ConnectionState.Disconnected &&
+                       !_isDeviceConnecting;
+            }
+
+        }
+
         #endregion
 
         #region [Main Status Properties]
@@ -984,6 +1088,26 @@ namespace VertiportNexus.ViewModels.Main
                 if (_operationModeText != value)
                 {
                     _operationModeText = value;
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// 현재 [PTZ] 제어 모드 표시 문자열
+        /// </summary>
+        public string PtzControlModeText
+        {
+            get => _ptzControlModeText;
+            private set
+            {
+                if (_ptzControlModeText != value)
+                {
+                    _ptzControlModeText =
+                        value;
+
                     OnPropertyChanged();
                 }
 
@@ -1085,7 +1209,7 @@ namespace VertiportNexus.ViewModels.Main
         /// <summary>
         /// [Pan] Absolute 이동 입력값
         /// </summary>
-        public double PanAbsoluteValue
+        public double? PanAbsoluteValue
         {
             get => _panAbsoluteValue;
             set
@@ -1103,7 +1227,7 @@ namespace VertiportNexus.ViewModels.Main
         /// <summary>
         /// [Tilt] Absolute 이동 입력값
         /// </summary>
-        public double TiltAbsoluteValue
+        public double? TiltAbsoluteValue
         {
             get => _tiltAbsoluteValue;
             set
@@ -1121,7 +1245,7 @@ namespace VertiportNexus.ViewModels.Main
         /// <summary>
         /// [Pan] Relative 이동 입력값
         /// </summary>
-        public double PanRelativeValue
+        public double? PanRelativeValue
         {
             get => _panRelativeValue;
             set
@@ -1139,7 +1263,7 @@ namespace VertiportNexus.ViewModels.Main
         /// <summary>
         /// [Tilt] Relative 이동 입력값
         /// </summary>
-        public double TiltRelativeValue
+        public double? TiltRelativeValue
         {
             get => _tiltRelativeValue;
             set
@@ -1157,7 +1281,7 @@ namespace VertiportNexus.ViewModels.Main
         /// <summary>
         /// [Zoom] 위치 이동 입력값
         /// </summary>
-        public int ZoomPositionValue
+        public int? ZoomPositionValue
         {
             get => _zoomPositionValue;
             set
@@ -1175,7 +1299,7 @@ namespace VertiportNexus.ViewModels.Main
         /// <summary>
         /// [Focus] 위치 이동 입력값
         /// </summary>
-        public int FocusPositionValue
+        public int? FocusPositionValue
         {
             get => _focusPositionValue;
             set
@@ -1226,6 +1350,9 @@ namespace VertiportNexus.ViewModels.Main
 
             OperationModeText =
                 "STANDBY";
+
+            PtzControlModeText =
+                _cameraStateProvider.PtzControlMode;
 
             MqStatusText =
                 "MQ Not Used";
@@ -1318,6 +1445,12 @@ namespace VertiportNexus.ViewModels.Main
                 _isDeviceConnecting =
                     true;
 
+                // [장비 통신 설정] 입력 가능 상태 갱신
+                //
+                // [MCB] / [SCB] 연결 상태 변경에 따라
+                // IP / Port 입력칸 활성 / 비활성 상태를 갱신한다.
+                OnPropertyChanged(nameof(IsDeviceConnectionSettingEnabled));
+
                 // [MCB] / [SCB] 연결 시도 상태 표시
                 SetDeviceConnectionState(
                     ConnectionState.Connecting,
@@ -1374,6 +1507,12 @@ namespace VertiportNexus.ViewModels.Main
             {
                 _isDeviceConnecting =
                     false;
+
+                // [장비 통신 설정] 입력 가능 상태 갱신
+                //
+                // [MCB] / [SCB] 연결 상태 변경에 따라
+                // IP / Port 입력칸 활성 / 비활성 상태를 갱신한다.
+                OnPropertyChanged(nameof(IsDeviceConnectionSettingEnabled));
             }
 
         }
@@ -1486,17 +1625,45 @@ namespace VertiportNexus.ViewModels.Main
             ConnectionState mcbConnectionState,
             ConnectionState scbConnectionState)
         {
+            // [MCB] 연결 상태 저장
+            //
+            // [MCB] 연결 여부를
+            // 내부 상태값에 반영한다.
             _mcbConnectionState =
                 mcbConnectionState;
 
+            // [SCB] 연결 상태 저장
+            //
+            // [SCB] 연결 여부를
+            // 내부 상태값에 반영한다.
             _scbConnectionState =
                 scbConnectionState;
 
+            // [MCB] 연결 상태 UI 갱신
+            //
+            // 연결 상태 텍스트 및
+            // 상태 표시 색상을 갱신한다.
             OnPropertyChanged(nameof(McbConnectionStatusText));
             OnPropertyChanged(nameof(McbConnectionStatusBrush));
 
+            // [SCB] 연결 상태 UI 갱신
+            //
+            // 연결 상태 텍스트 및
+            // 상태 표시 색상을 갱신한다.
             OnPropertyChanged(nameof(ScbConnectionStatusText));
             OnPropertyChanged(nameof(ScbConnectionStatusBrush));
+
+            // [장비 제어] 활성화 상태 갱신
+            //
+            // [MCB] / [SCB] 연결 상태 변경에 따라
+            // 화면 제어 버튼 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsDeviceControlEnabled));
+
+            // [장비 통신 설정] 입력 가능 상태 갱신
+            //
+            // [MCB] / [SCB] 연결 상태 변경에 따라
+            // IP / Port 입력칸 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsDeviceConnectionSettingEnabled));
         }
 
         /// <summary>
@@ -1828,6 +1995,98 @@ namespace VertiportNexus.ViewModels.Main
 
         #endregion
 
+        #region [PTZ Control Mode Methods]
+
+        /// <summary>
+        /// [PTZ] [AUTO] 모드 설정
+        /// 
+        /// 화면 버튼을 통해 [PTZ] 제어 모드를 [AUTO]로 변경한다.
+        /// 
+        /// 현재 단계에서는 실제 자동 추적 제어를 수행하지 않고,
+        /// 이후 탐지 / 레이다 연동 시 자동 제어 허용 상태값으로 사용한다.
+        /// </summary>
+        private void SetPtzAutoMode()
+        {
+            SetPtzControlMode(
+                "AUTO");
+        }
+
+        /// <summary>
+        /// [PTZ] [MANUAL] 모드 설정
+        /// 
+        /// 화면 버튼을 통해 [PTZ] 제어 모드를 [MANUAL]로 변경한다.
+        /// 
+        /// 수동 버튼 기반 [Pan] / [Tilt] / [Zoom] / [Focus]
+        /// 제어를 기본 운용 모드로 사용한다.
+        /// </summary>
+        private void SetPtzManualMode()
+        {
+            SetPtzControlMode(
+                "MANUAL");
+        }
+
+        /// <summary>
+        /// [PTZ] 제어 모드 설정
+        /// 
+        /// [AUTO] / [MANUAL] 값을 [CameraStateProvider]에 저장하고,
+        /// 화면 표시값과 로그를 갱신한다.
+        /// </summary>
+        /// <param name="mode">
+        /// 설정할 [PTZ] 제어 모드
+        /// </param>
+        private void SetPtzControlMode(
+            string mode)
+        {
+            if (string.IsNullOrWhiteSpace(
+                mode))
+            {
+                Console.WriteLine("[UI][PTZ_MODE] Set Failed : Mode is empty");
+                return;
+            }
+
+            string normalizedMode =
+                mode.Trim().ToUpper();
+
+            if (normalizedMode != "AUTO" &&
+                normalizedMode != "MANUAL")
+            {
+                Console.WriteLine("[UI][PTZ_MODE] Set Failed : Unsupported Mode : " + mode);
+                return;
+            }
+
+            ConsoleLogHelper.PrintLine();
+            Console.WriteLine("[UI][PTZ_MODE] Set Request");
+            Console.WriteLine("[UI][PTZ_MODE] Mode : " + normalizedMode);
+            ConsoleLogHelper.PrintLine();
+
+            _cameraStateProvider.UpdatePtzControlMode(
+                normalizedMode);
+        }
+
+        /// <summary>
+        /// [PTZ] 제어 모드 변경 처리
+        /// 
+        /// [CameraStateProvider]에서 [AUTO] / [MANUAL] 모드가 변경되면
+        /// [XAML] 바인딩 속성을 갱신한다.
+        /// </summary>
+        /// <param name="mode">
+        /// 변경된 [PTZ] 제어 모드
+        /// </param>
+        private void OnPtzControlModeChanged(
+            string mode)
+        {
+            App.Current.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                PtzControlModeText =
+                    mode;
+
+                Console.WriteLine("[UI][PTZ_MODE] Current Mode : " + PtzControlModeText);
+            }));
+
+        }
+
+        #endregion
+
         #region [Camera Continuous Control Methods]
 
         /// <summary>
@@ -1954,9 +2213,15 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         private void MovePanAbsolute()
         {
+            if (!PanAbsoluteValue.HasValue)
+            {
+                Console.WriteLine("[UI][PTZ] Pan Absolute Failed : Value is empty");
+                return;
+            }
+
             _ads1000CameraControlService
                 .MovePanAbsolute(
-                    PanAbsoluteValue);
+                    PanAbsoluteValue.Value);
         }
 
         /// <summary>
@@ -1964,9 +2229,15 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         private void MoveTiltAbsolute()
         {
+            if (!TiltAbsoluteValue.HasValue)
+            {
+                Console.WriteLine("[UI][PTZ] Tilt Absolute Failed : Value is empty");
+                return;
+            }
+
             _ads1000CameraControlService
                 .MoveTiltAbsolute(
-                    TiltAbsoluteValue);
+                    TiltAbsoluteValue.Value);
         }
 
         #endregion
@@ -1978,9 +2249,15 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         private void MovePanRelative()
         {
+            if (!PanRelativeValue.HasValue)
+            {
+                Console.WriteLine("[UI][PTZ] Pan Relative Failed : Value is empty");
+                return;
+            }
+
             _ads1000CameraControlService
                 .MovePanRelative(
-                    PanRelativeValue);
+                    PanRelativeValue.Value);
         }
 
         /// <summary>
@@ -1988,9 +2265,106 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         private void MoveTiltRelative()
         {
+            if (!TiltRelativeValue.HasValue)
+            {
+                Console.WriteLine("[UI][PTZ] Tilt Relative Failed : Value is empty");
+                return;
+            }
+
             _ads1000CameraControlService
                 .MoveTiltRelative(
-                    TiltRelativeValue);
+                    TiltRelativeValue.Value);
+        }
+
+        #endregion
+
+        #region [Position Input Initialize Methods]
+
+        /// <summary>
+        /// 위치 제어 입력값 초기 반영
+        /// 
+        /// [ADS1000] 상태값을 최초 수신했을 때,
+        /// 수신된 항목별로 위치 제어 입력칸의 기본값을 반영한다.
+        /// 
+        /// [MCB] / [SCB] 상태 [Packet]이 분리되어 수신될 수 있으므로,
+        /// 전체 1회 초기화가 아니라 [Pan] / [Tilt] / [Zoom] / [Focus]
+        /// 항목별 1회 초기화 방식으로 처리한다.
+        /// 
+        /// 이후 동일 항목의 상태값이 계속 갱신되더라도
+        /// 사용자가 입력 중인 값은 덮어쓰지 않는다.
+        /// </summary>
+        /// <param name="updatedPan">
+        /// 갱신된 [Pan] 값
+        /// </param>
+        /// <param name="updatedTilt">
+        /// 갱신된 [Tilt] 값
+        /// </param>
+        /// <param name="updatedZoom">
+        /// 갱신된 [Zoom] 값
+        /// </param>
+        /// <param name="updatedFocus">
+        /// 갱신된 [Focus] 값
+        /// </param>
+        private void ApplyInitialPositionInputValue(
+            double? updatedPan,
+            double? updatedTilt,
+            double? updatedZoom,
+            double? updatedFocus)
+        {
+            if (updatedPan.HasValue &&
+                !_isPanPositionInputInitialized)
+            {
+                PanAbsoluteValue =
+                    Math.Round(
+                        updatedPan.Value,
+                        2);
+
+                _isPanPositionInputInitialized =
+                    true;
+
+                Console.WriteLine("[UI][POSITION] Initial Pan Value : " + PanAbsoluteValue);
+            }
+
+            if (updatedTilt.HasValue &&
+                !_isTiltPositionInputInitialized)
+            {
+                TiltAbsoluteValue =
+                    Math.Round(
+                        updatedTilt.Value,
+                        2);
+
+                _isTiltPositionInputInitialized =
+                    true;
+
+                Console.WriteLine("[UI][POSITION] Initial Tilt Value : " + TiltAbsoluteValue);
+            }
+
+            if (updatedZoom.HasValue &&
+                !_isZoomPositionInputInitialized)
+            {
+                ZoomPositionValue =
+                    (int)Math.Round(
+                        updatedZoom.Value);
+
+                _isZoomPositionInputInitialized =
+                    true;
+
+                Console.WriteLine("[UI][POSITION] Initial Zoom Value : " + ZoomPositionValue);
+            }
+
+            if (updatedFocus.HasValue &&
+                !_isFocusPositionInputInitialized)
+            {
+                FocusPositionValue =
+                    (int)Math.Round(
+                        updatedFocus.Value);
+
+                _isFocusPositionInputInitialized =
+                    true;
+
+                Console.WriteLine("[UI][POSITION] Initial Focus Value : " + FocusPositionValue);
+            }
+
         }
 
         #endregion
@@ -1999,28 +2373,64 @@ namespace VertiportNexus.ViewModels.Main
 
         /// <summary>
         /// [Zoom] 지정 위치 이동
+        /// 
+        /// 입력된 [Zoom Position] 값을
+        /// [0 ~ 1000] 범위로 보정한 후
+        /// [ADS1000] 장비에 위치 이동 명령을 전송한다.
         /// </summary>
         private void SetZoomPosition()
         {
+            if (!ZoomPositionValue.HasValue)
+            {
+                Console.WriteLine(
+                    "[UI][POSITION] Zoom Failed : Value is empty");
+
+                return;
+            }
+
+            double zoom =
+                Clamp(
+                    ZoomPositionValue.Value,
+                    0,
+                    1000);
+
+            Console.WriteLine(
+                "[UI][POSITION] Set Zoom : " + zoom);
+
             _ads1000CameraControlService
                 .MoveZoomPosition(
-                    (ushort)Clamp(
-                        ZoomPositionValue,
-                        0,
-                        1000));
+                    (ushort)zoom);
         }
 
         /// <summary>
         /// [Focus] 지정 위치 이동
+        /// 
+        /// 입력된 [Focus Position] 값을
+        /// [0 ~ 1000] 범위로 보정한 후
+        /// [ADS1000] 장비에 위치 이동 명령을 전송한다.
         /// </summary>
         private void SetFocusPosition()
         {
+            if (!FocusPositionValue.HasValue)
+            {
+                Console.WriteLine(
+                    "[UI][POSITION] Focus Failed : Value is empty");
+
+                return;
+            }
+
+            double focus =
+                Clamp(
+                    FocusPositionValue.Value,
+                    0,
+                    1000);
+
+            Console.WriteLine(
+                "[UI][POSITION] Set Focus : " + focus);
+
             _ads1000CameraControlService
                 .MoveFocusPosition(
-                    (ushort)Clamp(
-                        FocusPositionValue,
-                        0,
-                        1000));
+                    (ushort)focus);
         }
 
         #endregion
@@ -2065,8 +2475,8 @@ namespace VertiportNexus.ViewModels.Main
                 CurrentTilt =
                     Clamp(
                         parsedPacket.TiltValue,
-                        -95,
-                        95);
+                        -90,
+                        90);
 
                 updatedTilt =
                     CurrentTilt;
@@ -2096,6 +2506,20 @@ namespace VertiportNexus.ViewModels.Main
                     CurrentFocus;
             }
 
+            // [위치 제어 입력값] 초기 반영
+            //
+            // [MCB] / [SCB] 상태 [Packet]이 분리되어 수신될 수 있으므로
+            // 현재 수신 [Packet]에서 갱신된 항목만 입력칸에 초기 반영한다.
+            //
+            // 항목별 최초 1회만 반영하여,
+            // 이후 상태값이 계속 갱신되더라도
+            // 사용자가 입력 중인 값은 덮어쓰지 않는다.
+            ApplyInitialPositionInputValue(
+                updatedPan,
+                updatedTilt,
+                updatedZoom,
+                updatedFocus);
+
             // [Camera] 상태 저장소 갱신
             //
             // [CSE] 상태 조회 응답에서 사용할 수 있도록
@@ -2103,7 +2527,8 @@ namespace VertiportNexus.ViewModels.Main
             _cameraStateProvider.UpdateState(
                 updatedPan,
                 updatedTilt,
-                updatedZoom);
+                updatedZoom,
+                updatedFocus);
         }
 
         #endregion

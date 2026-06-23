@@ -579,8 +579,9 @@ namespace VertiportNexus.Services.Vertiport
         /// 
         /// ICD 기준 [IF-GUIS-CSE-008] 요청을 처리한다.
         /// 
-        /// 현재 구조에서는 [PTZ Move] 요청의 [payload.mode]를 우선 사용하므로,
-        /// 본 명령은 수신 / 응답 구조 확인용으로 처리한다.
+        /// [payload.mode] 값으로 전달된 [AUTO] / [MANUAL] 모드를
+        /// [CameraStateProvider]에 저장하고,
+        /// 이후 탐지 연동 시 자동 제어 허용 여부 판단 기준으로 사용한다.
         /// </summary>
         /// <param name="message">
         /// [PTZ 제어 모드 설정 요청 메시지]
@@ -588,22 +589,70 @@ namespace VertiportNexus.Services.Vertiport
         private void HandlePtzMode(
             CseCommandMessage message)
         {
+            CseCommandPayload payload =
+                message.Payload;
+
+            if (payload == null)
+            {
+                Console.WriteLine("[CSE][CMD] PTZ Mode Failed : Payload is null");
+
+                _responseService.SendCommandErrorResponse(
+                    message,
+                    "INVALID_PAYLOAD",
+                    "PTZ Mode Failed : Payload is null");
+
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(
+                payload.Mode))
+            {
+                Console.WriteLine("[CSE][CMD] PTZ Mode Failed : Mode is empty");
+
+                _responseService.SendCommandErrorResponse(
+                    message,
+                    "INVALID_MODE",
+                    "PTZ Mode Failed : Mode is empty");
+
+                return;
+            }
+
+            string mode =
+                payload.Mode.Trim().ToUpper();
+
+            if (mode != "AUTO" &&
+                mode != "MANUAL")
+            {
+                Console.WriteLine("[CSE][CMD] PTZ Mode Failed : Unsupported Mode : " + payload.Mode);
+
+                _responseService.SendCommandErrorResponse(
+                    message,
+                    "INVALID_MODE",
+                    "PTZ Mode Failed : Unsupported Mode : " + payload.Mode);
+
+                return;
+            }
+
             Console.WriteLine("[CSE][CMD] PTZ Mode");
             Console.WriteLine("[CSE][CMD] InterfaceId : " + message.InterfaceId);
+            Console.WriteLine("[CSE][CMD] Request MsgId : " + message.MsgId);
+            Console.WriteLine("[CSE][CMD] Mode : " + mode);
 
-            if (message.Payload != null)
-            {
-                Console.WriteLine("[CSE][CMD] Mode : " + message.Payload.Mode);
-            }
+            // [PTZ Mode] 상태 저장
+            //
+            // [AUTO] / [MANUAL] 모드는 장비 직접 제어 명령이 아니라,
+            // 이후 수동 제어 / 자동 추적 제어를 구분하기 위한
+            // 운용 상태값으로 관리한다.
+            _cameraStateProvider.UpdatePtzControlMode(
+                mode);
 
             // [PTZ Mode] 명령 응답 송신
             //
-            // 실제 [AUTO] / [MANUAL] 제어는
-            // 아직 구현되지 않았으므로
-            // 명령 수신 성공 여부만 응답한다.
+            // 현재 단계에서는 모드 상태 저장 성공 기준으로
+            // 처리 성공 응답을 송신한다.
             _responseService.SendCommandResponse(
                 message,
-                "PTZ Mode Command Accepted");
+                "PTZ Mode Command Accepted : " + mode);
         }
 
         /// <summary>

@@ -57,7 +57,6 @@ namespace VertiportNexus.Services.Communication.MQ
                     UserName = "guest",
                     Password = "guest"
                 };
-
         }
 
         #endregion
