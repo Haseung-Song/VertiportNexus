@@ -97,7 +97,7 @@ namespace VertiportNexus.Services.Vertiport
 
         #endregion
 
-        #region [Private Methods]
+        #region [Event Methods]
 
         /// <summary>
         /// [MQ] 메시지 수신 처리
@@ -134,9 +134,11 @@ namespace VertiportNexus.Services.Vertiport
                 return;
             }
 
+            Console.WriteLine("[CSE][RECV] InterfaceId : " + message.InterfaceId);
             Console.WriteLine("[CSE][RECV] MsgType : " + message.MsgType);
             Console.WriteLine("[CSE][RECV] MsgId : " + message.MsgId);
             Console.WriteLine("[CSE][RECV] ReplyTo : " + message.ReplyTo);
+            ConsoleLogHelper.PrintLine();
 
             CommandReceived?.Invoke(
                 message);

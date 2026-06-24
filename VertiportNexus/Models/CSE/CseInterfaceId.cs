@@ -8,6 +8,8 @@
     /// </summary>
     public static class CseInterfaceId
     {
+        #region [Detect Interface Ids]
+
         /// <summary>
         /// 카메라 제어 - 탐지 활성화
         /// </summary>
@@ -38,6 +40,10 @@
         public const string DetectContinue =
             "IF-GUIS-CSE-005";
 
+        #endregion
+
+        #region [PTZ Interface Ids]
+
         /// <summary>
         /// 카메라 제어 - PTZ 제어
         /// </summary>
@@ -56,6 +62,10 @@
         public const string PtzMode =
             "IF-GUIS-CSE-008";
 
+        #endregion
+
+        #region [Image Interface Ids]
+
         /// <summary>
         /// 카메라 제어 - 영상 설정
         /// </summary>
@@ -68,6 +78,10 @@
         public const string SetFlip =
             "IF-GUIS-CSE-010";
 
+        #endregion
+
+        #region [Status Interface Ids]
+
         /// <summary>
         /// 카메라 상태 - 설정 조회
         /// </summary>
@@ -79,6 +93,8 @@
         /// </summary>
         public const string GetPtzState =
             "IF-GUIS-CSE-012";
+
+        #endregion
     }
 
 }

@@ -10,10 +10,16 @@ namespace VertiportNexus.Services.Communication.MQ
     /// </summary>
     internal interface IMqReceiver
     {
+        #region [Events]
+
         /// <summary>
         /// [MQ] 메시지 수신 이벤트
         /// </summary>
         event Action<string, string> MessageReceived;
+
+        #endregion
+
+        #region [Methods]
 
         /// <summary>
         /// [MQ] 메시지 수신 시작
@@ -24,6 +30,8 @@ namespace VertiportNexus.Services.Communication.MQ
         /// [MQ] 메시지 수신 중지
         /// </summary>
         void StopReceive();
+
+        #endregion
     }
 
 }

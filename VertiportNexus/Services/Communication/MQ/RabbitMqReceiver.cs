@@ -14,6 +14,18 @@ namespace VertiportNexus.Services.Communication.MQ
     /// </summary>
     internal class RabbitMqReceiver : IMqReceiver
     {
+        #region [Constants]
+
+        /// <summary>
+        /// [RabbitMQ] 연결 제한 시간 [초]
+        /// 
+        /// RabbitMQ 서버가 실행 중이 아니어도
+        /// 프로그램 실행이 오래 지연되지 않도록 제한한다.
+        /// </summary>
+        private const int RABBITMQ_CONNECTION_TIMEOUT_SECONDS = 2;
+
+        #endregion
+
         #region [Fields]
 
         /// <summary>
@@ -30,6 +42,13 @@ namespace VertiportNexus.Services.Communication.MQ
         /// [RabbitMQ] Channel 객체
         /// </summary>
         private IModel _channel;
+
+        /// <summary>
+        /// [RabbitMQ] Consumer 식별값
+        /// 
+        /// 수신 중지 시 [BasicCancel] 처리에 사용한다.
+        /// </summary>
+        private string _consumerTag;
 
         #endregion
 
@@ -55,7 +74,19 @@ namespace VertiportNexus.Services.Communication.MQ
                     HostName = "localhost",
                     Port = 5672,
                     UserName = "vertiport_GS",
-                    Password = "rmffhqjf1!"
+                    Password = "rmffhqjf1!",
+
+                    RequestedConnectionTimeout =
+                        TimeSpan.FromSeconds(
+                            RABBITMQ_CONNECTION_TIMEOUT_SECONDS),
+
+                    SocketReadTimeout =
+                        TimeSpan.FromSeconds(
+                            RABBITMQ_CONNECTION_TIMEOUT_SECONDS),
+
+                    SocketWriteTimeout =
+                        TimeSpan.FromSeconds(
+                            RABBITMQ_CONNECTION_TIMEOUT_SECONDS)
                 };
         }
 
@@ -68,6 +99,13 @@ namespace VertiportNexus.Services.Communication.MQ
         /// </summary>
         public void StartReceive()
         {
+            if (_channel != null &&
+                _channel.IsOpen)
+            {
+                Console.WriteLine("[RabbitMQ][RECV] Receive Start Ignored : Already Running");
+                return;
+            }
+
             try
             {
                 _connection =
@@ -90,13 +128,16 @@ namespace VertiportNexus.Services.Communication.MQ
                 consumer.Received +=
                     OnMessageReceived;
 
-                _channel.BasicConsume(
-                    queue: CseMqQueue.CommandRequest,
-                    autoAck: true,
-                    consumer: consumer);
+                _consumerTag =
+                    _channel.BasicConsume(
+                        queue: CseMqQueue.CommandRequest,
+                        autoAck: true,
+                        consumer: consumer);
 
+                ConsoleLogHelper.PrintLine();
                 Console.WriteLine("[RabbitMQ][RECV] Receive Start");
                 Console.WriteLine("[RabbitMQ][RECV] Queue : " + CseMqQueue.CommandRequest);
+                ConsoleLogHelper.PrintLine();
             }
             catch (Exception ex)
             {
@@ -106,7 +147,7 @@ namespace VertiportNexus.Services.Communication.MQ
                 Console.WriteLine("[RabbitMQ][RECV] Error : " + ex.Message);
                 ConsoleLogHelper.PrintLine();
 
-                StopReceive();
+                ReleaseResources();
             }
 
         }
@@ -119,6 +160,14 @@ namespace VertiportNexus.Services.Communication.MQ
             try
             {
                 if (_channel != null &&
+                    _channel.IsOpen &&
+                    !string.IsNullOrWhiteSpace(_consumerTag))
+                {
+                    _channel.BasicCancel(
+                        _consumerTag);
+                }
+
+                if (_channel != null &&
                     _channel.IsOpen)
                 {
                     _channel.Close();
@@ -130,6 +179,9 @@ namespace VertiportNexus.Services.Communication.MQ
                     _connection.Close();
                 }
 
+                ConsoleLogHelper.PrintLine();
+                Console.WriteLine("[RabbitMQ][RECV] Receive Stop");
+                ConsoleLogHelper.PrintLine();
             }
             catch (Exception ex)
             {
@@ -138,16 +190,7 @@ namespace VertiportNexus.Services.Communication.MQ
             }
             finally
             {
-                _channel?.Dispose();
-                _connection?.Dispose();
-
-                _channel =
-                    null;
-
-                _connection =
-                    null;
-
-                Console.WriteLine("[RabbitMQ][RECV] Receive Stop");
+                ReleaseResources();
             }
 
         }
@@ -177,6 +220,28 @@ namespace VertiportNexus.Services.Communication.MQ
             MessageReceived?.Invoke(
                 CseMqQueue.CommandRequest,
                 message);
+        }
+
+        #endregion
+
+        #region [Private Methods]
+
+        /// <summary>
+        /// [RabbitMQ] 수신 리소스 정리
+        /// </summary>
+        private void ReleaseResources()
+        {
+            _channel?.Dispose();
+            _connection?.Dispose();
+
+            _channel =
+                null;
+
+            _connection =
+                null;
+
+            _consumerTag =
+                null;
         }
         #endregion
     }

@@ -8,6 +8,8 @@
     /// </summary>
     internal interface IMqSender
     {
+        #region [Methods]
+
         /// <summary>
         /// [MQ] 메시지 송신
         /// </summary>
@@ -20,6 +22,8 @@
         void Send(
             string queueName,
             string message);
+
+        #endregion
     }
 
 }

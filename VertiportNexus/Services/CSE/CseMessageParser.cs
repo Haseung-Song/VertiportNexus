@@ -12,13 +12,30 @@ namespace VertiportNexus.Services.Vertiport
     /// </summary>
     public class CseMessageParser
     {
+        #region [Fields]
+
+        /// <summary>
+        /// [JSON] 역직렬화 옵션
+        /// 
+        /// [JSON] 속성명 대소문자를 구분하지 않고
+        /// C# 모델 속성에 매핑한다.
+        /// </summary>
+        private readonly JsonSerializerOptions _jsonSerializerOptions =
+            new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive =
+                    true
+            };
+
+        #endregion
+
         #region [Public Methods]
 
         /// <summary>
         /// [JSON] 문자열 파싱
         /// </summary>
         /// <param name="jsonText">
-        /// 수신 JSON 문자열
+        /// 수신 [JSON] 문자열
         /// </param>
         /// <returns>
         /// 파싱 결과
@@ -29,27 +46,20 @@ namespace VertiportNexus.Services.Vertiport
             if (string.IsNullOrWhiteSpace(
                 jsonText))
             {
+                Console.WriteLine("[CSE][PARSER] Parse Failed : JSON is empty");
                 return null;
             }
 
             try
             {
-                return JsonSerializer
-                    .Deserialize<CseCommandMessage>(
-                        jsonText,
-                        new JsonSerializerOptions
-                        {
-                            /// <summary>
-                            /// [JSON] 속성명 대소문자 구분 없이 매핑
-                            /// </summary>
-                            PropertyNameCaseInsensitive = true
-                        });
-
+                return JsonSerializer.Deserialize<CseCommandMessage>(
+                    jsonText,
+                    _jsonSerializerOptions);
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                Console.WriteLine("[CSE] JSON Parse Failed");
-                Console.WriteLine(exception.Message);
+                Console.WriteLine("[CSE][PARSER] JSON Parse Failed");
+                Console.WriteLine("[CSE][PARSER] Error : " + ex.Message);
 
                 return null;
             }

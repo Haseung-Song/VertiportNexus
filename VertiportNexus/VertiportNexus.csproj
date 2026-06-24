@@ -145,24 +145,24 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Common\Ads1000Constants.cs" />
-    <Compile Include="Common\AsyncRelayCommand.cs" />
-    <Compile Include="Common\ConsoleLogHelper.cs" />
-    <Compile Include="Common\RelayCommand.cs" />
-    <Compile Include="Converters\MatToBitmapSourceConverter.cs" />
+    <Compile Include="Common\Constants\Ads1000Constants.cs" />
+    <Compile Include="Common\Commands\AsyncRelayCommand.cs" />
+    <Compile Include="Common\Helpers\ConsoleLogHelper.cs" />
+    <Compile Include="Common\Commands\RelayCommand.cs" />
+    <Compile Include="Common\Converters\MatToBitmapSourceConverter.cs" />
     <Compile Include="Models\ADS1000\Ads1000ParsedPacket.cs" />
     <Compile Include="Models\ADS1000\Ads1000SendResult.cs" />
     <Compile Include="Models\ADS1000\Ads1000StatusResult.cs" />
     <Compile Include="Models\Camera\CameraCommand.cs" />
     <Compile Include="Models\Camera\CameraCommandType.cs" />
-    <Compile Include="Models\Vertiport\CseCommandMessage.cs" />
-    <Compile Include="Models\Vertiport\CseCommandPayload.cs" />
-    <Compile Include="Models\Vertiport\CseCommandResponse.cs" />
-    <Compile Include="Models\Vertiport\CseCommandResponsePayload.cs" />
-    <Compile Include="Models\Vertiport\CseCommandType.cs" />
-    <Compile Include="Models\Vertiport\CseInterfaceId.cs" />
-    <Compile Include="Models\Vertiport\CseMqQueue.cs" />
-    <Compile Include="Models\Vertiport\CsePtzStatePayload.cs" />
+    <Compile Include="Models\CSE\CseCommandMessage.cs" />
+    <Compile Include="Models\CSE\CseCommandPayload.cs" />
+    <Compile Include="Models\CSE\CseCommandResponse.cs" />
+    <Compile Include="Models\CSE\CseCommandResponsePayload.cs" />
+    <Compile Include="Models\CSE\CseCommandType.cs" />
+    <Compile Include="Models\CSE\CseInterfaceId.cs" />
+    <Compile Include="Models\CSE\CseMqQueue.cs" />
+    <Compile Include="Models\CSE\CsePtzStatePayload.cs" />
     <Compile Include="Services\ADS1000\Ads1000CameraControlService.cs" />
     <Compile Include="Services\ADS1000\Ads1000StatusService.cs" />
     <Compile Include="Services\Command\CameraCommandService.cs" />
@@ -184,10 +184,10 @@
     <Compile Include="Services\Communication\UDP\UdpClientService.cs" />
     <Compile Include="Services\Communication\Camera\EoCameraService.cs" />
     <Compile Include="Services\Communication\Camera\FFmpegDecoderService.cs" />
-    <Compile Include="Services\Vertiport\CseCommandHandler.cs" />
-    <Compile Include="Services\Vertiport\CseCommandReceiveService.cs" />
-    <Compile Include="Services\Vertiport\CseCommandResponseService.cs" />
-    <Compile Include="Services\Vertiport\CseMessageParser.cs" />
+    <Compile Include="Services\CSE\CseCommandHandler.cs" />
+    <Compile Include="Services\CSE\CseCommandReceiveService.cs" />
+    <Compile Include="Services\CSE\CseCommandResponseService.cs" />
+    <Compile Include="Services\CSE\CseMessageParser.cs" />
     <Compile Include="ViewModels\Main\MainViewModel.cs" />
     <Compile Include="Views\Main\MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>

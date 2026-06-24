@@ -12,7 +12,7 @@ namespace VertiportNexus.Services.Communication.Video
     /// 1. [OpenCvSharp] [VideoCapture]로 열리지 않는 [RTSP] [Stream] 직접 연결
     /// 2. [FFmpeg] [API] 기반 [Packet] 수신 / [Decode] 수행
     /// 3. [Decode]된 [AVFrame] => [OpenCV] [Mat](BGR24)으로 변환
-    /// 4. [ViewModel]의 [FFmpegCaptureLoop]에서 [WPF] [Image] 출력용 [Frame] 제공
+    /// 4. [ViewModel]의 영상 수신 루프에서 [WPF] [Image] 출력용 [Frame] 제공
     ///
     /// 주의:
     /// - [unsafe] 코드 허용 필요
@@ -21,47 +21,50 @@ namespace VertiportNexus.Services.Communication.Video
     /// </summary>
     public unsafe class FFmpegDecoderService : IDisposable
     {
+        #region [Constants]
+
+        /// <summary>
+        /// [RTSP] 연결 제한 시간 [Microsecond]
+        /// 
+        /// 3000000 = 3초
+        /// </summary>
+        private const string RTSP_TIMEOUT_MICROSECONDS =
+            "3000000";
+
+        #endregion
+
         #region [Fields]
 
         /// <summary>
         /// [RTSP] / 영상 파일 입력 [Format Context]
-        /// 
-        /// [avformat_open_input()] 성공 시 생성되는 입력 컨텍스트
         /// </summary>
         private AVFormatContext* _formatContext;
 
         /// <summary>
         /// 영상 [Decode]용 [Codec Context]
-        /// 
-        /// [H.264] / [H.265] 등 실제 영상 [Codec] [Decode] 담당
         /// </summary>
         private AVCodecContext* _codecContext;
 
         /// <summary>
         /// [FFmpeg] [Packet]
-        /// 
-        /// [RTSP] [Stream]에서 읽어온 압축 데이터 저장용
         /// </summary>
         private AVPacket* _packet;
 
         /// <summary>
         /// [FFmpeg] [Frame]
-        /// 
-        /// [Packet] [Decode] 후 실제 영상 [Frame] 저장용
         /// </summary>
         private AVFrame* _frame;
 
         /// <summary>
         /// [Pixel Format] 변환 [Context]
-        /// 
-        /// [AVFrame]을 [WPF] 출력에 사용 가능한 [BGR24] [Mat]으로 변환할 때 사용
         /// </summary>
         private SwsContext* _swsContext;
 
         /// <summary>
         /// 현재 입력 [Stream] 중 [Video Stream Index]
         /// </summary>
-        private int _videoStreamIndex = -1;
+        private int _videoStreamIndex =
+            -1;
 
         /// <summary>
         /// [FFmpeg] 리소스 접근 동기화 객체
@@ -69,12 +72,14 @@ namespace VertiportNexus.Services.Communication.Video
         /// [ReadFrame()]과 [Close()]가 동시에
         /// [FFmpeg] 포인터를 접근하지 못하도록 제어한다.
         /// </summary>
-        private readonly object _syncLock = new object();
+        private readonly object _syncLock =
+            new object();
 
         /// <summary>
         /// 로그 출력용 영상 구분 이름
         /// 
-        /// Ex.) [EO] / [IR]
+        /// 예)
+        /// [EO] / [IR]
         /// </summary>
         private readonly string _streamName;
 
@@ -102,14 +107,18 @@ namespace VertiportNexus.Services.Communication.Video
         #region [Constructor]
 
         /// <summary>
-        /// [FFmpeg Decoder Service]
+        /// [FFmpeg Decoder Service] 생성자
         /// </summary>
         /// <param name="streamName">
         /// 로그 출력용 영상 이름
         /// </param>
-        public FFmpegDecoderService(string streamName)
+        public FFmpegDecoderService(
+            string streamName)
         {
-            _streamName = streamName;
+            _streamName =
+                string.IsNullOrWhiteSpace(streamName)
+                    ? "VIDEO"
+                    : streamName;
         }
 
         #endregion
@@ -120,7 +129,6 @@ namespace VertiportNexus.Services.Communication.Video
         /// [RTSP] 연결 및 [FFmpeg] [Decoder] 초기화
         ///
         /// 처리 순서:
-        /// 
         /// 1. 기존 연결 정리
         /// 2. [RTSP] [TCP] / [Timeout] 옵션 생성
         /// 3. [avformat_open_input()]으로 [RTSP] 연결
@@ -129,93 +137,95 @@ namespace VertiportNexus.Services.Communication.Video
         /// 6. [Codec Context] 생성 및 [Decoder] [Open]
         /// 7. [Packet] / [Frame] 버퍼 생성
         /// </summary>
-        /// <param name="rtspUrl">[RTSP] 주소</param>
-        /// <returns>연결 및 [Decoder] 초기화 성공 여부</returns>
-        public bool Open(string rtspUrl)
+        /// <param name="rtspUrl">
+        /// [RTSP] 주소
+        /// </param>
+        /// <returns>
+        /// 연결 및 [Decoder] 초기화 성공 여부
+        /// </returns>
+        public bool Open(
+            string rtspUrl)
         {
-            Close();
-
-            /// <summary>
-            /// [RTSP] 연결 시도 로그
-            /// </summary>
-            Console.WriteLine($"[{_streamName}] [FFmpeg RTSP] Open Try...");
-
-            Console.WriteLine();
-
-            /// <summary>
-            /// [RTSP] 연결 대상 주소 로그
-            /// </summary>
-            Console.WriteLine($"[{_streamName}] [FFmpeg RTSP] Source : {rtspUrl}");
-
-            ConsoleLogHelper.PrintLine();
-
-            ffmpeg.avformat_network_init();
-
-            AVFormatContext* formatContext = null;
-
-            AVDictionary* options = CreateRtspOptions();
-
-            int result =
-                ffmpeg.avformat_open_input(
-                    &formatContext,
-                    rtspUrl,
-                    null,
-                    &options);
-
-            Console.WriteLine(
-                $"[{_streamName}] [FFmpeg RTSP] avformat_open_input Result : {result}");
-
-            ConsoleLogHelper.PrintLine();
-
-            ffmpeg.av_dict_free(&options);
-
-            if (result < 0)
+            if (string.IsNullOrWhiteSpace(
+                rtspUrl))
             {
-                Console.WriteLine(
-                    $"[{_streamName}] [FFmpeg RTSP] avformat_open_input Failed");
-
-                Console.WriteLine();
-
+                Console.WriteLine($"[{_streamName}] [FFmpeg RTSP] Open Failed : RTSP URL is empty");
                 return false;
             }
 
-            _formatContext = formatContext;
+            lock (_syncLock)
+            {
+                CloseInternal();
 
-            if (!LoadStreamInfo())
-                return false;
+                Console.WriteLine($"[{_streamName}] [FFmpeg RTSP] Open Try...");
+                Console.WriteLine($"[{_streamName}] [FFmpeg RTSP] Source : {rtspUrl}");
+                ConsoleLogHelper.PrintLine();
 
-            if (!FindVideoStream())
-                return false;
+                ffmpeg.avformat_network_init();
 
-            if (!OpenCodec())
-                return false;
+                AVFormatContext* formatContext =
+                    null;
 
-            AllocateDecodeBuffer();
+                AVDictionary* options =
+                    CreateRtspOptions();
 
-            IsOpened = true;
+                int result =
+                    ffmpeg.avformat_open_input(
+                        &formatContext,
+                        rtspUrl,
+                        null,
+                        &options);
 
-            Console.WriteLine(
-                $"[{_streamName}] [FFmpeg RTSP] Open Success.");
+                ffmpeg.av_dict_free(
+                    &options);
 
-            Console.WriteLine();
+                Console.WriteLine($"[{_streamName}] [FFmpeg RTSP] avformat_open_input Result : {result}");
+                ConsoleLogHelper.PrintLine();
 
-            return true;
+                if (result < 0)
+                {
+                    Console.WriteLine($"[{_streamName}] [FFmpeg RTSP] avformat_open_input Failed");
+                    return false;
+                }
+
+                _formatContext =
+                    formatContext;
+
+                if (!LoadStreamInfo() ||
+                    !FindVideoStream() ||
+                    !OpenCodec())
+                {
+                    CloseInternal();
+                    return false;
+                }
+
+                AllocateDecodeBuffer();
+
+                IsOpened =
+                    true;
+
+                Console.WriteLine($"[{_streamName}] [FFmpeg RTSP] Open Success");
+                ConsoleLogHelper.PrintLine();
+
+                return true;
+            }
+
         }
 
         /// <summary>
         /// [RTSP] 연결 옵션 생성
         ///
         /// [rtsp_transport=tcp]:
-        /// 
         /// [C++] [FFmpeg] 구조에서 [TCP] 기반으로 열었던 것과 동일하게 [TCP] 강제
         ///
-        /// [timeout=3000000]:
+        /// [timeout]:
         /// [RTSP] 연결 [Timeout] 설정
-        /// 단위는 [microsecond], 3000000 = 3초
+        /// 단위는 [microsecond]이다.
         /// </summary>
         private AVDictionary* CreateRtspOptions()
         {
-            AVDictionary* options = null;
+            AVDictionary* options =
+                null;
 
             ffmpeg.av_dict_set(
                 &options,
@@ -226,7 +236,7 @@ namespace VertiportNexus.Services.Communication.Video
             ffmpeg.av_dict_set(
                 &options,
                 "timeout",
-                "3000000",
+                RTSP_TIMEOUT_MICROSECONDS,
                 0);
 
             return options;
@@ -246,13 +256,10 @@ namespace VertiportNexus.Services.Communication.Video
 
             if (result < 0)
             {
-                Console.WriteLine(
-                    $"[{_streamName}] [FFmpeg RTSP] avformat_find_stream_info Failed");
-
-                Close();
-
+                Console.WriteLine($"[{_streamName}] [FFmpeg RTSP] avformat_find_stream_info Failed");
                 return false;
             }
+
             return true;
         }
 
@@ -261,14 +268,16 @@ namespace VertiportNexus.Services.Communication.Video
         /// </summary>
         private bool FindVideoStream()
         {
-            _videoStreamIndex = -1;
+            _videoStreamIndex =
+                -1;
 
             for (int i = 0; i < _formatContext->nb_streams; i++)
             {
                 if (_formatContext->streams[i]->codecpar->codec_type ==
                     AVMediaType.AVMEDIA_TYPE_VIDEO)
                 {
-                    _videoStreamIndex = i;
+                    _videoStreamIndex =
+                        i;
 
                     break;
                 }
@@ -277,13 +286,10 @@ namespace VertiportNexus.Services.Communication.Video
 
             if (_videoStreamIndex < 0)
             {
-                Console.WriteLine(
-                    $"[{_streamName}] [FFmpeg RTSP] Video Stream Not Found");
-
-                Close();
-
+                Console.WriteLine($"[{_streamName}] [FFmpeg RTSP] Video Stream Not Found");
                 return false;
             }
+
             return true;
         }
 
@@ -301,40 +307,25 @@ namespace VertiportNexus.Services.Communication.Video
 
             if (codec == null)
             {
-                Console.WriteLine(
-                    $"[{_streamName}] [FFmpeg RTSP] Decoder Not Found");
-
-                Close();
-
+                Console.WriteLine($"[{_streamName}] [FFmpeg RTSP] Decoder Not Found");
                 return false;
             }
 
             _codecContext =
-                ffmpeg.avcodec_alloc_context3(codec);
+                ffmpeg.avcodec_alloc_context3(
+                    codec);
 
             ffmpeg.avcodec_parameters_to_context(
                 _codecContext,
                 codecParameters);
 
-            /// <summary>
-            /// [RTSP] 원본 영상 해상도 저장
-            /// 
-            /// [AI Detector] [Bounding Box] 좌표 기준과
-            /// [Canvas Overlay] 좌표 기준을 맞추기 위해 사용한다.
-            /// </summary>
-            VideoWidth = _codecContext->width;
-            VideoHeight = _codecContext->height;
+            VideoWidth =
+                _codecContext->width;
 
-            /// <summary>
-            /// [RTSP] 원본 영상 해상도 로그
-            /// 
-            /// [FFmpeg]에서 읽은 실제 영상 해상도를 출력하며,
-            /// [AI Detector] [Bounding Box] 좌표 기준과
-            /// [Overlay Canvas] 크기 설정 확인에 사용한다.
-            /// </summary>
-            Console.WriteLine(
-                $"[{_streamName}] [FFmpeg RTSP SIZE] {VideoWidth} x {VideoHeight}");
-            Console.WriteLine();
+            VideoHeight =
+                _codecContext->height;
+
+            Console.WriteLine($"[{_streamName}] [FFmpeg RTSP SIZE] {VideoWidth} x {VideoHeight}");
 
             int result =
                 ffmpeg.avcodec_open2(
@@ -344,17 +335,14 @@ namespace VertiportNexus.Services.Communication.Video
 
             if (result < 0)
             {
-                Console.WriteLine(
-                    $"[{_streamName}] [FFmpeg RTSP] avcodec_open2 Failed");
-
-                Close();
-
+                Console.WriteLine($"[{_streamName}] [FFmpeg RTSP] avcodec_open2 Failed");
                 return false;
             }
 
             Console.WriteLine(
                 $"[{_streamName}] [FFmpeg RTSP] Codec : " +
-                ffmpeg.avcodec_get_name(codecParameters->codec_id));
+                ffmpeg.avcodec_get_name(
+                    codecParameters->codec_id));
 
             return true;
         }
@@ -364,8 +352,11 @@ namespace VertiportNexus.Services.Communication.Video
         /// </summary>
         private void AllocateDecodeBuffer()
         {
-            _packet = ffmpeg.av_packet_alloc();
-            _frame = ffmpeg.av_frame_alloc();
+            _packet =
+                ffmpeg.av_packet_alloc();
+
+            _frame =
+                ffmpeg.av_frame_alloc();
         }
 
         #endregion
@@ -386,13 +377,9 @@ namespace VertiportNexus.Services.Communication.Video
         /// </summary>
         public Mat ReadFrame()
         {
-            // [ReadFrame()] 중에는 [Close()] 못 들어오게
             lock (_syncLock)
             {
-                if (!IsOpened ||
-                    _formatContext == null ||
-                    _codecContext == null ||
-                    _packet == null)
+                if (!CanReadFrame())
                 {
                     return null;
                 }
@@ -405,47 +392,62 @@ namespace VertiportNexus.Services.Communication.Video
                             _packet);
 
                     if (result < 0)
+                    {
                         return null;
+                    }
 
                     try
                     {
                         if (_packet->stream_index != _videoStreamIndex)
+                        {
                             continue;
+                        }
 
-                        result =
-                            ffmpeg.avcodec_send_packet(
-                                _codecContext,
-                                _packet);
-
-                        if (result < 0)
+                        if (!SendPacketToDecoder())
+                        {
                             return null;
+                        }
 
                         result =
                             ffmpeg.avcodec_receive_frame(
                                 _codecContext,
                                 _frame);
 
-                        if (result == ffmpeg.AVERROR(ffmpeg.EAGAIN))
+                        if (result == ffmpeg.AVERROR(
+                            ffmpeg.EAGAIN))
+                        {
                             continue;
+                        }
 
                         if (result < 0)
+                        {
                             return null;
+                        }
 
-                        return ConvertFrameToMat(_frame);
+                        return ConvertFrameToMat(
+                            _frame);
                     }
                     finally
                     {
-                        if (_packet != null)
-                        {
-                            ffmpeg.av_packet_unref(_packet);
-                        }
-
+                        UnrefPacket();
                     }
 
                 }
 
             }
 
+        }
+
+        /// <summary>
+        /// [Frame] 읽기 가능 여부 확인
+        /// </summary>
+        private bool CanReadFrame()
+        {
+            return IsOpened &&
+                   _formatContext != null &&
+                   _codecContext != null &&
+                   _packet != null &&
+                   _frame != null;
         }
 
         /// <summary>
@@ -462,15 +464,32 @@ namespace VertiportNexus.Services.Communication.Video
         }
 
         /// <summary>
+        /// [Packet] 참조 해제
+        /// </summary>
+        private void UnrefPacket()
+        {
+            if (_packet != null)
+            {
+                ffmpeg.av_packet_unref(
+                    _packet);
+            }
+
+        }
+
+        /// <summary>
         /// [FFmpeg] [AVFrame]을 [OpenCV] [Mat]([BGR24])으로 변환
         ///
-        /// 기존 [WPF] 출력 구조는 => [MatToBitmapSourceConverter]를 사용하므로,
+        /// 기존 [WPF] 출력 구조는 [MatToBitmapSourceConverter]를 사용하므로,
         /// 여기서는 [WPF]가 바로 처리하기 쉬운 [BGR24] [Mat] 형태로 맞춘다.
         /// </summary>
-        private Mat ConvertFrameToMat(AVFrame* sourceFrame)
+        private Mat ConvertFrameToMat(
+            AVFrame* sourceFrame)
         {
-            int width = sourceFrame->width;
-            int height = sourceFrame->height;
+            int width =
+                sourceFrame->width;
+
+            int height =
+                sourceFrame->height;
 
             Mat mat =
                 new Mat(
@@ -487,19 +506,22 @@ namespace VertiportNexus.Services.Communication.Video
                     width,
                     height,
                     AVPixelFormat.AV_PIX_FMT_BGR24,
-                    // [SWS_BILINEAR]
                     2,
                     null,
                     null,
                     null);
 
-            byte_ptrArray4 dstData = default;
+            byte_ptrArray4 dstData =
+                default;
 
-            int_array4 dstLineSize = default;
+            int_array4 dstLineSize =
+                default;
 
-            dstData[0] = (byte*)mat.Data;
+            dstData[0] =
+                (byte*)mat.Data;
 
-            dstLineSize[0] = (int)mat.Step();
+            dstLineSize[0] =
+                (int)mat.Step();
 
             ffmpeg.sws_scale(
                 _swsContext,
@@ -529,23 +551,37 @@ namespace VertiportNexus.Services.Communication.Video
         /// </summary>
         public void Close()
         {
-            // [Close()] 중에는 [ReadFrame()] 못 들어오게
             lock (_syncLock)
             {
-                IsOpened = false;
-
-                FreePacket();
-                FreeFrame();
-                FreeCodecContext();
-                FreeFormatContext();
-                FreeSwsContext();
-
-                _videoStreamIndex = -1;
-
-                VideoWidth = 0;
-                VideoHeight = 0;
+                CloseInternal();
             }
 
+        }
+
+        /// <summary>
+        /// [RTSP] 연결 해제 및 [FFmpeg] 내부 리소스 정리
+        /// 
+        /// [Open()] 내부에서도 기존 연결 정리를 위해 사용한다.
+        /// </summary>
+        private void CloseInternal()
+        {
+            IsOpened =
+                false;
+
+            FreePacket();
+            FreeFrame();
+            FreeCodecContext();
+            FreeFormatContext();
+            FreeSwsContext();
+
+            _videoStreamIndex =
+                -1;
+
+            VideoWidth =
+                0;
+
+            VideoHeight =
+                0;
         }
 
         /// <summary>
@@ -554,13 +590,18 @@ namespace VertiportNexus.Services.Communication.Video
         private void FreePacket()
         {
             if (_packet == null)
+            {
                 return;
+            }
 
-            AVPacket* packet = _packet;
+            AVPacket* packet =
+                _packet;
 
-            ffmpeg.av_packet_free(&packet);
+            ffmpeg.av_packet_free(
+                &packet);
 
-            _packet = null;
+            _packet =
+                null;
         }
 
         /// <summary>
@@ -569,13 +610,18 @@ namespace VertiportNexus.Services.Communication.Video
         private void FreeFrame()
         {
             if (_frame == null)
+            {
                 return;
+            }
 
-            AVFrame* frame = _frame;
+            AVFrame* frame =
+                _frame;
 
-            ffmpeg.av_frame_free(&frame);
+            ffmpeg.av_frame_free(
+                &frame);
 
-            _frame = null;
+            _frame =
+                null;
         }
 
         /// <summary>
@@ -584,13 +630,18 @@ namespace VertiportNexus.Services.Communication.Video
         private void FreeCodecContext()
         {
             if (_codecContext == null)
+            {
                 return;
+            }
 
-            AVCodecContext* codecContext = _codecContext;
+            AVCodecContext* codecContext =
+                _codecContext;
 
-            ffmpeg.avcodec_free_context(&codecContext);
+            ffmpeg.avcodec_free_context(
+                &codecContext);
 
-            _codecContext = null;
+            _codecContext =
+                null;
         }
 
         /// <summary>
@@ -599,13 +650,18 @@ namespace VertiportNexus.Services.Communication.Video
         private void FreeFormatContext()
         {
             if (_formatContext == null)
+            {
                 return;
+            }
 
-            AVFormatContext* formatContext = _formatContext;
+            AVFormatContext* formatContext =
+                _formatContext;
 
-            ffmpeg.avformat_close_input(&formatContext);
+            ffmpeg.avformat_close_input(
+                &formatContext);
 
-            _formatContext = null;
+            _formatContext =
+                null;
         }
 
         /// <summary>
@@ -614,11 +670,15 @@ namespace VertiportNexus.Services.Communication.Video
         private void FreeSwsContext()
         {
             if (_swsContext == null)
+            {
                 return;
+            }
 
-            ffmpeg.sws_freeContext(_swsContext);
+            ffmpeg.sws_freeContext(
+                _swsContext);
 
-            _swsContext = null;
+            _swsContext =
+                null;
         }
 
         /// <summary>

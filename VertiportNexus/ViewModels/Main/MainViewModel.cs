@@ -184,12 +184,20 @@ namespace VertiportNexus.ViewModels.Main
         /// <summary>
         /// [MQ] 상태 표시 문자열
         /// </summary>
-        private string _mqStatusText = "MQ Not Used";
+        private string _mqStatusText = "RabbitMQ Ready";
 
         /// <summary>
         /// 마지막 [MQ] 수신 메시지 표시 문자열
         /// </summary>
         private string _lastMqMessageText = string.Empty;
+
+        /// <summary>
+        /// [CSE] [MQ] 수신 시작 여부
+        /// 
+        /// [RabbitMQ] 서버 연결 실패 또는 중복 시작으로 인해
+        /// 프로그램 실행 흐름이 영향을 받지 않도록 상태를 관리한다.
+        /// </summary>
+        private bool _isCseMqReceiveStarted;
 
         /// <summary>
         /// 장비 연결 진행 여부
@@ -661,8 +669,9 @@ namespace VertiportNexus.ViewModels.Main
 
             // [CSE] 명령 수신 시작
             //
-            // [RabbitMQ] [q.command.req] Queue 수신을 시작한다.
-            _cseCommandReceiveService.StartReceive();
+            // [RabbitMQ] 서버 연결 실패로 인해
+            // 화면 초기화가 지연되지 않도록 백그라운드에서 시작한다.
+            StartCseReceiveInBackground();
 
             #endregion
 
@@ -1177,9 +1186,7 @@ namespace VertiportNexus.ViewModels.Main
             {
                 if (_ads1000CameraControlService.PanTiltSpeedLevel != value)
                 {
-                    _ads1000CameraControlService.PanTiltSpeedLevel =
-                        value;
-
+                    _ads1000CameraControlService.PanTiltSpeedLevel = value;
                     OnPropertyChanged();
                 }
 
@@ -1379,7 +1386,7 @@ namespace VertiportNexus.ViewModels.Main
                 = 50;
 
             MqStatusText =
-                "MQ Not Used";
+                "RabbitMQ Ready";
 
             McbIpAddress =
                 DEFAULT_DEVICE_IP_ADDRESS;
@@ -1399,33 +1406,97 @@ namespace VertiportNexus.ViewModels.Main
         #region [MQ Methods]
 
         /// <summary>
+        /// [CSE] [MQ] 수신 백그라운드 시작
+        /// 
+        /// RabbitMQ 서버가 실행 중이 아니거나 연결이 실패하더라도
+        /// 프로그램 화면 초기화가 지연되지 않도록 별도 작업으로 실행한다.
+        /// </summary>
+        private void StartCseReceiveInBackground()
+        {
+            if (_isCseMqReceiveStarted)
+            {
+                Console.WriteLine("[CSE][MQ] Receive Start Ignored : Already Started");
+                return;
+            }
+
+            _isCseMqReceiveStarted =
+                true;
+
+            MqStatusText =
+                "RabbitMQ Receive Starting";
+
+            Task.Run(() =>
+            {
+                try
+                {
+                    _cseCommandReceiveService.StartReceive();
+
+                    App.Current.Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        MqStatusText =
+                            "RabbitMQ Receive Started";
+                    }));
+                }
+                catch (Exception ex)
+                {
+                    _isCseMqReceiveStarted =
+                        false;
+
+                    App.Current.Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        MqStatusText =
+                            "RabbitMQ Receive Failed";
+                    }));
+
+                    ConsoleLogHelper.PrintLine();
+                    Console.WriteLine("[CSE][MQ] Receive Start Failed");
+                    Console.WriteLine("[CSE][MQ] Error : " + ex.Message);
+                    ConsoleLogHelper.PrintLine();
+                }
+
+            });
+
+        }
+
+        /// <summary>
         /// [MQ] 연결 처리
         /// 
-        /// 현재 단계에서는 [MQ] 실제 연동 전이므로
-        /// 상태값과 로그만 표시한다.
+        /// [RabbitMQ] [q.command.req] Queue 수신을 다시 시작한다.
         /// </summary>
         private void ConnectMq()
         {
-            MqStatusText = "MQ Not Used";
-
-            Console.WriteLine();
-            Console.WriteLine("[MQ] Current step does not use MQ");
-            ConsoleLogHelper.PrintLine();
+            StartCseReceiveInBackground();
         }
 
         /// <summary>
         /// [MQ] 연결 해제 처리
         /// 
-        /// 현재 단계에서는 [MQ] 실제 연동 전이므로
-        /// 상태값과 로그만 표시한다.
+        /// 현재 [RabbitMQ] 수신 객체를 중지한다.
         /// </summary>
         private void DisconnectMq()
         {
-            MqStatusText = "MQ Not Used";
+            try
+            {
+                _mqReceiver.StopReceive();
 
-            Console.WriteLine();
-            Console.WriteLine("[MQ] Current step does not use MQ");
-            ConsoleLogHelper.PrintLine();
+                _isCseMqReceiveStarted =
+                    false;
+
+                MqStatusText =
+                    "RabbitMQ Receive Stopped";
+
+                ConsoleLogHelper.PrintLine();
+                Console.WriteLine("[CSE][MQ] Receive Stop");
+                ConsoleLogHelper.PrintLine();
+            }
+            catch (Exception ex)
+            {
+                ConsoleLogHelper.PrintLine();
+                Console.WriteLine("[CSE][MQ] Receive Stop Failed");
+                Console.WriteLine("[CSE][MQ] Error : " + ex.Message);
+                ConsoleLogHelper.PrintLine();
+            }
+
         }
 
         #endregion

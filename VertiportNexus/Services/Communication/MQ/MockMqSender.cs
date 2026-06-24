@@ -26,12 +26,52 @@ namespace VertiportNexus.Services.Communication.MQ
             string queueName,
             string message)
         {
+            if (!CanSend(
+                queueName,
+                message))
+            {
+                return;
+            }
             ConsoleLogHelper.PrintLine();
-            Console.WriteLine("[MQ][MOCK] Send");
-            Console.WriteLine("[MQ][MOCK] Queue : " + queueName);
-            Console.WriteLine("[MQ][MOCK] Message");
+            Console.WriteLine("[MQ][MOCK][SEND] Send");
+            Console.WriteLine("[MQ][MOCK][SEND] Queue : " + queueName);
+            Console.WriteLine("[MQ][MOCK][SEND] Message");
             Console.WriteLine(message);
             ConsoleLogHelper.PrintLine();
+        }
+
+        #endregion
+
+        #region [Private Methods]
+
+        /// <summary>
+        /// [Mock] [MQ] 메시지 송신 가능 여부 확인
+        /// </summary>
+        /// <param name="queueName">
+        /// 송신 대상 [Queue] 이름
+        /// </param>
+        /// <param name="message">
+        /// 송신 [JSON] 메시지
+        /// </param>
+        /// <returns>
+        /// 송신 가능 여부
+        /// </returns>
+        private bool CanSend(
+            string queueName,
+            string message)
+        {
+            if (string.IsNullOrWhiteSpace(queueName))
+            {
+                Console.WriteLine("[MQ][MOCK][SEND] Send Failed : Queue is empty");
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                Console.WriteLine("[MQ][MOCK][SEND] Send Failed : Message is empty");
+                return false;
+            }
+            return true;
         }
         #endregion
     }

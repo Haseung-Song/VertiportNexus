@@ -35,22 +35,19 @@ namespace VertiportNexus.Services.ADS1000
         /// <summary>
         /// [Ads1000ConnectionService] 생성자
         /// </summary>
-        /// <param name="mcbTcpClientService">
-        /// [MCB] [TCP] 통신 서비스
-        /// </param>
-        /// 
-        /// <param name="scbTcpClientService">
-        /// [SCB] [TCP] 통신 서비스
-        /// </param>
         public Ads1000ConnectionService(
             TcpClientService mcbTcpClientService,
             TcpClientService scbTcpClientService)
         {
             _mcbTcpClientService =
-                mcbTcpClientService;
+                mcbTcpClientService
+                ?? throw new ArgumentNullException(
+                    nameof(mcbTcpClientService));
 
             _scbTcpClientService =
-                scbTcpClientService;
+                scbTcpClientService
+                ?? throw new ArgumentNullException(
+                    nameof(scbTcpClientService));
         }
 
         #endregion
@@ -60,32 +57,17 @@ namespace VertiportNexus.Services.ADS1000
         /// <summary>
         /// [MCB] / [SCB] 장비 [TCP] 연결
         /// </summary>
-        /// <param name="mcbIpAddress">
-        /// [MCB] 연결 대상 [IP]
-        /// </param>
-        /// 
-        /// <param name="mcbPort">
-        /// [MCB] 연결 대상 [Port]
-        /// </param>
-        /// 
-        /// <param name="scbIpAddress">
-        /// [SCB] 연결 대상 [IP]
-        /// </param>
-        /// 
-        /// <param name="scbPort">
-        /// [SCB] 연결 대상 [Port]
-        /// </param>
-        /// 
-        /// <returns>
-        /// [MCB] / [SCB] 연결 결과
-        /// </returns>
         public async Task<Ads1000ConnectionResult> ConnectAsync(
             string mcbIpAddress,
             int mcbPort,
             string scbIpAddress,
             int scbPort)
         {
+            ConsoleLogHelper.PrintLine();
             Console.WriteLine("[DEVICE] Connect Start");
+            Console.WriteLine("[DEVICE] MCB Target : " + mcbIpAddress + ":" + mcbPort);
+            Console.WriteLine("[DEVICE] SCB Target : " + scbIpAddress + ":" + scbPort);
+            ConsoleLogHelper.PrintLine();
 
             bool isMcbConnected =
                 await _mcbTcpClientService.ConnectAsync(
@@ -98,10 +80,14 @@ namespace VertiportNexus.Services.ADS1000
                     scbPort);
 
             ConsoleLogHelper.PrintLine();
-            Console.WriteLine($"[DEVICE] Connect Result : MCB={isMcbConnected}, SCB={isScbConnected}");
+            Console.WriteLine("[DEVICE] Connect Result");
+            Console.WriteLine("[DEVICE] MCB : " + isMcbConnected);
+            Console.WriteLine("[DEVICE] SCB : " + isScbConnected);
             ConsoleLogHelper.PrintLine();
 
-            return new Ads1000ConnectionResult(isMcbConnected, isScbConnected);
+            return new Ads1000ConnectionResult(
+                isMcbConnected,
+                isScbConnected);
         }
 
         /// <summary>
@@ -109,12 +95,12 @@ namespace VertiportNexus.Services.ADS1000
         /// </summary>
         public void Disconnect()
         {
+            ConsoleLogHelper.PrintLine();
             Console.WriteLine("[DEVICE] Disconnect Start");
 
             _mcbTcpClientService.Disconnect();
             _scbTcpClientService.Disconnect();
 
-            ConsoleLogHelper.PrintLine();
             Console.WriteLine("[DEVICE] Disconnect Complete");
             ConsoleLogHelper.PrintLine();
         }

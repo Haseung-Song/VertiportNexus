@@ -249,7 +249,6 @@
 
             </Border>
 
-            <!-- 우측 제어 영역 -->
             <!-- 우측 제어 패널 -->
             <Border Grid.Column="1"
                     Background="#646A71"
@@ -1159,7 +1158,7 @@
         </Grid>
 
         <!-- 하단 상태 바 -->
-        <Border Grid.Row="3"
+        <Border Grid.Row="2"
                 Padding="10"
                 Margin="0,10,0,0"
                 Background="#2B3038">
@@ -1173,3 +1172,4 @@
     </Grid>
 
 </Window>
+    

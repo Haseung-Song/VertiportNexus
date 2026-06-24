@@ -50,7 +50,7 @@ namespace VertiportNexus.Services.Camera
         /// <summary>
         /// [EO] 영상 상태 메시지 변경 이벤트
         /// 
-        /// [MainViewModel]의 [CameraStatusText] 갱신에 사용한다.
+        /// [MainViewModel]의 영상 상태 표시 갱신에 사용한다.
         /// </summary>
         public event Action<string> StatusChanged;
 
@@ -63,7 +63,9 @@ namespace VertiportNexus.Services.Camera
         /// </summary>
         public EoCameraService()
         {
-            _eoDecoder = new FFmpegDecoderService("EO");
+            _eoDecoder =
+                new FFmpegDecoderService(
+                    "EO");
         }
 
         #endregion
@@ -74,7 +76,7 @@ namespace VertiportNexus.Services.Camera
         /// [EO] [RTSP] 영상 연결
         /// 
         /// [FFmpegDecoderService]로 [RTSP] Stream을 열고,
-        /// 별도 [Task]에서 Frame 수신 루프를 시작한다.
+        /// 별도 [Task]에서 [Frame] 수신 루프를 시작한다.
         /// </summary>
         /// <param name="rtspAddress">
         /// [EO] [RTSP] 주소
@@ -83,44 +85,63 @@ namespace VertiportNexus.Services.Camera
             string rtspAddress)
         {
             if (_isEoVideoConnecting)
+            {
+                Console.WriteLine("[EO VIDEO] RTSP Connect Ignored : Connecting");
                 return;
+            }
 
-            _isEoVideoConnecting = true;
+            if (string.IsNullOrWhiteSpace(
+                rtspAddress))
+            {
+                StatusChanged?.Invoke(
+                    "EO RTSP Address Empty");
+
+                Console.WriteLine("[EO VIDEO] RTSP Connect Failed : Address is empty");
+                ConsoleLogHelper.PrintLine();
+
+                return;
+            }
+
+            _isEoVideoConnecting =
+                true;
 
             try
             {
                 StatusChanged?.Invoke(
                     "EO RTSP Connecting...");
 
+                ConsoleLogHelper.PrintLine();
                 Console.WriteLine("[EO VIDEO] RTSP Connect Try");
-                Console.WriteLine();
                 Console.WriteLine("[EO VIDEO] RTSP : " + rtspAddress);
-                Console.WriteLine();
+                ConsoleLogHelper.PrintLine();
 
-                /// <summary>
-                /// 기존 영상 루프가 남아있을 수 있으므로 먼저 정리한다.
-                /// </summary>
-                Disconnect(true);
+                // [EO] 기존 영상 루프 정리
+                //
+                // 재연결 전 기존 [RTSP] 수신 루프와
+                // [FFmpeg] Decoder 리소스가 남아있을 수 있으므로 먼저 정리한다.
+                Disconnect(
+                    true);
 
                 _eoVideoCts =
                     new CancellationTokenSource();
 
                 bool isOpen =
-                    _eoDecoder.Open(rtspAddress);
+                    _eoDecoder.Open(
+                        rtspAddress);
 
                 if (!isOpen)
                 {
                     StatusChanged?.Invoke(
                         "EO RTSP Connect Failed");
 
-                    Console.WriteLine();
                     Console.WriteLine("[EO CAMERA] RTSP Open Failed");
                     ConsoleLogHelper.PrintLine();
 
                     return;
                 }
 
-                StatusChanged?.Invoke("EO RTSP Connected");
+                StatusChanged?.Invoke(
+                    "EO RTSP Connected");
 
                 Console.WriteLine("[EO CAMERA] RTSP Open Success");
                 ConsoleLogHelper.PrintLine();
@@ -142,7 +163,8 @@ namespace VertiportNexus.Services.Camera
             }
             finally
             {
-                _isEoVideoConnecting = false;
+                _isEoVideoConnecting =
+                    false;
             }
 
         }
@@ -158,34 +180,25 @@ namespace VertiportNexus.Services.Camera
         {
             try
             {
-                /// <summary>
-                /// [EO] 영상 수신 작업 취소 요청
-                /// 
-                /// 기존 영상 수신 루프가
-                /// 더 이상 [Frame]을 전달하지 않도록 중지 신호를 보낸다.
-                /// </summary>
+                // [EO] 영상 수신 작업 취소 요청
+                //
+                // 기존 영상 수신 루프가
+                // 더 이상 [Frame]을 전달하지 않도록 중지 신호를 보낸다.
                 _eoVideoCts?.Cancel();
 
-                /// <summary>
-                /// [EO] Decoder 종료
-                /// 
-                /// RTSP / FFmpeg Decoder 리소스를 정리한다.
-                /// </summary>
+                // [EO] Decoder 종료
+                //
+                // RTSP / FFmpeg Decoder 리소스를 정리한다.
                 _eoDecoder.Close();
 
-                /// <summary>
-                /// 화면에서 기존 [EO] 영상을 제거하기 위해
-                /// [null] Frame을 전달한다.
-                /// </summary>
+                // [EO] 영상 화면 초기화
+                //
+                // 화면에서 기존 [EO] 영상을 제거하기 위해
+                // [null] Frame을 전달한다.
                 FrameReceived?.Invoke(
                     null);
 
-                /// <summary>
-                /// [EO] 영상 수신 [CancellationTokenSource] 정리
-                /// </summary>
-                _eoVideoCts?.Dispose();
-                _eoVideoCts =
-                    null;
+                ReleaseCancellationTokenSource();
 
                 if (isReconnectCleanup)
                 {
@@ -195,6 +208,7 @@ namespace VertiportNexus.Services.Camera
                 {
                     Console.WriteLine("[EO VIDEO] RTSP Disconnect Complete");
                 }
+
                 ConsoleLogHelper.PrintLine();
             }
             catch (Exception ex)
@@ -223,30 +237,51 @@ namespace VertiportNexus.Services.Camera
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                using (Mat frame = _eoDecoder.ReadFrame())
+                using (Mat frame =
+                       _eoDecoder.ReadFrame())
                 {
                     if (cancellationToken.IsCancellationRequested)
+                    {
                         break;
+                    }
 
                     if (frame == null ||
                         frame.Empty())
                     {
-                        Thread.Sleep(10);
+                        Thread.Sleep(
+                            10);
+
                         continue;
                     }
 
-                    BitmapSource bitmap = MatToBitmapSourceConverter.Convert(frame);
+                    BitmapSource bitmap =
+                        MatToBitmapSourceConverter.Convert(
+                            frame);
 
                     bitmap?.Freeze();
 
                     if (cancellationToken.IsCancellationRequested)
+                    {
                         break;
+                    }
 
-                    FrameReceived?.Invoke(bitmap);
+                    FrameReceived?.Invoke(
+                        bitmap);
                 }
 
             }
 
+        }
+
+        /// <summary>
+        /// [EO] 영상 수신 [CancellationTokenSource] 정리
+        /// </summary>
+        private void ReleaseCancellationTokenSource()
+        {
+            _eoVideoCts?.Dispose();
+
+            _eoVideoCts =
+                null;
         }
         #endregion
     }

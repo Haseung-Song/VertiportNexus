@@ -121,7 +121,8 @@
         /// </summary>
         public Ads1000ScbPacketBuilder()
         {
-            _checksum = new Ads1000Checksum();
+            _checksum =
+                new Ads1000Checksum();
         }
 
         #endregion

@@ -10,11 +10,11 @@ namespace VertiportNexus.Models.Vertiport
     /// 
     /// [IF-GUIS-CSE-011]
     /// 설정 조회 응답
-    /// 
+    ///
     /// [IF-GUIS-CSE-012]
-    /// [PTZ] 상태 조회 응답
+    /// [PTZ] 상태 조회 응답에서
     /// 
-    /// 에서 공통으로 사용한다.
+    /// 공통으로 사용한다.
     /// </summary>
     public class CseCommandResponsePayload
     {

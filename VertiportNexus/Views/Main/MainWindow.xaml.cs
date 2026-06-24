@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿using System.Text.RegularExpressions;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using VertiportNexus.ViewModels.Main;
@@ -6,94 +7,142 @@ using VertiportNexus.ViewModels.Main;
 namespace VertiportNexus.Views.Main
 {
     /// <summary>
-    /// MainWindow.xaml에 대한 상호 작용 논리
+    /// [Main] 화면
+    /// 
+    /// [MainWindow.xaml]에 대한 상호 작용 논리를 처리한다.
     /// </summary>
     public partial class MainWindow : Window
     {
-        /// <summary>
-        /// [Main] 화면 -> [ViewModel] : [XAML]의 [Binding] 연결
-        /// </summary>
-        private readonly MainViewModel vm =
-            new MainViewModel();
+        #region [Fields]
 
+        /// <summary>
+        /// [Main] 화면 [ViewModel]
+        /// 
+        /// [XAML]의 [Binding] 대상 객체이다.
+        /// </summary>
+        private readonly MainViewModel _viewModel = new MainViewModel();
+
+        #endregion
+
+        #region [Constructor]
+
+        /// <summary>
+        /// [MainWindow] 생성자
+        /// </summary>
         public MainWindow()
         {
             InitializeComponent();
 
-            DataContext = vm;
+            DataContext = _viewModel;
+        }
+
+        #endregion
+
+        #region [Pan / Tilt Mouse Event Methods]
+
+        /// <summary>
+        /// [Pan] 좌측 버튼 [MouseDown]
+        /// </summary>
+        private void PanLeft_MouseDown(
+            object sender,
+            MouseButtonEventArgs e)
+        {
+            _viewModel.StartPanLeftMove();
         }
 
         /// <summary>
-        /// [PAN] 좌측 버튼 [MouseDown]
+        /// [Pan] 우측 버튼 [MouseDown]
         /// </summary>
-        private void PanLeft_MouseDown(object sender, MouseButtonEventArgs e)
+        private void PanRight_MouseDown(
+            object sender,
+            MouseButtonEventArgs e)
         {
-            vm?.StartPanLeftMove();
+            _viewModel.StartPanRightMove();
         }
 
         /// <summary>
-        /// [PAN] 우측 버튼 [MouseDown]
+        /// [Tilt] 위쪽 버튼 [MouseDown]
         /// </summary>
-        private void PanRight_MouseDown(object sender, MouseButtonEventArgs e)
+        private void TiltUp_MouseDown(
+            object sender,
+            MouseButtonEventArgs e)
         {
-            vm?.StartPanRightMove();
+            _viewModel.StartTiltUpMove();
         }
 
         /// <summary>
-        /// [TILT] 위쪽 버튼 [MouseDown]
+        /// [Tilt] 아래쪽 버튼 [MouseDown]
         /// </summary>
-        private void TiltUp_MouseDown(object sender, MouseButtonEventArgs e)
+        private void TiltDown_MouseDown(
+            object sender,
+            MouseButtonEventArgs e)
         {
-            vm?.StartTiltUpMove();
+            _viewModel.StartTiltDownMove();
         }
 
-        /// <summary>
-        /// [TILT] 아래쪽 버튼 [MouseDown]
-        /// </summary>
-        private void TiltDown_MouseDown(object sender, MouseButtonEventArgs e)
-        {
-            vm?.StartTiltDownMove();
-        }
+        #endregion
+
+        #region [Zoom / Focus Mouse Event Methods]
 
         /// <summary>
         /// [Zoom] 확대 버튼 [MouseDown]
         /// </summary>
-        private void ZoomIn_MouseDown(object sender, MouseButtonEventArgs e)
+        private void ZoomIn_MouseDown(
+            object sender,
+            MouseButtonEventArgs e)
         {
-            vm?.StartZoomInMove();
+            _viewModel.StartZoomInMove();
         }
 
         /// <summary>
         /// [Zoom] 축소 버튼 [MouseDown]
         /// </summary>
-        private void ZoomOut_MouseDown(object sender, MouseButtonEventArgs e)
+        private void ZoomOut_MouseDown(
+            object sender,
+            MouseButtonEventArgs e)
         {
-            vm?.StartZoomOutMove();
+            _viewModel.StartZoomOutMove();
         }
 
         /// <summary>
         /// [Focus] Near 버튼 [MouseDown]
         /// </summary>
-        private void FocusNear_MouseDown(object sender, MouseButtonEventArgs e)
+        private void FocusNear_MouseDown(
+            object sender,
+            MouseButtonEventArgs e)
         {
-            vm?.StartFocusNearMove();
+            _viewModel.StartFocusNearMove();
         }
 
         /// <summary>
         /// [Focus] Far 버튼 [MouseDown]
         /// </summary>
-        private void FocusFar_MouseDown(object sender, MouseButtonEventArgs e)
+        private void FocusFar_MouseDown(
+            object sender,
+            MouseButtonEventArgs e)
         {
-            vm?.StartFocusFarMove();
+            _viewModel.StartFocusFarMove();
         }
 
+        #endregion
+
+        #region [Stop Mouse Event Methods]
+
         /// <summary>
-        /// [MouseUp] / [MouseLeave] 공통 처리
+        /// [MouseUp] / [MouseLeave] 공통 정지 처리
+        /// 
+        /// 화면 버튼을 통해 시작된 연속 이동을 정지한다.
         /// </summary>
-        private void MoveStop_MouseUp(object sender, MouseEventArgs e)
+        private void MoveStop_MouseUp(
+            object sender,
+            MouseEventArgs e)
         {
-            vm?.StopContinuousMove();
+            _viewModel.StopContinuousMove();
         }
+
+        #endregion
+
+        #region [TextBox Input Event Methods]
 
         /// <summary>
         /// [소수점 숫자] 입력 제한
@@ -117,13 +166,9 @@ namespace VertiportNexus.Views.Main
             }
 
             string newText =
-                textBox.Text
-                    .Remove(
-                        textBox.SelectionStart,
-                        textBox.SelectionLength)
-                    .Insert(
-                        textBox.SelectionStart,
-                        e.Text);
+                CreatePreviewText(
+                    textBox,
+                    e.Text);
 
             if (newText == "-" ||
                 string.IsNullOrWhiteSpace(
@@ -136,9 +181,28 @@ namespace VertiportNexus.Views.Main
             }
 
             e.Handled =
-                !System.Text.RegularExpressions.Regex.IsMatch(
+                !Regex.IsMatch(
                     newText,
                     @"^-?\d*\.?\d{0,2}$");
+        }
+
+        /// <summary>
+        /// [Relative] 각도 입력 제한
+        /// 
+        /// [Pan Relative] / [Tilt Relative] 입력값에서
+        /// 음수, 정수, 소수점 둘째 자리까지 허용한다.
+        /// 
+        /// 상대 이동은 현재 위치를 기준으로
+        /// 이동량을 입력하는 방식이므로
+        /// 절대 위치와 같은 범위 제한은 적용하지 않는다.
+        /// </summary>
+        private void RelativeDecimalNumberOnly_PreviewTextInput(
+            object sender,
+            TextCompositionEventArgs e)
+        {
+            DecimalNumberOnly_PreviewTextInput(
+                sender,
+                e);
         }
 
         /// <summary>
@@ -163,13 +227,9 @@ namespace VertiportNexus.Views.Main
             }
 
             string newText =
-                textBox.Text
-                    .Remove(
-                        textBox.SelectionStart,
-                        textBox.SelectionLength)
-                    .Insert(
-                        textBox.SelectionStart,
-                        e.Text);
+                CreatePreviewText(
+                    textBox,
+                    e.Text);
 
             if (string.IsNullOrWhiteSpace(
                 newText))
@@ -181,10 +241,14 @@ namespace VertiportNexus.Views.Main
             }
 
             e.Handled =
-                !System.Text.RegularExpressions.Regex.IsMatch(
+                !Regex.IsMatch(
                     newText,
                     @"^\d*$");
         }
+
+        #endregion
+
+        #region [TextBox LostFocus Event Methods]
 
         /// <summary>
         /// [Pan] 각도 입력 범위 보정
@@ -221,53 +285,6 @@ namespace VertiportNexus.Views.Main
         }
 
         /// <summary>
-        /// [Relative] 각도 입력 제한
-        /// 
-        /// [Pan Relative] / [Tilt Relative] 입력값에서
-        /// 음수, 정수, 소수점 둘째 자리까지 허용한다.
-        /// 
-        /// 상대 이동은 현재 위치를 기준으로
-        /// 이동량을 입력하는 방식이므로
-        /// 절대 위치와 같은 범위 제한은 적용하지 않는다.
-        /// </summary>
-        private void RelativeDecimalNumberOnly_PreviewTextInput(
-            object sender,
-            TextCompositionEventArgs e)
-        {
-            if (!(sender is TextBox textBox))
-            {
-                e.Handled =
-                    true;
-
-                return;
-            }
-
-            string newText =
-                textBox.Text
-                    .Remove(
-                        textBox.SelectionStart,
-                        textBox.SelectionLength)
-                    .Insert(
-                        textBox.SelectionStart,
-                        e.Text);
-
-            if (newText == "-" ||
-                string.IsNullOrWhiteSpace(
-                    newText))
-            {
-                e.Handled =
-                    false;
-
-                return;
-            }
-
-            e.Handled =
-                !System.Text.RegularExpressions.Regex.IsMatch(
-                    newText,
-                    @"^-?\d*\.?\d{0,2}$");
-        }
-
-        /// <summary>
         /// [Zoom] / [Focus] 위치 입력 범위 보정
         /// 
         /// [Zoom Position] / [Focus Position] 입력값이
@@ -284,21 +301,35 @@ namespace VertiportNexus.Views.Main
                 1000);
         }
 
+        #endregion
+
+        #region [TextBox Utility Methods]
+
+        /// <summary>
+        /// [TextBox] 입력 예정 문자열 생성
+        /// 
+        /// 현재 선택 영역과 입력 문자를 기준으로
+        /// 실제 반영될 문자열을 미리 계산한다.
+        /// </summary>
+        private string CreatePreviewText(
+            TextBox textBox,
+            string inputText)
+        {
+            return textBox.Text
+                .Remove(
+                    textBox.SelectionStart,
+                    textBox.SelectionLength)
+                .Insert(
+                    textBox.SelectionStart,
+                    inputText);
+        }
+
         /// <summary>
         /// [소수점 숫자] 입력값 범위 보정
         /// 
         /// 입력된 숫자가 지정 범위를 벗어난 경우
         /// 최소 / 최대값으로 보정한다.
         /// </summary>
-        /// <param name="sender">
-        /// 입력 [TextBox]
-        /// </param>
-        /// <param name="min">
-        /// 최소 허용값
-        /// </param>
-        /// <param name="max">
-        /// 최대 허용값
-        /// </param>
         private void ClampDecimalTextBoxValue(
             object sender,
             double min,
@@ -332,7 +363,8 @@ namespace VertiportNexus.Views.Main
             }
 
             textBox.Text =
-                value.ToString("F2");
+                value.ToString(
+                    "F2");
         }
 
         /// <summary>
@@ -341,15 +373,6 @@ namespace VertiportNexus.Views.Main
         /// 입력된 숫자가 지정 범위를 벗어난 경우
         /// 최소 / 최대값으로 보정한다.
         /// </summary>
-        /// <param name="sender">
-        /// 입력 [TextBox]
-        /// </param>
-        /// <param name="min">
-        /// 최소 허용값
-        /// </param>
-        /// <param name="max">
-        /// 최대 허용값
-        /// </param>
         private void ClampIntegerTextBoxValue(
             object sender,
             int min,
@@ -381,9 +404,11 @@ namespace VertiportNexus.Views.Main
                 value =
                     max;
             }
-            textBox.Text = value.ToString();
-        }
 
+            textBox.Text =
+                value.ToString();
+        }
+        #endregion
     }
 
 }

@@ -6,7 +6,7 @@ namespace VertiportNexus.Services.Camera
     /// [Camera] 상태 저장 서비스
     /// 
     /// [ADS1000] 수신 [Packet]에서 파싱된
-    /// 현재 [Pan] / [Tilt] / [Zoom] 값을 보관한다.
+    /// 현재 [Pan] / [Tilt] / [Zoom] / [Focus] 값을 보관한다.
     /// 
     /// [MainViewModel]은 수신 상태값을 갱신하고,
     /// [CseCommandHandler]는 상태 조회 응답 생성 시 해당 값을 참조한다.
@@ -32,7 +32,8 @@ namespace VertiportNexus.Services.Camera
         /// [MQ] 명령 처리 Thread가 동시에 접근할 수 있으므로
         /// lock 기준으로 상태값을 보호한다.
         /// </summary>
-        private readonly object _syncLock = new object();
+        private readonly object _syncLock =
+            new object();
 
         /// <summary>
         /// 현재 [Pan] 값
@@ -208,9 +209,6 @@ namespace VertiportNexus.Services.Camera
         /// <summary>
         /// [Pan] 상태값 갱신
         /// </summary>
-        /// <param name="pan">
-        /// 현재 [Pan] 값
-        /// </param>
         public void UpdatePan(
             double pan)
         {
@@ -219,8 +217,7 @@ namespace VertiportNexus.Services.Camera
                 _currentPan =
                     pan;
 
-                _lastUpdatedTime =
-                    DateTime.Now;
+                UpdateLastUpdatedTime();
             }
 
         }
@@ -228,9 +225,6 @@ namespace VertiportNexus.Services.Camera
         /// <summary>
         /// [Tilt] 상태값 갱신
         /// </summary>
-        /// <param name="tilt">
-        /// 현재 [Tilt] 값
-        /// </param>
         public void UpdateTilt(
             double tilt)
         {
@@ -239,8 +233,7 @@ namespace VertiportNexus.Services.Camera
                 _currentTilt =
                     tilt;
 
-                _lastUpdatedTime =
-                    DateTime.Now;
+                UpdateLastUpdatedTime();
             }
 
         }
@@ -248,9 +241,6 @@ namespace VertiportNexus.Services.Camera
         /// <summary>
         /// [Zoom] 상태값 갱신
         /// </summary>
-        /// <param name="zoom">
-        /// 현재 [Zoom] 값
-        /// </param>
         public void UpdateZoom(
             double zoom)
         {
@@ -259,8 +249,23 @@ namespace VertiportNexus.Services.Camera
                 _currentZoom =
                     zoom;
 
-                _lastUpdatedTime =
-                    DateTime.Now;
+                UpdateLastUpdatedTime();
+            }
+
+        }
+
+        /// <summary>
+        /// [Focus] 상태값 갱신
+        /// </summary>
+        public void UpdateFocus(
+            double focus)
+        {
+            lock (_syncLock)
+            {
+                _currentFocus =
+                    focus;
+
+                UpdateLastUpdatedTime();
             }
 
         }
@@ -271,15 +276,6 @@ namespace VertiportNexus.Services.Camera
         /// 수신 [Packet]에 포함된 값만 갱신하고,
         /// 포함되지 않은 값은 기존 상태값을 유지한다.
         /// </summary>
-        /// <param name="pan">
-        /// 현재 [Pan] 값
-        /// </param>
-        /// <param name="tilt">
-        /// 현재 [Tilt] 값
-        /// </param>
-        /// <param name="zoom">
-        /// 현재 [Zoom] 값
-        /// </param>
         public void UpdateState(
             double? pan,
             double? tilt,
@@ -309,11 +305,9 @@ namespace VertiportNexus.Services.Camera
                 if (focus.HasValue)
                 {
                     _currentFocus =
-                        zoom.Value;
+                        focus.Value;
                 }
-
-                _lastUpdatedTime =
-                    DateTime.Now;
+                UpdateLastUpdatedTime();
             }
 
         }
@@ -324,9 +318,6 @@ namespace VertiportNexus.Services.Camera
         /// [IF-GUIS-CSE-008] 요청 또는
         /// 화면 버튼 조작으로 설정된 [AUTO] / [MANUAL] 값을 저장한다.
         /// </summary>
-        /// <param name="mode">
-        /// [PTZ] 제어 모드
-        /// </param>
         public void UpdatePtzControlMode(
             string mode)
         {
@@ -339,13 +330,23 @@ namespace VertiportNexus.Services.Camera
             string normalizedMode =
                 mode.Trim().ToUpper();
 
+            if (normalizedMode != "AUTO" &&
+                normalizedMode != "MANUAL")
+            {
+                return;
+            }
+
             lock (_syncLock)
             {
+                if (_ptzControlMode == normalizedMode)
+                {
+                    return;
+                }
+
                 _ptzControlMode =
                     normalizedMode;
 
-                _lastUpdatedTime =
-                    DateTime.Now;
+                UpdateLastUpdatedTime();
             }
 
             PtzControlModeChanged?.Invoke(
@@ -355,9 +356,6 @@ namespace VertiportNexus.Services.Camera
         /// <summary>
         /// 카메라 연결 상태 갱신
         /// </summary>
-        /// <param name="isConnected">
-        /// 연결 여부
-        /// </param>
         public void UpdateConnectionState(
             bool isConnected)
         {
@@ -366,10 +364,22 @@ namespace VertiportNexus.Services.Camera
                 _isConnected =
                     isConnected;
 
-                _lastUpdatedTime =
-                    DateTime.Now;
+                UpdateLastUpdatedTime();
             }
 
+        }
+
+        #endregion
+
+        #region [Private Methods]
+
+        /// <summary>
+        /// 마지막 상태 갱신 시간 반영
+        /// </summary>
+        private void UpdateLastUpdatedTime()
+        {
+            _lastUpdatedTime =
+                DateTime.Now;
         }
         #endregion
     }

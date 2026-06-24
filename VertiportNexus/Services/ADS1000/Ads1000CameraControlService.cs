@@ -33,9 +33,10 @@ namespace VertiportNexus.Services.ADS1000
         #region [Constants]
 
         /// <summary>
-        /// [Pan] / [Tilt] 연속 이동 기본 각속도
+        /// [Pan] / [Tilt] 연속 이동 기본 속도
         /// </summary>
-        private const double DEFAULT_PAN_TILT_SPEED = 50;
+        private const double DEFAULT_PAN_TILT_SPEED =
+            50;
 
         #endregion
 
@@ -62,10 +63,10 @@ namespace VertiportNexus.Services.ADS1000
         private readonly Ads1000ScbPacketBuilder _scbPacketBuilder;
 
         /// <summary>
-        /// 현재 어떤 [연속 제어]가 동작 중인지
+        /// 현재 진행 중인 [연속 제어] 종류
         /// 
-        /// 현재 [XAML] 바인딩에는 사용하지 않지만,
-        /// [MouseDown] / [MouseUp] 기반 제어 상태를 내부적으로 구분하기 위해 유지한다.
+        /// 화면 바인딩에는 사용하지 않지만,
+        /// 내부적으로 마지막 제어 동작 상태를 구분하기 위해 유지한다.
         /// </summary>
         private ContinuousMoveType _currentMoveType =
             ContinuousMoveType.None;
@@ -86,11 +87,12 @@ namespace VertiportNexus.Services.ADS1000
         #region [Properties]
 
         /// <summary>
-        /// [PAN / TILT] 현재 속도 
+        /// [Pan] / [Tilt] 현재 제어 속도
         /// </summary>
         public double PanTiltSpeedLevel
         {
             get;
+
             set;
         }
 
@@ -101,43 +103,39 @@ namespace VertiportNexus.Services.ADS1000
         /// <summary>
         /// [Ads1000CameraControlService] 생성자
         /// </summary>
-        /// <param name="mcbTcpClientService">
-        /// [MCB] [TCP] 통신 서비스
-        /// </param>
-        /// <param name="scbTcpClientService">
-        /// [SCB] [TCP] 통신 서비스
-        /// </param>
-        /// <param name="mcbPacketBuilder">
-        /// [MCB] [Packet Builder]
-        /// </param>
-        /// <param name="scbPacketBuilder">
-        /// [SCB] [Packet Builder]
-        /// </param>
         public Ads1000CameraControlService(
             TcpClientService mcbTcpClientService,
             TcpClientService scbTcpClientService,
             Ads1000McbPacketBuilder mcbPacketBuilder,
             Ads1000ScbPacketBuilder scbPacketBuilder)
         {
-            PanTiltSpeedLevel =
-                DEFAULT_PAN_TILT_SPEED;
-
             _mcbTcpClientService =
-                mcbTcpClientService;
+                mcbTcpClientService
+                ?? throw new ArgumentNullException(
+                    nameof(mcbTcpClientService));
 
             _scbTcpClientService =
-                scbTcpClientService;
+                scbTcpClientService
+                ?? throw new ArgumentNullException(
+                    nameof(scbTcpClientService));
 
             _mcbPacketBuilder =
-                mcbPacketBuilder;
+                mcbPacketBuilder
+                ?? throw new ArgumentNullException(
+                    nameof(mcbPacketBuilder));
 
             _scbPacketBuilder =
-                scbPacketBuilder;
+                scbPacketBuilder
+                ?? throw new ArgumentNullException(
+                    nameof(scbPacketBuilder));
+
+            PanTiltSpeedLevel =
+                DEFAULT_PAN_TILT_SPEED;
         }
 
         #endregion
 
-        #region [Pan / Tilt Methods]
+        #region [Pan / Tilt Continuous Methods]
 
         /// <summary>
         /// [Pan] 왼쪽 연속 이동
@@ -170,7 +168,6 @@ namespace VertiportNexus.Services.ADS1000
         /// <summary>
         /// [Tilt] 위쪽 연속 이동
         /// </summary>
-
         public void TiltUp()
         {
             SetContinuousMoveType(
@@ -196,6 +193,10 @@ namespace VertiportNexus.Services.ADS1000
                 "Tilt Down");
         }
 
+        #endregion
+
+        #region [Pan / Tilt Position Methods]
+
         /// <summary>
         /// [Pan] 절대 위치 이동
         /// </summary>
@@ -203,9 +204,8 @@ namespace VertiportNexus.Services.ADS1000
             double angle)
         {
             SendMcbPacket(
-                _mcbPacketBuilder
-                    .BuildPanAbsolutePositionPacket(
-                        angle),
+                _mcbPacketBuilder.BuildPanAbsolutePositionPacket(
+                    angle),
                 "Pan Absolute");
         }
 
@@ -216,9 +216,8 @@ namespace VertiportNexus.Services.ADS1000
             double angle)
         {
             SendMcbPacket(
-                _mcbPacketBuilder
-                    .BuildTiltAbsolutePositionPacket(
-                        angle),
+                _mcbPacketBuilder.BuildTiltAbsolutePositionPacket(
+                    angle),
                 "Tilt Absolute");
         }
 
@@ -229,9 +228,8 @@ namespace VertiportNexus.Services.ADS1000
             double angle)
         {
             SendMcbPacket(
-                _mcbPacketBuilder
-                    .BuildPanRelativePositionPacket(
-                        angle),
+                _mcbPacketBuilder.BuildPanRelativePositionPacket(
+                    angle),
                 "Pan Relative");
         }
 
@@ -242,9 +240,8 @@ namespace VertiportNexus.Services.ADS1000
             double angle)
         {
             SendMcbPacket(
-                _mcbPacketBuilder
-                    .BuildTiltRelativePositionPacket(
-                        angle),
+                _mcbPacketBuilder.BuildTiltRelativePositionPacket(
+                    angle),
                 "Tilt Relative");
         }
 
@@ -254,8 +251,7 @@ namespace VertiportNexus.Services.ADS1000
         public void SetPanZero()
         {
             SendMcbPacket(
-                _mcbPacketBuilder
-                    .BuildPanSetZeroPacket(),
+                _mcbPacketBuilder.BuildPanSetZeroPacket(),
                 "Pan Set Zero");
         }
 
@@ -265,8 +261,7 @@ namespace VertiportNexus.Services.ADS1000
         public void SetTiltZero()
         {
             SendMcbPacket(
-                _mcbPacketBuilder
-                    .BuildTiltSetZeroPacket(),
+                _mcbPacketBuilder.BuildTiltSetZeroPacket(),
                 "Tilt Set Zero");
         }
 
@@ -274,7 +269,7 @@ namespace VertiportNexus.Services.ADS1000
         /// [Home] 위치 이동
         /// 
         /// [Pan] / [Tilt]를
-        /// 원점(0도) 위치로 이동한다.
+        /// 원점 [0도] 위치로 이동한다.
         /// </summary>
         public void MoveHomePosition()
         {
@@ -287,7 +282,7 @@ namespace VertiportNexus.Services.ADS1000
 
         #endregion
 
-        #region [Zoom Methods]
+        #region [Zoom Continuous Methods]
 
         /// <summary>
         /// [Zoom] 확대
@@ -315,6 +310,10 @@ namespace VertiportNexus.Services.ADS1000
                 "Zoom Out");
         }
 
+        #endregion
+
+        #region [Zoom Position Methods]
+
         /// <summary>
         /// [Zoom] 위치 이동
         /// 
@@ -325,15 +324,14 @@ namespace VertiportNexus.Services.ADS1000
             ushort zoomValue)
         {
             SendScbPacket(
-                _scbPacketBuilder
-                    .BuildZoomPositionPacket(
-                        zoomValue),
+                _scbPacketBuilder.BuildZoomPositionPacket(
+                    zoomValue),
                 "Zoom Position");
         }
 
         #endregion
 
-        #region [Focus Methods]
+        #region [Focus Continuous Methods]
 
         /// <summary>
         /// [Focus] Near
@@ -361,6 +359,10 @@ namespace VertiportNexus.Services.ADS1000
                 "Focus Far");
         }
 
+        #endregion
+
+        #region [Focus Position Methods]
+
         /// <summary>
         /// [Focus] 위치 이동
         /// 
@@ -371,9 +373,8 @@ namespace VertiportNexus.Services.ADS1000
             ushort focusValue)
         {
             SendScbPacket(
-                _scbPacketBuilder
-                    .BuildFocusPositionPacket(
-                        focusValue),
+                _scbPacketBuilder.BuildFocusPositionPacket(
+                    focusValue),
                 "Focus Position");
         }
 
@@ -393,47 +394,49 @@ namespace VertiportNexus.Services.ADS1000
 
         /// <summary>
         /// [Pan] / [Tilt] / [Zoom] / [Focus] 정지
+        /// 
+        /// 연결되지 않은 상태에서 [Stop Packet] 송신 시
+        /// 불필요한 [Send Failed] 로그가 발생하므로
+        /// [MCB] / [SCB] 연결 여부를 먼저 확인한다.
         /// </summary>
         public void StopMove()
         {
-            /// <summary>
-            /// 연결되지 않은 상태에서
-            /// [Stop Packet] 송신 시,
-            /// 
-            /// 불필요한 [Send Failed] 로그가 발생하므로
-            /// 연결 여부를 먼저 확인한다.
-            /// </summary>
             if (!_mcbTcpClientService.IsConnected &&
                 !_scbTcpClientService.IsConnected)
             {
                 return;
             }
 
-            SendMcbPacket(
-                _mcbPacketBuilder.BuildPanStopPacket(),
-                "Pan Stop");
+            if (_mcbTcpClientService.IsConnected)
+            {
+                SendMcbPacket(
+                    _mcbPacketBuilder.BuildPanStopPacket(),
+                    "Pan Stop");
 
-            SendMcbPacket(
-                _mcbPacketBuilder.BuildTiltStopPacket(),
-                "Tilt Stop");
+                SendMcbPacket(
+                    _mcbPacketBuilder.BuildTiltStopPacket(),
+                    "Tilt Stop");
+            }
 
-            SendScbPacket(
-                _scbPacketBuilder.BuildZoomStopPacket(),
-                "Zoom Stop");
+            if (_scbTcpClientService.IsConnected)
+            {
+                SendScbPacket(
+                    _scbPacketBuilder.BuildZoomStopPacket(),
+                    "Zoom Stop");
 
-            SendScbPacket(
-                _scbPacketBuilder.BuildFocusStopPacket(),
-                "Focus Stop");
+                SendScbPacket(
+                    _scbPacketBuilder.BuildFocusStopPacket(),
+                    "Focus Stop");
+            }
 
             SetContinuousMoveType(
                 ContinuousMoveType.None);
 
-            SendResultChanged?.Invoke(
-                new Ads1000SendResult(
-                    string.Empty,
-                    null,
-                    "Stop Move",
-                    true));
+            PublishSendResult(
+                string.Empty,
+                null,
+                "Stop Move",
+                true);
         }
 
         /// <summary>
@@ -453,12 +456,6 @@ namespace VertiportNexus.Services.ADS1000
         /// <summary>
         /// [MCB] [Packet] 송신
         /// </summary>
-        /// <param name="packet">
-        /// 송신 [Packet]
-        /// </param>
-        /// <param name="commandName">
-        /// 제어 명령 이름
-        /// </param>
         private void SendMcbPacket(
             byte[] packet,
             string commandName)
@@ -477,12 +474,6 @@ namespace VertiportNexus.Services.ADS1000
         /// <summary>
         /// [SCB] [Packet] 송신
         /// </summary>
-        /// <param name="packet">
-        /// 송신 [Packet]
-        /// </param>
-        /// <param name="commandName">
-        /// 제어 명령 이름
-        /// </param>
         private void SendScbPacket(
             byte[] packet,
             string commandName)
@@ -501,18 +492,6 @@ namespace VertiportNexus.Services.ADS1000
         /// <summary>
         /// [Packet] 송신 결과 이벤트 전달
         /// </summary>
-        /// <param name="deviceName">
-        /// 송신 장비 이름
-        /// </param>
-        /// <param name="packet">
-        /// 송신 [Packet]
-        /// </param>
-        /// <param name="commandName">
-        /// 제어 명령 이름
-        /// </param>
-        /// <param name="isSuccess">
-        /// 송신 성공 여부
-        /// </param>
         private void PublishSendResult(
             string deviceName,
             byte[] packet,
@@ -530,12 +509,9 @@ namespace VertiportNexus.Services.ADS1000
         /// <summary>
         /// [연속 제어] 종류 반영
         /// 
-        /// 현재 [XAML] 바인딩에는 사용하지 않지만,
+        /// 현재 화면 바인딩에는 사용하지 않지만,
         /// 내부적으로 마지막 제어 동작 상태를 관리한다.
         /// </summary>
-        /// <param name="moveType">
-        /// 현재 진행 중인 [연속 제어] 종류
-        /// </param>
         private void SetContinuousMoveType(
             ContinuousMoveType moveType)
         {
