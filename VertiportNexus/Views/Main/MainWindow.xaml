@@ -671,7 +671,7 @@
 
                                                         <!-- [PAN / TILT] 속도 조절 [Slider] -->
                                                         <!-- [Slider] 눈금 표시 -->
-                                                        <Slider Minimum="5"
+                                                        <Slider Minimum="0"
                                                                 Maximum="100"
                                                                 TickFrequency="5"
                                                                 SmallChange="5"
