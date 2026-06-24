@@ -264,7 +264,16 @@ namespace VertiportNexus.Services.ADS1000
                     out double panValue))
                 {
                     packet.HasPanValue = true;
-                    packet.PanValue = panValue;
+
+                    // [Pan] 좌표계 보정
+                    //
+                    // [MCB] Pan Encoder 응답값은 변환식 자체는 문서 기준과 동일하지만,
+                    // [LA Local Agent] 화면 표시 기준과 부호 방향이 반대로 확인되었다.
+                    //
+                    // 내부 상태값과 화면 표시값은 [LA Local Agent] 기준에 맞추기 위해
+                    // [Pan] 값만 부호를 반전하여 사용한다.
+                    packet.PanValue =
+                        -panValue;
                 }
                 return;
             }

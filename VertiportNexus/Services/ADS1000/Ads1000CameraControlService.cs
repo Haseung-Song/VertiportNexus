@@ -393,7 +393,28 @@ namespace VertiportNexus.Services.ADS1000
         #region [Stop / Request Methods]
 
         /// <summary>
-        /// [Pan] / [Tilt] / [Zoom] / [Focus] 정지
+        /// [Pan] / [Tilt] 이동 정지
+        /// 
+        /// [MCB]에만 정지 명령을 송신한다.
+        /// [AUTO Tracking] 정지 시 사용하며,
+        /// [SCB] [Zoom] / [Focus] 정지 명령은 송신하지 않는다.
+        /// </summary>
+        public void StopPanTiltMove()
+        {
+            SendMcbPacket(
+                _mcbPacketBuilder.BuildPanStopPacket(),
+                "Pan Stop");
+
+            SendMcbPacket(
+                _mcbPacketBuilder.BuildTiltStopPacket(),
+                "Tilt Stop");
+
+            SetContinuousMoveType(
+                ContinuousMoveType.None);
+        }
+
+        /// <summary>
+        /// [Pan] / [Tilt] / [Zoom] / [Focus] 모두 정지
         /// 
         /// 연결되지 않은 상태에서 [Stop Packet] 송신 시
         /// 불필요한 [Send Failed] 로그가 발생하므로

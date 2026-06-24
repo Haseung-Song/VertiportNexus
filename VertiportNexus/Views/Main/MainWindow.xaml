@@ -783,7 +783,7 @@
                                                     CornerRadius="5"
                                                     Padding="10">
 
-                                                <StackPanel>
+                                                <StackPanel Margin="0,5,0,0">
 
                                                     <!-- 현재 장비 상태 제목 -->
                                                     <TextBlock Text="CURRENT STATUS"
@@ -792,33 +792,101 @@
                                                                FontWeight="Bold"
                                                                Margin="0,0,0,15"/>
 
-                                                    <!-- 현재 [Pan] 값 표시 -->
-                                                    <TextBlock Text="{Binding CurrentPan,StringFormat=Pan  : {0:F2}}"
-                                                               Foreground="#D0D7DE"
-                                                               FontSize="12"
-                                                               FontWeight="Bold"
-                                                               Margin="0,2"/>
+                                                    <!-- [Pan] 현재 위치 -->
+                                                    <Grid Margin="0,1,0,1">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="45"/>
+                                                            <ColumnDefinition Width="10"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
 
-                                                    <!-- 현재 [Tilt] 값 표시 -->
-                                                    <TextBlock Text="{Binding CurrentTilt,StringFormat=Tilt  : {0:F2}}"
-                                                               Foreground="#D0D7DE"
-                                                               FontSize="12"
-                                                               FontWeight="Bold"
-                                                               Margin="0,2"/>
+                                                        <TextBlock Grid.Column="0"
+                                                                   Text="Pan"
+                                                                   Foreground="White"
+                                                                   FontWeight="Bold"/>
 
-                                                    <!-- 현재 [Zoom] 값 표시 -->
-                                                    <TextBlock Text="{Binding CurrentZoom,StringFormat=Zoom : {0:F0}}"
-                                                               Foreground="#D0D7DE"
-                                                               FontSize="12"
-                                                               FontWeight="Bold"
-                                                               Margin="0,2"/>
+                                                        <TextBlock Grid.Column="1"
+                                                                   Text=":"
+                                                                   Foreground="White"
+                                                                   FontWeight="Bold"/>
 
-                                                    <!-- 현재 [Focus] 값 표시 -->
-                                                    <TextBlock Text="{Binding CurrentFocus,StringFormat=Focus : {0:F0}}"
-                                                               Foreground="#D0D7DE"
-                                                               FontSize="12"
-                                                               FontWeight="Bold"
-                                                               Margin="0,2"/>
+                                                        <TextBlock Grid.Column="2"
+                                                                   Text="{Binding CurrentPan, StringFormat={}{0:F4}}"
+                                                                   Foreground="White"
+                                                                   FontWeight="Bold"/>
+                                                    </Grid>
+
+                                                    <!-- [Tilt] 현재 위치 -->
+                                                    <Grid Margin="0,1,0,1">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="45"/>
+                                                            <ColumnDefinition Width="10"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <TextBlock Grid.Column="0"
+                                                                   Text="Tilt"
+                                                                   Foreground="White"
+                                                                   FontWeight="Bold"/>
+
+                                                        <TextBlock Grid.Column="1"
+                                                                   Text=":"
+                                                                   Foreground="White"
+                                                                   FontWeight="Bold"/>
+
+                                                        <TextBlock Grid.Column="2"
+                                                                   Text="{Binding CurrentTilt, StringFormat={}{0:F4}}"
+                                                                   Foreground="White"
+                                                                   FontWeight="Bold"/>
+                                                    </Grid>
+
+                                                    <!-- [Zoom] 현재 위치 -->
+                                                    <Grid Margin="0,1,0,1">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="45"/>
+                                                            <ColumnDefinition Width="10"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <TextBlock Grid.Column="0"
+                                                                   Text="Zoom"
+                                                                   Foreground="White"
+                                                                   FontWeight="Bold"/>
+
+                                                        <TextBlock Grid.Column="1"
+                                                                   Text=":"
+                                                                   Foreground="White"
+                                                                   FontWeight="Bold"/>
+
+                                                        <TextBlock Grid.Column="2"
+                                                                   Text="{Binding CurrentZoom}"
+                                                                   Foreground="White"
+                                                                   FontWeight="Bold"/>
+                                                    </Grid>
+
+                                                    <!-- [Focus] 현재 위치 -->
+                                                    <Grid Margin="0,1,0,1">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="45"/>
+                                                            <ColumnDefinition Width="10"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <TextBlock Grid.Column="0"
+                                                                   Text="Focus"
+                                                                   Foreground="White"
+                                                                   FontWeight="Bold"/>
+
+                                                        <TextBlock Grid.Column="1"
+                                                                   Text=":"
+                                                                   Foreground="White"
+                                                                   FontWeight="Bold"/>
+
+                                                        <TextBlock Grid.Column="2"
+                                                                   Text="{Binding CurrentFocus}"
+                                                                   Foreground="White"
+                                                                   FontWeight="Bold"/>
+                                                    </Grid>
 
                                                 </StackPanel>
 
@@ -1162,14 +1230,11 @@
                 Padding="10"
                 Margin="0,10,0,0"
                 Background="#2B3038">
-
             <TextBlock Text="CSE Middleware Test UI - Console log enabled"
                        Foreground="#B8C7D9"
                        FontSize="14"/>
-
         </Border>
 
     </Grid>
 
 </Window>
-    

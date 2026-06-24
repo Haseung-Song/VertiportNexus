@@ -105,6 +105,16 @@ namespace VertiportNexus.ViewModels.Main
         private readonly CameraStateProvider _cameraStateProvider;
 
         /// <summary>
+        /// [Detection] 상태 저장 서비스
+        /// </summary>
+        private readonly DetectionStateProvider _detectionStateProvider;
+
+        /// <summary>
+        /// [Tracking] 자동 추적 제어 서비스
+        /// </summary>
+        private readonly TrackingControlService _trackingControlService;
+
+        /// <summary>
         /// [MQ] 수신 서비스
         /// 
         /// [Mock MQ] / [RabbitMQ] 수신 서비스를
@@ -606,12 +616,35 @@ namespace VertiportNexus.ViewModels.Main
             _cameraStateProvider =
                 new CameraStateProvider();
 
+            /// <summary>
+            /// [Detection] 상태 저장 서비스
+            /// 
+            /// [IF-GUIS-CSE-001] ~ [IF-GUIS-CSE-005] 명령 처리 결과와
+            /// 영상처리유닛에서 전달되는 탐지 객체 정보를 보관한다.
+            /// 
+            /// 향후 [AUTO] 추적 제어 시
+            /// 마지막 탐지 객체 [Bounding Box]를 기준으로
+            /// [Pan] / [Tilt] 보정값 계산에 사용한다.
+            /// </summary>
+            _detectionStateProvider =
+                new DetectionStateProvider();
+
+            /// <summary>
+            /// [Tracking] 자동 추적 제어 서비스
+            /// 
+            /// 탐지 객체 [Bounding Box] 중심점과
+            /// 영상 중심점을 비교하여 자동 추적 보정 방향을 계산한다.
+            /// </summary>
+            _trackingControlService =
+                new TrackingControlService(
+                    _ads1000CameraControlService);
+
             // [PTZ] 제어 모드 변경 이벤트 연결
             //
             // [MQ] 수신으로 [AUTO] / [MANUAL] 모드가 변경된 경우
             // 화면 표시값을 즉시 갱신한다.
             _cameraStateProvider.PtzControlModeChanged +=
-                OnPtzControlModeChanged;
+                    OnPtzControlModeChanged;
 
             #endregion
 
@@ -661,7 +694,9 @@ namespace VertiportNexus.ViewModels.Main
                 new CseCommandHandler(
                     _cameraCommandService,
                     _cseCommandResponseService,
-                    _cameraStateProvider);
+                    _cameraStateProvider,
+                    _detectionStateProvider,
+                    _trackingControlService);
 
             // [CSE] 명령 수신 이벤트 연결
             _cseCommandReceiveService.CommandReceived +=
@@ -1123,9 +1158,7 @@ namespace VertiportNexus.ViewModels.Main
             {
                 if (_ptzControlModeText != value)
                 {
-                    _ptzControlModeText =
-                        value;
-
+                    _ptzControlModeText = value;
                     OnPropertyChanged();
                 }
 
@@ -2001,10 +2034,10 @@ namespace VertiportNexus.ViewModels.Main
                             DateTime.Now;
 
                         Console.WriteLine(
-                            $"[ADS1000] Pan   : {CurrentPan:F2}");
+                            $"[ADS1000] Pan   : {CurrentPan:F4}");
 
                         Console.WriteLine(
-                            $"[ADS1000] Tilt  : {CurrentTilt:F2}");
+                            $"[ADS1000] Tilt  : {CurrentTilt:F4}");
 
                         Console.WriteLine(
                             $"[ADS1000] Zoom  : {CurrentZoom:F0}");

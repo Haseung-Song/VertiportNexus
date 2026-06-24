@@ -364,7 +364,7 @@ namespace VertiportNexus.Views.Main
 
             textBox.Text =
                 value.ToString(
-                    "F2");
+                    "F4");
         }
 
         /// <summary>

@@ -42,17 +42,48 @@ namespace VertiportNexus.Services.Vertiport
         /// </summary>
         private readonly CameraStateProvider _cameraStateProvider;
 
+        /// <summary>
+        /// [Detection] 상태 저장 서비스
+        /// </summary>
+        private readonly DetectionStateProvider _detectionStateProvider;
+
+        /// <summary>
+        /// [Tracking] 자동 추적 제어 서비스
+        /// </summary>
+        private readonly TrackingControlService _trackingControlService;
+
         #endregion
 
         #region [Constructor]
 
         /// <summary>
         /// [CseCommandHandler] 생성자
+        /// 
+        /// [CSE] 명령 처리에 필요한
+        /// 카메라 제어 서비스, 응답 송신 서비스,
+        /// 카메라 상태 저장 서비스, 탐지 상태 저장 서비스를 주입받는다.
         /// </summary>
+        /// <param name="cameraCommandService">
+        /// [Camera] 명령 처리 서비스
+        /// </param>
+        /// <param name="responseService">
+        /// [CSE] 명령 응답 송신 서비스
+        /// </param>
+        /// <param name="cameraStateProvider">
+        /// [Camera] 상태 저장 서비스
+        /// </param>
+        /// <param name="detectionStateProvider">
+        /// [Detection] 상태 저장 서비스
+        /// </param>
+        /// <param name="trackingControlService">
+        /// [Tracking] 자동 추적 제어 서비스
+        /// </param>
         public CseCommandHandler(
             CameraCommandService cameraCommandService,
             CseCommandResponseService responseService,
-            CameraStateProvider cameraStateProvider)
+            CameraStateProvider cameraStateProvider,
+            DetectionStateProvider detectionStateProvider,
+            TrackingControlService trackingControlService)
         {
             _cameraCommandService =
                 cameraCommandService
@@ -68,6 +99,16 @@ namespace VertiportNexus.Services.Vertiport
                 cameraStateProvider
                 ?? throw new ArgumentNullException(
                     nameof(cameraStateProvider));
+
+            _detectionStateProvider =
+                detectionStateProvider
+                ?? throw new ArgumentNullException(
+                    nameof(detectionStateProvider));
+
+            _trackingControlService =
+                trackingControlService
+                ?? throw new ArgumentNullException(
+                    nameof(trackingControlService));
         }
 
         #endregion
@@ -253,7 +294,16 @@ namespace VertiportNexus.Services.Vertiport
         /// [탐지 활성화] 명령 처리
         /// 
         /// ICD 기준 [IF-GUIS-CSE-001] 요청을 처리한다.
+        /// 
+        /// 탐지 기능을 활성화하고,
+        /// 요청 [Payload]에 포함된 항적 ID와 위치 정보를 로그로 출력한다.
+        /// 
+        /// 실제 AI Detector 제어 연동 전 단계에서는
+        /// 내부 탐지 상태값만 갱신하고 정상 수신 응답을 반환한다.
         /// </summary>
+        /// <param name="message">
+        /// [CSE] 명령 메시지
+        /// </param>
         private void HandleDetectEnable(
             CseCommandMessage message)
         {
@@ -269,6 +319,14 @@ namespace VertiportNexus.Services.Vertiport
                 Console.WriteLine("[CSE][CMD] Altitude : " + message.Payload.Altitude);
             }
 
+            _detectionStateProvider
+                .UpdateDetectEnabled(
+                    true);
+
+            _detectionStateProvider
+                .UpdateTrackId(
+                    message.Payload?.TrackId?.ToString());
+
             SendAcceptedResponse(
                 message,
                 "Detect Enable");
@@ -278,13 +336,26 @@ namespace VertiportNexus.Services.Vertiport
         /// [탐지 활성화 취소] 명령 처리
         /// 
         /// ICD 기준 [IF-GUIS-CSE-002] 요청을 처리한다.
+        /// 
+        /// 탐지 기능을 비활성화하고,
+        /// 진행 중인 탐지 상태와 마지막 탐지 객체 정보를 초기화한다.
         /// </summary>
+        /// <param name="message">
+        /// [CSE] 명령 메시지
+        /// </param>
         private void HandleDetectDisable(
             CseCommandMessage message)
         {
             PrintCommandLog(
                 message,
                 "Detect Disable");
+
+            _detectionStateProvider
+                .UpdateDetectEnabled(
+                    false);
+
+            _trackingControlService
+                .StopTracking();
 
             SendAcceptedResponse(
                 message,
@@ -295,7 +366,14 @@ namespace VertiportNexus.Services.Vertiport
         /// [탐지] 명령 처리
         /// 
         /// ICD 기준 [IF-GUIS-CSE-003] 요청을 처리한다.
+        /// 
+        /// 탐지 동작 상태를 활성화하고,
+        /// 요청 [Payload]에 포함된 탐지 객체 [Bounding Box] 정보를
+        /// 마지막 탐지 객체 상태값으로 저장한다.
         /// </summary>
+        /// <param name="message">
+        /// [CSE] 명령 메시지
+        /// </param>
         private void HandleDetectOn(
             CseCommandMessage message)
         {
@@ -306,6 +384,15 @@ namespace VertiportNexus.Services.Vertiport
             PrintDetectBoxPayload(
                 message.Payload);
 
+            _detectionStateProvider
+                .UpdateDetectActive(
+                    true);
+
+            _detectionStateProvider
+                .UpdateBoundingBox(
+                    CreateBoundingBox(
+                        message.Payload));
+
             SendAcceptedResponse(
                 message,
                 "Detect On");
@@ -315,13 +402,26 @@ namespace VertiportNexus.Services.Vertiport
         /// [탐지 해제] 명령 처리
         /// 
         /// ICD 기준 [IF-GUIS-CSE-004] 요청을 처리한다.
+        /// 
+        /// 탐지 동작 상태를 비활성화하고,
+        /// 탐지 계속 수행 상태를 중지 상태로 갱신한다.
         /// </summary>
+        /// <param name="message">
+        /// [CSE] 명령 메시지
+        /// </param>
         private void HandleDetectOff(
             CseCommandMessage message)
         {
             PrintCommandLog(
                 message,
                 "Detect Off");
+
+            _detectionStateProvider
+                .UpdateDetectActive(
+                    false);
+
+            _trackingControlService
+                .StopTracking();
 
             SendAcceptedResponse(
                 message,
@@ -332,7 +432,20 @@ namespace VertiportNexus.Services.Vertiport
         /// [탐지 계속] 명령 처리
         /// 
         /// ICD 기준 [IF-GUIS-CSE-005] 요청을 처리한다.
+        /// 
+        /// 탐지 계속 수행 상태를 활성화하고,
+        /// 요청 [Payload]에 포함된 최신 탐지 객체 [Bounding Box] 정보를
+        /// 마지막 탐지 객체 상태값으로 갱신한다.
+        /// 
+        /// [PTZ 제어 모드]가 [AUTO]인 경우에는
+        /// 해당 [Bounding Box] 기준으로 자동 추적 제어를 수행한다.
+        /// 
+        /// [MANUAL] 상태에서는 운용자 수동 제어를 우선하므로
+        /// 탐지 정보는 상태값으로만 저장하고 자동 추적 제어는 수행하지 않는다.
         /// </summary>
+        /// <param name="message">
+        /// [CSE] 명령 메시지
+        /// </param>
         private void HandleDetectContinue(
             CseCommandMessage message)
         {
@@ -342,6 +455,53 @@ namespace VertiportNexus.Services.Vertiport
 
             PrintDetectBoxPayload(
                 message.Payload);
+
+            DetectionBoundingBox boundingBox =
+                CreateBoundingBox(
+                    message.Payload);
+
+            ConsoleLogHelper.PrintLine();
+
+            Console.WriteLine(
+                "[DETECTION][STATE] Bounding Box Update Start");
+
+            _detectionStateProvider
+                .UpdateDetectContinue(
+                    true);
+
+            _detectionStateProvider
+                .UpdateBoundingBox(
+                    boundingBox);
+
+            ConsoleLogHelper.PrintLine();
+
+            Console.WriteLine(
+                "[TRACKING][AUTO] Tracking Check");
+
+            // [AUTO Tracking] 추적 계산
+            //
+            // [PTZ 제어 모드]가 [AUTO]인 경우에만
+            // 탐지 객체 [Bounding Box] 기준으로 자동 추적 계산을 수행한다.
+            //
+            // 모드 문자열 비교는 대소문자를 구분하지 않는다.
+            //
+            // [MANUAL] 상태에서는 운용자 수동 제어를 우선하므로
+            // 자동 추적 계산은 수행하지 않는다.
+            if (string.Equals(
+                _cameraStateProvider.PtzControlMode,
+                "AUTO",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                _trackingControlService
+                    .ProcessTracking(
+                        boundingBox);
+            }
+            else
+            {
+                Console.WriteLine(
+                    "[TRACKING][AUTO] Skip : PTZ Mode is "
+                    + _cameraStateProvider.PtzControlMode);
+            }
 
             SendAcceptedResponse(
                 message,
@@ -493,6 +653,12 @@ namespace VertiportNexus.Services.Vertiport
             _cameraStateProvider.UpdatePtzControlMode(
                 mode);
 
+            if (mode == "MANUAL")
+            {
+                _trackingControlService
+                    .StopTracking();
+            }
+
             _responseService.SendCommandResponse(
                 message,
                 "PTZ Mode Command Accepted : " + mode);
@@ -630,6 +796,60 @@ namespace VertiportNexus.Services.Vertiport
             _responseService.SendStatusResponse(
                 message,
                 payload);
+        }
+
+        #endregion
+
+        #region [Detection Helper Methods]
+
+        /// <summary>
+        /// [Detection] Bounding Box 생성
+        /// 
+        /// [CSE] 명령 [Payload]에 포함된
+        /// 탐지 객체 좌표와 탐지 정보를 내부 상태 저장용
+        /// [DetectionBoundingBox] 모델로 변환한다.
+        /// 
+        /// [Payload]가 없는 경우에는 저장할 탐지 객체가 없으므로
+        /// null을 반환한다.
+        /// </summary>
+        /// <param name="payload">
+        /// [CSE] 명령 [Payload]
+        /// </param>
+        /// <returns>
+        /// 탐지 객체 영역 정보
+        /// </returns>
+        private DetectionBoundingBox CreateBoundingBox(
+            CseCommandPayload payload)
+        {
+            if (payload == null)
+            {
+                return null;
+            }
+
+            return new DetectionBoundingBox
+            {
+                FrameId =
+                    payload.FrameId,
+
+                X1 =
+                    payload.X1,
+
+                Y1 =
+                    payload.Y1,
+
+                X2 =
+                    payload.X2,
+
+                Y2 =
+                    payload.Y2,
+
+                ClassId =
+                    payload.ClassId,
+
+                Confidence =
+                    payload.Confidence
+            };
+
         }
 
         #endregion
