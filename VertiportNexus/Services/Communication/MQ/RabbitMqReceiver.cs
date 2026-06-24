@@ -54,8 +54,8 @@ namespace VertiportNexus.Services.Communication.MQ
                 {
                     HostName = "localhost",
                     Port = 5672,
-                    UserName = "guest",
-                    Password = "guest"
+                    UserName = "vertiport_GS",
+                    Password = "rmffhqjf1!"
                 };
         }
 
@@ -68,33 +68,47 @@ namespace VertiportNexus.Services.Communication.MQ
         /// </summary>
         public void StartReceive()
         {
-            _connection =
-                _connectionFactory.CreateConnection();
+            try
+            {
+                _connection =
+                    _connectionFactory.CreateConnection();
 
-            _channel =
-                _connection.CreateModel();
+                _channel =
+                    _connection.CreateModel();
 
-            _channel.QueueDeclare(
-                queue: CseMqQueue.CommandRequest,
-                durable: true,
-                exclusive: false,
-                autoDelete: false,
-                arguments: null);
+                _channel.QueueDeclare(
+                    queue: CseMqQueue.CommandRequest,
+                    durable: true,
+                    exclusive: false,
+                    autoDelete: false,
+                    arguments: null);
 
-            EventingBasicConsumer consumer =
-                new EventingBasicConsumer(
-                    _channel);
+                EventingBasicConsumer consumer =
+                    new EventingBasicConsumer(
+                        _channel);
 
-            consumer.Received +=
-                OnMessageReceived;
+                consumer.Received +=
+                    OnMessageReceived;
 
-            _channel.BasicConsume(
-                queue: CseMqQueue.CommandRequest,
-                autoAck: true,
-                consumer: consumer);
+                _channel.BasicConsume(
+                    queue: CseMqQueue.CommandRequest,
+                    autoAck: true,
+                    consumer: consumer);
 
-            Console.WriteLine("[RabbitMQ][RECV] Receive Start");
-            Console.WriteLine("[RabbitMQ][RECV] Queue : " + CseMqQueue.CommandRequest);
+                Console.WriteLine("[RabbitMQ][RECV] Receive Start");
+                Console.WriteLine("[RabbitMQ][RECV] Queue : " + CseMqQueue.CommandRequest);
+            }
+            catch (Exception ex)
+            {
+                ConsoleLogHelper.PrintLine();
+                Console.WriteLine("[RabbitMQ][RECV] Receive Start Failed");
+                Console.WriteLine("[RabbitMQ][RECV] RabbitMQ Server Not Connected");
+                Console.WriteLine("[RabbitMQ][RECV] Error : " + ex.Message);
+                ConsoleLogHelper.PrintLine();
+
+                StopReceive();
+            }
+
         }
 
         /// <summary>
@@ -102,19 +116,40 @@ namespace VertiportNexus.Services.Communication.MQ
         /// </summary>
         public void StopReceive()
         {
-            _channel?.Close();
-            _connection?.Close();
+            try
+            {
+                if (_channel != null &&
+                    _channel.IsOpen)
+                {
+                    _channel.Close();
+                }
 
-            _channel?.Dispose();
-            _connection?.Dispose();
+                if (_connection != null &&
+                    _connection.IsOpen)
+                {
+                    _connection.Close();
+                }
 
-            _channel =
-                null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("[RabbitMQ][RECV] Receive Stop Failed");
+                Console.WriteLine("[RabbitMQ][RECV] Error : " + ex.Message);
+            }
+            finally
+            {
+                _channel?.Dispose();
+                _connection?.Dispose();
 
-            _connection =
-                null;
+                _channel =
+                    null;
 
-            Console.WriteLine("[RabbitMQ][RECV] Receive Stop");
+                _connection =
+                    null;
+
+                Console.WriteLine("[RabbitMQ][RECV] Receive Stop");
+            }
+
         }
 
         #endregion

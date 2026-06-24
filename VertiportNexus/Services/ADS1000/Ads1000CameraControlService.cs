@@ -35,7 +35,7 @@ namespace VertiportNexus.Services.ADS1000
         /// <summary>
         /// [Pan] / [Tilt] 연속 이동 기본 각속도
         /// </summary>
-        private const double DEFAULT_PAN_TILT_SPEED = 30;
+        private const double DEFAULT_PAN_TILT_SPEED = 50;
 
         #endregion
 
@@ -119,6 +119,9 @@ namespace VertiportNexus.Services.ADS1000
             Ads1000McbPacketBuilder mcbPacketBuilder,
             Ads1000ScbPacketBuilder scbPacketBuilder)
         {
+            PanTiltSpeedLevel =
+                DEFAULT_PAN_TILT_SPEED;
+
             _mcbTcpClientService =
                 mcbTcpClientService;
 
@@ -146,7 +149,7 @@ namespace VertiportNexus.Services.ADS1000
 
             SendMcbPacket(
                 _mcbPacketBuilder.BuildPanSpeedPacket(
-                    DEFAULT_PAN_TILT_SPEED),
+                    PanTiltSpeedLevel),
                 "Pan Left");
         }
 
@@ -160,13 +163,14 @@ namespace VertiportNexus.Services.ADS1000
 
             SendMcbPacket(
                 _mcbPacketBuilder.BuildPanSpeedPacket(
-                    -DEFAULT_PAN_TILT_SPEED),
+                    -PanTiltSpeedLevel),
                 "Pan Right");
         }
 
         /// <summary>
         /// [Tilt] 위쪽 연속 이동
         /// </summary>
+
         public void TiltUp()
         {
             SetContinuousMoveType(
@@ -174,7 +178,7 @@ namespace VertiportNexus.Services.ADS1000
 
             SendMcbPacket(
                 _mcbPacketBuilder.BuildTiltSpeedPacket(
-                    DEFAULT_PAN_TILT_SPEED),
+                    PanTiltSpeedLevel),
                 "Tilt Up");
         }
 
@@ -188,7 +192,7 @@ namespace VertiportNexus.Services.ADS1000
 
             SendMcbPacket(
                 _mcbPacketBuilder.BuildTiltSpeedPacket(
-                    -DEFAULT_PAN_TILT_SPEED),
+                    -PanTiltSpeedLevel),
                 "Tilt Down");
         }
 

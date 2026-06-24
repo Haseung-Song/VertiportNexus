@@ -478,6 +478,11 @@ namespace VertiportNexus.ViewModels.Main
         public ICommand SetTiltZeroCommand { get; }
 
         /// <summary>
+        /// 위치 제어 입력값 초기화 요청 [Command]
+        /// </summary>
+        public ICommand ResetPositionInputCommand { get; }
+
+        /// <summary>
         /// [Zoom] 위치 이동 요청 [Command]
         /// </summary>
         public ICommand SetZoomPositionCommand { get; }
@@ -748,6 +753,10 @@ namespace VertiportNexus.ViewModels.Main
             SetTiltZeroCommand =
                 new RelayCommand(
                     _ads1000CameraControlService.SetTiltZero);
+
+            ResetPositionInputCommand =
+                new RelayCommand(
+                    ResetPositionInput);
 
             SetZoomPositionCommand =
                 new RelayCommand(
@@ -1158,12 +1167,24 @@ namespace VertiportNexus.ViewModels.Main
         /// <summary>
         /// 현재 [Pan] / [Tilt] 제어 속도
         /// 
-        /// [Ads1000CameraControlService]에서 관리하는
-        /// 현재 운용 속도를 화면에 표시한다.
+        /// [ADS1000] [Pan] / [Tilt] 연속 이동 시 사용할
+        /// 제어 속도를 설정하고 화면에 표시한다.
         /// </summary>
         public double PanTiltSpeedLevel
         {
-            get => _ads1000CameraControlService.PanTiltSpeedLevel = 30;
+            get => _ads1000CameraControlService.PanTiltSpeedLevel;
+            set
+            {
+                if (_ads1000CameraControlService.PanTiltSpeedLevel != value)
+                {
+                    _ads1000CameraControlService.PanTiltSpeedLevel =
+                        value;
+
+                    OnPropertyChanged();
+                }
+
+            }
+
         }
 
         /// <summary>
@@ -1353,6 +1374,9 @@ namespace VertiportNexus.ViewModels.Main
 
             PtzControlModeText =
                 _cameraStateProvider.PtzControlMode;
+
+            PanTiltSpeedLevel
+                = 50;
 
             MqStatusText =
                 "MQ Not Used";
@@ -2194,6 +2218,7 @@ namespace VertiportNexus.ViewModels.Main
             {
                 Console.WriteLine(
                     "[UI][CMD] Stop Ignored : UI Continuous Move Not Started");
+                ConsoleLogHelper.PrintLine();
 
                 return;
             }
@@ -2367,6 +2392,39 @@ namespace VertiportNexus.ViewModels.Main
 
         }
 
+        /// <summary>
+        /// 위치 제어 입력값 초기화
+        /// 
+        /// [Pan] / [Tilt] / [Zoom] / [Focus] 위치 제어 입력칸을
+        /// 기본값 [0]으로 초기화한다.
+        /// 
+        /// 실제 장비 위치값은 변경하지 않는다.
+        /// </summary>
+        private void ResetPositionInput()
+        {
+            PanAbsoluteValue =
+                0;
+
+            TiltAbsoluteValue =
+                0;
+
+            PanRelativeValue =
+                0;
+
+            TiltRelativeValue =
+                0;
+
+            ZoomPositionValue =
+                0;
+
+            FocusPositionValue =
+                0;
+
+            ConsoleLogHelper.PrintLine();
+            Console.WriteLine("[UI][POSITION] Input Reset");
+            ConsoleLogHelper.PrintLine();
+        }
+
         #endregion
 
         #region [Zoom / Focus Position Control Methods]
@@ -2394,8 +2452,8 @@ namespace VertiportNexus.ViewModels.Main
                     0,
                     1000);
 
-            Console.WriteLine(
-                "[UI][POSITION] Set Zoom : " + zoom);
+            Console.WriteLine("[UI][POSITION] Set Zoom Target : " + zoom);
+            Console.WriteLine("[UI][POSITION] Current Zoom Before : " + CurrentZoom);
 
             _ads1000CameraControlService
                 .MoveZoomPosition(
@@ -2425,8 +2483,8 @@ namespace VertiportNexus.ViewModels.Main
                     0,
                     1000);
 
-            Console.WriteLine(
-                "[UI][POSITION] Set Focus : " + focus);
+            Console.WriteLine("[UI][POSITION] Set Focus Target : " + focus);
+            Console.WriteLine("[UI][POSITION] Current Focus Before : " + CurrentFocus);
 
             _ads1000CameraControlService
                 .MoveFocusPosition(

@@ -33,8 +33,8 @@ namespace VertiportNexus.Services.Communication.MQ
                 {
                     HostName = "localhost",
                     Port = 5672,
-                    UserName = "guest",
-                    Password = "guest"
+                    UserName = "vertiport_GS",
+                    Password = "rmffhqjf1!"
                 };
 
         }

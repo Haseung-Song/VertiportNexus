@@ -21,10 +21,10 @@ namespace VertiportNexus.Services.ADS1000
         /// <summary>
         /// [ADS1000] 수신 [Packet] 로그 출력 간격
         /// 
-        /// 상태 [Packet] 로그는 [1초] 단위로 제한하여 출력한다.
+        /// 상태 [Packet] 로그는 [3초] 단위로 제한하여 출력한다.
         /// </summary>
         private const int ADS1000_RECEIVE_LOG_INTERVAL_SECONDS =
-            1;
+            3;
 
         #endregion
 
