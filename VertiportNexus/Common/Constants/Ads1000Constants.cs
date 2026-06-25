@@ -22,20 +22,18 @@
         /// 
         /// 각도 = 위치 × 360 / Resolution
         /// </summary>
-        public const double MOTOR_ENCODER_RESOLUTION =
-            2500000.0;
+        public const double MOTOR_ENCODER_RESOLUTION = 2500000.0;
 
         /// <summary>
         /// [Pan] / [Tilt] 위치 이동 기본 각속도
         /// 
-        /// ADS3000 프로토콜 위치 제어 시
+        /// ADS1000 프로토콜 위치 제어 시
         /// [SP] 값 계산에 사용한다.
         /// 
         /// 단위:
         /// Degree / Second
         /// </summary>
-        public const double DEFAULT_POSITION_SPEED =
-            25.0;
+        public const double DEFAULT_POSITION_SPEED = 25.0;
     }
 
 }

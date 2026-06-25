@@ -118,7 +118,6 @@ namespace VertiportNexus.Services.Communication.TCP
                     return true;
                 }
 
-                ConsoleLogHelper.PrintLine();
                 Console.WriteLine("[TCP][" + _deviceName + "] Connect Try");
                 Console.WriteLine();
                 Console.WriteLine("[TCP][" + _deviceName + "] Target : " + ip + ":" + port);
@@ -148,6 +147,7 @@ namespace VertiportNexus.Services.Communication.TCP
             catch (Exception ex)
             {
                 Console.WriteLine("[TCP][" + _deviceName + "] Connect Failed : " + ex.Message);
+                Console.WriteLine();
 
                 Disconnect();
 

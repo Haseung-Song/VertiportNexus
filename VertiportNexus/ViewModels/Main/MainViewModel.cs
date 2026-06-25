@@ -200,7 +200,8 @@ namespace VertiportNexus.ViewModels.Main
         /// <summary>
         /// [MQ] 상태 표시 문자열
         /// </summary>
-        private string _mqStatusText = "RabbitMQ Ready";
+        private string _mqStatusText =
+            "RabbitMQ Ready";
 
         /// <summary>
         /// 마지막 [MQ] 수신 메시지 표시 문자열
@@ -542,6 +543,13 @@ namespace VertiportNexus.ViewModels.Main
                     _mcbTcpClientService,
                     _scbTcpClientService);
 
+            // [ADS1000] 장비 연결 상태 변경 이벤트 연결
+            //
+            // [MCB] / [SCB] 연결 결과를 각각 수신하여
+            // 화면 연결 상태를 즉시 갱신한다.
+            _ads1000ConnectionService.ConnectionStateChanged +=
+                OnAds1000ConnectionStateChanged;
+
             // [EO] [Camera] 영상 서비스 생성
             _eoCameraService =
                 new EoCameraService();
@@ -812,12 +820,7 @@ namespace VertiportNexus.ViewModels.Main
 
             InitializeDefaultValues();
 
-            ConsoleLogHelper.PrintLine();
             Console.WriteLine("[MAIN] ADS1000 Direct TCP Test Initialize Complete");
-            ConsoleLogHelper.PrintLine();
-
-            Console.WriteLine("[MAIN] MCB Target : " + McbIpAddress + ":" + McbPort);
-            Console.WriteLine("[MAIN] SCB Target : " + ScbIpAddress + ":" + ScbPort);
             ConsoleLogHelper.PrintLine();
 
             #endregion
@@ -1070,6 +1073,21 @@ namespace VertiportNexus.ViewModels.Main
                 return _mcbConnectionState == ConnectionState.Disconnected &&
                        _scbConnectionState == ConnectionState.Disconnected &&
                        !_isDeviceConnecting;
+            }
+
+        }
+
+        /// <summary>
+        /// 장비 연결 버튼 활성화 여부
+        /// 
+        /// 장비 연결 시도 중에는
+        /// 중복 연결 요청을 방지하기 위해 비활성화한다.
+        /// </summary>
+        public bool IsDeviceConnectButtonEnabled
+        {
+            get
+            {
+                return !_isDeviceConnecting;
             }
 
         }
@@ -1428,10 +1446,10 @@ namespace VertiportNexus.ViewModels.Main
         private void InitializeDefaultValues()
         {
             MainStatusText =
-                "DISCONNECTED";
+                "MCB / SCB DISCONNECTED";
 
             OperationModeText =
-                "STANDBY";
+                "MODE STANDBY";
 
             PtzControlModeText =
                 _cameraStateProvider.PtzControlMode;
@@ -1610,13 +1628,19 @@ namespace VertiportNexus.ViewModels.Main
             try
             {
                 MainStatusText =
-                     "CONNECTING...";
+                     "MCB / SCB CONNECTING...";
 
                 OperationModeText =
                     "DEVICE CONNECTING...";
 
                 _isDeviceConnecting =
                     true;
+
+                // [장비 연결] 버튼 활성화 상태 갱신
+                //
+                // 연결 시도 중에는 중복 연결 요청을 방지하기 위해
+                // [장비 연결] 버튼을 비활성화한다.
+                OnPropertyChanged(nameof(IsDeviceConnectButtonEnabled));
 
                 // [장비 통신 설정] 입력 가능 상태 갱신
                 //
@@ -1668,12 +1692,32 @@ namespace VertiportNexus.ViewModels.Main
                     //_ = RunCsePtzDeviceTestAsync();
                 }
 
-                // [EO] 영상 표시 허용
-                _isEoVideoDisplayEnabled = true;
+                // [EO] 영상 연결 처리
+                //
+                // [MCB] / [SCB] 중 하나 이상 연결된 경우에만
+                // [EO] RTSP 영상을 활성화한다.
+                //
+                // 장비 제어 연결이 모두 실패한 경우에는
+                // 영상 표시를 차단하고 화면을 초기화한다.
+                if (_mcbConnectionState == ConnectionState.Connected ||
+                    _scbConnectionState == ConnectionState.Connected)
+                {
+                    _isEoVideoDisplayEnabled =
+                        true;
 
-                // [EO] [RTSP] 테스트 영상 연결
-                _eoCameraService.Connect(
-                    DEFAULT_EO_RTSP_ADDRESS);
+                    _eoCameraService.Connect(
+                        DEFAULT_EO_RTSP_ADDRESS);
+                }
+                else
+                {
+                    _isEoVideoDisplayEnabled =
+                        false;
+
+                    _eoCameraService.Disconnect();
+
+                    EOCameraImage =
+                        null;
+                }
 
             }
             finally
@@ -1686,6 +1730,12 @@ namespace VertiportNexus.ViewModels.Main
                 // [MCB] / [SCB] 연결 상태 변경에 따라
                 // IP / Port 입력칸 활성 / 비활성 상태를 갱신한다.
                 OnPropertyChanged(nameof(IsDeviceConnectionSettingEnabled));
+
+                // [장비 연결] 버튼 활성화 상태 갱신
+                //
+                // 연결 시도 종료 후
+                // 현재 연결 상태에 따라 [장비 연결] 버튼 활성 / 비활성 상태를 갱신한다.
+                OnPropertyChanged(nameof(IsDeviceConnectButtonEnabled));
             }
 
         }
@@ -1837,6 +1887,51 @@ namespace VertiportNexus.ViewModels.Main
             // [MCB] / [SCB] 연결 상태 변경에 따라
             // IP / Port 입력칸 활성 / 비활성 상태를 갱신한다.
             OnPropertyChanged(nameof(IsDeviceConnectionSettingEnabled));
+
+            // [장비 연결] 버튼 활성화 상태 갱신
+            //
+            // [MCB] / [SCB] 연결 상태 변경에 따라
+            // 중복 연결 요청 가능 여부를 갱신한다.
+            OnPropertyChanged(nameof(IsDeviceConnectButtonEnabled));
+        }
+
+        /// <summary>
+        /// [ADS1000] 장비 연결 상태 변경 처리
+        /// 
+        /// [MCB] / [SCB] 연결 시도 결과를
+        /// 장비별로 화면에 즉시 반영한다.
+        /// </summary>
+        /// <param name="isMcbConnected">
+        /// [MCB] 연결 성공 여부
+        /// </param>
+        /// <param name="isScbConnected">
+        /// [SCB] 연결 성공 여부
+        /// </param>
+        private void OnAds1000ConnectionStateChanged(
+            bool? isMcbConnected,
+            bool? isScbConnected)
+        {
+            App.Current.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                ConnectionState mcbConnectionState =
+                    isMcbConnected.HasValue
+                        ? isMcbConnected.Value
+                            ? ConnectionState.Connected
+                            : ConnectionState.Disconnected
+                        : _mcbConnectionState;
+
+                ConnectionState scbConnectionState =
+                    isScbConnected.HasValue
+                        ? isScbConnected.Value
+                            ? ConnectionState.Connected
+                            : ConnectionState.Disconnected
+                        : _scbConnectionState;
+
+                SetDeviceConnectionState(
+                    mcbConnectionState,
+                    scbConnectionState);
+            }));
+
         }
 
         /// <summary>
@@ -1852,7 +1947,7 @@ namespace VertiportNexus.ViewModels.Main
                 connectionResult.IsScbConnected)
             {
                 MainStatusText =
-                    "CONNECTED";
+                    "MCB / SCB CONNECTED";
 
                 OperationModeText =
                     "ADS1000 CONTROL";
@@ -1860,7 +1955,7 @@ namespace VertiportNexus.ViewModels.Main
             else if (connectionResult.IsMcbConnected)
             {
                 MainStatusText =
-                    "PARTIAL CONNECTED";
+                    "MCB ONLY CONNECTED";
 
                 OperationModeText =
                     "MCB ONLY";
@@ -1868,7 +1963,7 @@ namespace VertiportNexus.ViewModels.Main
             else if (connectionResult.IsScbConnected)
             {
                 MainStatusText =
-                    "PARTIAL CONNECTED";
+                    "SCB ONLY CONNECTED";
 
                 OperationModeText =
                     "SCB ONLY";
@@ -1876,7 +1971,7 @@ namespace VertiportNexus.ViewModels.Main
             else
             {
                 MainStatusText =
-                    "DISCONNECTED";
+                    "MCB / SCB DISCONNECTED";
 
                 OperationModeText =
                     "CONNECT FAILED";
@@ -1932,10 +2027,10 @@ namespace VertiportNexus.ViewModels.Main
                 _ads1000ConnectionService.Disconnect();
 
                 MainStatusText =
-                    "DISCONNECTED";
+                    "MCB / SCB DISCONNECTED";
 
                 OperationModeText =
-                    "STANDBY";
+                    "MODE STANDBY";
 
                 // 장비 연결 해제 상태 반영
                 SetDeviceConnectionState(

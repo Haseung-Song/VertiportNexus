@@ -28,8 +28,7 @@ namespace VertiportNexus.Services.Communication.Video
         /// 
         /// 3000000 = 3초
         /// </summary>
-        private const string RTSP_TIMEOUT_MICROSECONDS =
-            "3000000";
+        private const string RTSP_TIMEOUT_MICROSECONDS = "3000000";
 
         #endregion
 
@@ -326,6 +325,7 @@ namespace VertiportNexus.Services.Communication.Video
                 _codecContext->height;
 
             Console.WriteLine($"[{_streamName}] [FFmpeg RTSP SIZE] {VideoWidth} x {VideoHeight}");
+            Console.WriteLine();
 
             int result =
                 ffmpeg.avcodec_open2(

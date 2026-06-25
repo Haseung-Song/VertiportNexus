@@ -103,7 +103,6 @@ namespace VertiportNexus.Services.Communication.MQ
                 return Task.FromResult(true);
             }
 
-            ConsoleLogHelper.PrintLine();
             Console.WriteLine("[MQ][" + _serviceName + "] Connect Try");
 
             _cts =
@@ -242,6 +241,7 @@ namespace VertiportNexus.Services.Communication.MQ
             }
 
             StopReceive();
+
             ReleaseResources();
 
             _isConnected =

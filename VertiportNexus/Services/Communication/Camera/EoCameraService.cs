@@ -110,10 +110,8 @@ namespace VertiportNexus.Services.Camera
                 StatusChanged?.Invoke(
                     "EO RTSP Connecting...");
 
-                ConsoleLogHelper.PrintLine();
                 Console.WriteLine("[EO VIDEO] RTSP Connect Try");
                 Console.WriteLine("[EO VIDEO] RTSP : " + rtspAddress);
-                ConsoleLogHelper.PrintLine();
 
                 // [EO] 기존 영상 루프 정리
                 //

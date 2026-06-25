@@ -134,8 +134,8 @@ namespace VertiportNexus.Services.Communication.MQ
                         autoAck: true,
                         consumer: consumer);
 
-                ConsoleLogHelper.PrintLine();
                 Console.WriteLine("[RabbitMQ][RECV] Receive Start");
+                Console.WriteLine();
                 Console.WriteLine("[RabbitMQ][RECV] Queue : " + CseMqQueue.CommandRequest);
                 ConsoleLogHelper.PrintLine();
             }

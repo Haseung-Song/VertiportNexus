@@ -137,6 +137,7 @@ namespace VertiportNexus.Services.ADS1000
         /// 
         /// [Pan] 제어는 [LA Local Agent] 기준 표시 좌표와
         /// [MCB] 모터 명령 좌표의 부호 방향이 반대이므로,
+        /// 
         /// 송신 시 [Pan] 값만 부호를 반전하여 전달한다.
         /// </summary>
         public byte[] BuildPanAbsolutePositionPacket(
@@ -163,6 +164,7 @@ namespace VertiportNexus.Services.ADS1000
         /// 
         /// [Pan] 제어는 [LA Local Agent] 기준 표시 좌표와
         /// [MCB] 모터 명령 좌표의 부호 방향이 반대이므로,
+        /// 
         /// 송신 시 [Pan] 값만 부호를 반전하여 전달한다.
         /// </summary>
         public byte[] BuildPanRelativePositionPacket(
@@ -261,7 +263,7 @@ namespace VertiportNexus.Services.ADS1000
         /// <summary>
         /// [MCB] 절대 위치 이동 [Packet]
         /// 
-        /// ADS3000 프로토콜 기준:
+        /// [ADS1000] 프로토콜 기준:
         /// PA = 위치;
         /// SP = 속도;
         /// BG;
@@ -300,7 +302,7 @@ namespace VertiportNexus.Services.ADS1000
         /// <summary>
         /// [MCB] 상대 위치 이동 [Packet]
         /// 
-        /// ADS3000 프로토콜 기준:
+        /// [ADS1000] 프로토콜 기준:
         /// PR = 위치;
         /// SP = 속도;
         /// BG;
