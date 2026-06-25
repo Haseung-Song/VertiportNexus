@@ -23,8 +23,7 @@ namespace VertiportNexus.Services.Camera
         /// [UI] / [Tracking] 처리 Thread가 동시에 접근할 수 있으므로
         /// lock 기준으로 상태값을 보호한다.
         /// </summary>
-        private readonly object _syncLock =
-            new object();
+        private readonly object _syncLock = new object();
 
         /// <summary>
         /// 탐지 기능 활성화 여부
@@ -92,7 +91,6 @@ namespace VertiportNexus.Services.Camera
                     _lastBoundingBox =
                         null;
                 }
-
                 _lastUpdatedTime =
                     DateTime.Now;
             }
@@ -122,7 +120,6 @@ namespace VertiportNexus.Services.Camera
                     _isDetectContinue =
                         false;
                 }
-
                 _lastUpdatedTime =
                     DateTime.Now;
             }
@@ -188,42 +185,55 @@ namespace VertiportNexus.Services.Camera
         {
             lock (_syncLock)
             {
+                // [Bounding Box] 유효성 확인
+                //
+                // [Detect On]처럼 Bounding Box 좌표가 없는 명령에서는
+                // 상태값 및 로그를 갱신하지 않는다.
+                if (boundingBox == null ||
+                    !boundingBox.X1.HasValue ||
+                    !boundingBox.Y1.HasValue ||
+                    !boundingBox.X2.HasValue ||
+                    !boundingBox.Y2.HasValue)
+                {
+                    Console.WriteLine(
+                        "[DETECTION][STATE] Bounding Box Skip : Empty");
+
+                    return;
+                }
+
                 _lastBoundingBox =
                     boundingBox;
 
-                if (boundingBox != null)
-                {
-                    Console.WriteLine(
-                        "[DETECTION][STATE] Bounding Box Updated");
+                Console.WriteLine(
+                    "[DETECTION][STATE] Bounding Box Updated");
 
-                    Console.WriteLine(
-                        "[DETECTION][STATE] X1 : "
-                        + boundingBox.X1);
+                Console.WriteLine(
+                    "[DETECTION][STATE] X1 : "
+                    + boundingBox.X1);
 
-                    Console.WriteLine(
-                        "[DETECTION][STATE] Y1 : "
-                        + boundingBox.Y1);
+                Console.WriteLine(
+                    "[DETECTION][STATE] Y1 : "
+                    + boundingBox.Y1);
 
-                    Console.WriteLine(
-                        "[DETECTION][STATE] X2 : "
-                        + boundingBox.X2);
+                Console.WriteLine(
+                    "[DETECTION][STATE] X2 : "
+                    + boundingBox.X2);
 
-                    Console.WriteLine(
-                        "[DETECTION][STATE] Y2 : "
-                        + boundingBox.Y2);
+                Console.WriteLine(
+                    "[DETECTION][STATE] Y2 : "
+                    + boundingBox.Y2);
 
-                    Console.WriteLine(
-                        "[DETECTION][STATE] Center X : "
-                        + boundingBox.CenterX);
+                Console.WriteLine(
+                    "[DETECTION][STATE] Center X : "
+                    + boundingBox.CenterX);
 
-                    Console.WriteLine(
-                        "[DETECTION][STATE] Center Y : "
-                        + boundingBox.CenterY);
+                Console.WriteLine(
+                    "[DETECTION][STATE] Center Y : "
+                    + boundingBox.CenterY);
 
-                    Console.WriteLine(
-                        "[DETECTION][STATE] Confidence : "
-                        + boundingBox.Confidence);
-                }
+                Console.WriteLine(
+                    "[DETECTION][STATE] Confidence : "
+                    + boundingBox.Confidence);
 
                 _lastUpdatedTime =
                     DateTime.Now;
