@@ -15,26 +15,31 @@
         <!-- 공통 패널 스타일 -->
         <Style x:Key="PanelBorderStyle"
                TargetType="Border">
+
             <Setter Property="Padding" Value="12"/>
             <Setter Property="Margin" Value="0,0,0,10"/>
             <Setter Property="Background" Value="#5F6870"/>
             <Setter Property="BorderBrush" Value="#9AA3AD"/>
             <Setter Property="BorderThickness" Value="1"/>
+
         </Style>
 
         <!-- 공통 제목 스타일 -->
         <Style x:Key="PanelTitleStyle"
                TargetType="TextBlock">
+
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="HorizontalAlignment" Value="Center"/>
             <Setter Property="Margin" Value="0,0,0,10"/>
+
         </Style>
 
 
         <!-- 공통 버튼 스타일 -->
         <Style x:Key="DeviceControlButtonStyle"
                TargetType="Button">
+
             <Setter Property="Foreground"
                     Value="White"/>
             <Setter Property="FontWeight"
@@ -49,10 +54,13 @@
             <Style.Triggers>
                 <Trigger Property="IsMouseOver"
                          Value="True">
+
                     <Setter Property="Opacity"
                             Value="0.85"/>
+
                 </Trigger>
             </Style.Triggers>
+
         </Style>
 
         <!-- [장비 연결] 버튼 스타일 -->
@@ -123,6 +131,30 @@
                     Value="#453666"/>
         </Style>
 
+        <!-- [Home Position] 버튼 스타일 -->
+        <Style x:Key="HomePositionButtonStyle"
+               TargetType="Button"
+               BasedOn="{StaticResource DeviceControlButtonStyle}">
+            <Setter Property="Background"
+                    Value="#4F5D7A"/>
+        </Style>
+
+        <!-- [Pan Zero] / [Tilt Zero] 버튼 스타일 -->
+        <Style x:Key="ZeroPositionButtonStyle"
+               TargetType="Button"
+               BasedOn="{StaticResource DeviceControlButtonStyle}">
+            <Setter Property="Background"
+                    Value="#4A5F3F"/>
+        </Style>
+
+        <!-- [Reset Input] 버튼 스타일 -->
+        <Style x:Key="ResetInputButtonStyle"
+               TargetType="Button"
+               BasedOn="{StaticResource DeviceControlButtonStyle}">
+            <Setter Property="Background"
+                    Value="#345963"/>
+        </Style>
+
         <!-- [우측 제어 패널] TabItem 스타일 -->
         <Style x:Key="RightPanelTabItemStyle"
                TargetType="TabItem">
@@ -146,12 +178,13 @@
                                 BorderBrush="#95A5B0"
                                 BorderThickness="1,1,1,0"
                                 CornerRadius="5,5,0,0"
-                                Padding="60,6">
+                                Padding="66,6">
 
                             <!-- Tab Header Text 표시 -->
                             <ContentPresenter ContentSource="Header"
                                               HorizontalAlignment="Center"
                                               VerticalAlignment="Center"/>
+
                         </Border>
 
                         <ControlTemplate.Triggers>
@@ -170,6 +203,7 @@
 
                                 <Setter Property="Foreground"
                                         Value="White"/>
+
                             </Trigger>
 
                             <!-- 마우스 오버 색상 -->
@@ -179,6 +213,7 @@
                                 <Setter TargetName="TabBorder"
                                         Property="Background"
                                         Value="#3B5F70"/>
+
                             </Trigger>
 
                         </ControlTemplate.Triggers>
@@ -297,6 +332,9 @@
 
                                 <!-- 기능별 Tab 영역 -->
                                 <RowDefinition Height="*"/>
+
+                                <!-- 현재 장비 상태 영역 -->
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
                             <!-- 우측 제어 패널 제목 -->
@@ -311,7 +349,7 @@
                                 [우측 제어 패널] Tab 구성
 
                                 1) [운용 제어]
-                                2) [위치 제어]
+                                2) [이동 제어]
                                 3) [ZOOM / FOCUS]
 
                                 영상 영역은 유지하고,
@@ -325,10 +363,14 @@
 
                                 <!--
                                     [운용 제어] Tab
-                                
-                                    1) [MCB / SCB] 연결 대상 정보와
-                                    2) 연결 상태를 표시한다.
-                                -->
+
+                                    1) [MCB / SCB] 통신 설정
+                                    2) [MCB / SCB] 연결 상태 표시
+                                    3) [PTZ] 제어 모드 전환
+                                    4) [PAN / TILT] 연속 이동 제어
+                                    5) [ZOOM / FOCUS] 연속 제어
+                                    6) 현재 [PAN / TILT / ZOOM / FOCUS] 위치 표시
+-->
                                 <TabItem Header="운용 제어">
 
                                     <!-- [운용 제어] Tab 내부 Scroll 영역 -->
@@ -337,7 +379,7 @@
 
                                         <StackPanel Margin="5">
 
-                                            <!-- [운용 제어 설정 영역 -->
+                                            <!-- [운용 제어 설정 영역] -->
                                             <Border Margin="0,0,0,5"
                                                     Background="#5F666D"
                                                     BorderBrush="#95A5B0"
@@ -526,7 +568,7 @@
                                                                HorizontalAlignment="Center"
                                                                Foreground="White"
                                                                FontWeight="Bold"
-                                                               Margin="0,0,0,8"/>
+                                                               Margin="0,0,0,5"/>
 
                                                     <!-- [현재 PTZ 제어 모드 표시] -->
                                                     <TextBlock Text="{Binding PtzControlModeText, StringFormat=CURRENT MODE : {0}}"
@@ -577,7 +619,7 @@
                                                                HorizontalAlignment="Center"
                                                                Foreground="White"
                                                                FontWeight="Bold"
-                                                               Margin="0,0,0,10"/>
+                                                               Margin="0,0,0,5"/>
 
                                                     <!--
                                                         [PAN / TILT] 방향 버튼 영역
@@ -775,123 +817,6 @@
 
                                             </Border>
 
-                                            <!-- 현재 장비 상태 표시 영역 -->
-                                            <Border Margin="0,0,0,0"
-                                                    Background="#40464D"
-                                                    BorderBrush="#95A5B0"
-                                                    BorderThickness="1"
-                                                    CornerRadius="5"
-                                                    Padding="10">
-
-                                                <StackPanel Margin="0,5,0,0">
-
-                                                    <!-- 현재 장비 상태 제목 -->
-                                                    <TextBlock Text="CURRENT STATUS"
-                                                               HorizontalAlignment="Center"
-                                                               Foreground="White"
-                                                               FontWeight="Bold"
-                                                               Margin="0,0,0,15"/>
-
-                                                    <!-- [Pan] 현재 위치 -->
-                                                    <Grid Margin="0,1,0,1">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="45"/>
-                                                            <ColumnDefinition Width="10"/>
-                                                            <ColumnDefinition Width="*"/>
-                                                        </Grid.ColumnDefinitions>
-
-                                                        <TextBlock Grid.Column="0"
-                                                                   Text="Pan"
-                                                                   Foreground="White"
-                                                                   FontWeight="Bold"/>
-
-                                                        <TextBlock Grid.Column="1"
-                                                                   Text=":"
-                                                                   Foreground="White"
-                                                                   FontWeight="Bold"/>
-
-                                                        <TextBlock Grid.Column="2"
-                                                                   Text="{Binding CurrentPan, StringFormat={}{0:F4}}"
-                                                                   Foreground="White"
-                                                                   FontWeight="Bold"/>
-                                                    </Grid>
-
-                                                    <!-- [Tilt] 현재 위치 -->
-                                                    <Grid Margin="0,1,0,1">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="45"/>
-                                                            <ColumnDefinition Width="10"/>
-                                                            <ColumnDefinition Width="*"/>
-                                                        </Grid.ColumnDefinitions>
-
-                                                        <TextBlock Grid.Column="0"
-                                                                   Text="Tilt"
-                                                                   Foreground="White"
-                                                                   FontWeight="Bold"/>
-
-                                                        <TextBlock Grid.Column="1"
-                                                                   Text=":"
-                                                                   Foreground="White"
-                                                                   FontWeight="Bold"/>
-
-                                                        <TextBlock Grid.Column="2"
-                                                                   Text="{Binding CurrentTilt, StringFormat={}{0:F4}}"
-                                                                   Foreground="White"
-                                                                   FontWeight="Bold"/>
-                                                    </Grid>
-
-                                                    <!-- [Zoom] 현재 위치 -->
-                                                    <Grid Margin="0,1,0,1">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="45"/>
-                                                            <ColumnDefinition Width="10"/>
-                                                            <ColumnDefinition Width="*"/>
-                                                        </Grid.ColumnDefinitions>
-
-                                                        <TextBlock Grid.Column="0"
-                                                                   Text="Zoom"
-                                                                   Foreground="White"
-                                                                   FontWeight="Bold"/>
-
-                                                        <TextBlock Grid.Column="1"
-                                                                   Text=":"
-                                                                   Foreground="White"
-                                                                   FontWeight="Bold"/>
-
-                                                        <TextBlock Grid.Column="2"
-                                                                   Text="{Binding CurrentZoom}"
-                                                                   Foreground="White"
-                                                                   FontWeight="Bold"/>
-                                                    </Grid>
-
-                                                    <!-- [Focus] 현재 위치 -->
-                                                    <Grid Margin="0,1,0,1">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="45"/>
-                                                            <ColumnDefinition Width="10"/>
-                                                            <ColumnDefinition Width="*"/>
-                                                        </Grid.ColumnDefinitions>
-
-                                                        <TextBlock Grid.Column="0"
-                                                                   Text="Focus"
-                                                                   Foreground="White"
-                                                                   FontWeight="Bold"/>
-
-                                                        <TextBlock Grid.Column="1"
-                                                                   Text=":"
-                                                                   Foreground="White"
-                                                                   FontWeight="Bold"/>
-
-                                                        <TextBlock Grid.Column="2"
-                                                                   Text="{Binding CurrentFocus}"
-                                                                   Foreground="White"
-                                                                   FontWeight="Bold"/>
-                                                    </Grid>
-
-                                                </StackPanel>
-
-                                            </Border>
-
                                         </StackPanel>
 
                                     </ScrollViewer>
@@ -899,24 +824,26 @@
                                 </TabItem>
 
                                 <!--
-                                    [PAN / TILT] Tab
-                                
-                                    1) [Continue] 이동
-                                    2) [Absolute] 이동
-                                    3) [Relative] 이동
-                                    4) [Home / Zero] 기능
-                                    5) [Input Reset] 기능을 제공한다.
-                                -->
-                                <TabItem Header="위치 제어">
+                                    [이동 제어] Tab
 
-                                    <!-- [PAN / TILT] Tab 내부 [Scroll 영역] -->
+                                        1) [PAN / TILT] Absolute 이동
+                                        2) [PAN / TILT] Relative 이동
+                                        3) [Zoom] 위치 이동
+                                        4) [Zoom] 배율 이동
+                                        5) [Focus] 위치 이동
+                                        6) [Home / Zero] 기능
+                                        7) 위치 제어 입력값 초기화 기능을 제공한다.
+                                -->
+                                <TabItem Header="이동 제어">
+
+                                    <!-- [이동 제어] Tab 내부 [Scroll] 영역 -->
                                     <ScrollViewer VerticalScrollBarVisibility="Visible"
                                                   HorizontalScrollBarVisibility="Disabled">
 
                                         <StackPanel Margin="5">
 
                                             <!-- [Absolute] 위치 이동 영역 -->
-                                            <Border Margin="0,0,0,10"
+                                            <Border Margin="0,0,0,0"
                                                     Background="#5F666D"
                                                     BorderBrush="#95A5B0"
                                                     BorderThickness="1.5"
@@ -939,16 +866,14 @@
 
                                                     <!-- [Pan Absolute] 목표 각도 입력 -->
                                                     <TextBox Text="{Binding PanAbsoluteValue, 
-                                                                            UpdateSourceTrigger=LostFocus, 
-                                                                            TargetNullValue='0',
-                                                                            FallbackValue=''}"
-                                                             PreviewTextInput="DecimalNumberOnly_PreviewTextInput"
-                                                             LostFocus="PanAngle_LostFocus"
-                                                             IsEnabled="{Binding IsDeviceControlEnabled}"
-                                                             Height="24"
-                                                             Margin="0,3,0,5"
-                                                             FontWeight="Bold"
-                                                             VerticalContentAlignment="Center"/>
+                                                                            UpdateSourceTrigger=LostFocus}"
+                                                                            PreviewTextInput="DecimalNumberOnly_PreviewTextInput"
+                                                                            LostFocus="PanAngle_LostFocus"
+                                                                            IsEnabled="{Binding IsDeviceControlEnabled}"
+                                                                            Height="24"
+                                                                            Margin="0,3,0,5"
+                                                                            FontWeight="Bold"
+                                                                            VerticalContentAlignment="Center"/>
 
                                                     <!-- [Pan Absolute] 이동 실행 -->
                                                     <Button Content="PAN GO"
@@ -965,16 +890,14 @@
 
                                                     <!-- [Tilt Absolute] 목표 각도 입력 -->
                                                     <TextBox Text="{Binding TiltAbsoluteValue, 
-                                                                            UpdateSourceTrigger=LostFocus, 
-                                                                            TargetNullValue='0',
-                                                                            FallbackValue=''}"
-                                                             PreviewTextInput="DecimalNumberOnly_PreviewTextInput"
-                                                             LostFocus="TiltAngle_LostFocus"
-                                                             IsEnabled="{Binding IsDeviceControlEnabled}"
-                                                             Height="24"
-                                                             Margin="0,3,0,5"
-                                                             FontWeight="Bold"
-                                                             VerticalContentAlignment="Center"/>
+                                                                            UpdateSourceTrigger=LostFocus}"
+                                                                            PreviewTextInput="DecimalNumberOnly_PreviewTextInput"
+                                                                            LostFocus="TiltAngle_LostFocus"
+                                                                            IsEnabled="{Binding IsDeviceControlEnabled}"
+                                                                            Height="24"
+                                                                            Margin="0,3,0,5"
+                                                                            FontWeight="Bold"
+                                                                            VerticalContentAlignment="Center"/>
 
                                                     <!-- [Tilt Absolute] 이동 실행 -->
                                                     <Button Content="TILT GO"
@@ -987,7 +910,7 @@
                                             </Border>
 
                                             <!-- [Relative] 위치 이동 영역 -->
-                                            <Border Margin="0,0,0,10"
+                                            <Border Margin="0,10,0,0"
                                                     Background="#5F666D"
                                                     BorderBrush="#95A5B0"
                                                     BorderThickness="1.5"
@@ -1010,15 +933,13 @@
 
                                                     <!-- [Pan Relative] 이동 각도 입력 -->
                                                     <TextBox Text="{Binding PanRelativeValue, 
-                                                                            UpdateSourceTrigger=LostFocus, 
-                                                                            TargetNullValue='0',
-                                                                            FallbackValue=''}"
-                                                             PreviewTextInput="RelativeDecimalNumberOnly_PreviewTextInput"
-                                                             IsEnabled="{Binding IsDeviceControlEnabled}"
-                                                             Height="24"
-                                                             Margin="0,3,0,5"
-                                                             FontWeight="Bold"
-                                                             VerticalContentAlignment="Center"/>
+                                                                            UpdateSourceTrigger=LostFocus}"
+                                                                            PreviewTextInput="RelativeDecimalNumberOnly_PreviewTextInput"
+                                                                            IsEnabled="{Binding IsDeviceControlEnabled}"
+                                                                            Height="24"
+                                                                            Margin="0,3,0,5"
+                                                                            FontWeight="Bold"
+                                                                            VerticalContentAlignment="Center"/>
 
                                                     <!-- [Pan Relative] 이동 실행 -->
                                                     <Button Content="PAN RELATIVE"
@@ -1035,15 +956,13 @@
 
                                                     <!-- [Tilt Relative] 이동 각도 입력 -->
                                                     <TextBox Text="{Binding TiltRelativeValue, 
-                                                                            UpdateSourceTrigger=LostFocus, 
-                                                                            TargetNullValue='0',
-                                                                            FallbackValue=''}"
-                                                             PreviewTextInput="RelativeDecimalNumberOnly_PreviewTextInput"
-                                                             IsEnabled="{Binding IsDeviceControlEnabled}"
-                                                             Height="24"
-                                                             Margin="0,3,0,5"
-                                                             FontWeight="Bold"
-                                                             VerticalContentAlignment="Center"/>
+                                                                            UpdateSourceTrigger=LostFocus}"
+                                                                            PreviewTextInput="RelativeDecimalNumberOnly_PreviewTextInput"
+                                                                            IsEnabled="{Binding IsDeviceControlEnabled}"
+                                                                            Height="24"
+                                                                            Margin="0,3,0,5"
+                                                                            FontWeight="Bold"
+                                                                            VerticalContentAlignment="Center"/>
 
                                                     <!-- [Tilt Relative] 이동 실행 -->
                                                     <Button Content="TILT RELATIVE"
@@ -1051,81 +970,13 @@
                                                             Style="{StaticResource EoControlButtonStyle}"
                                                             IsEnabled="{Binding IsDeviceControlEnabled}"
                                                             Command="{Binding MoveTiltRelativeCommand}"/>
+
                                                 </StackPanel>
-                                            </Border>
 
-                                            <!-- [Zoom / Focus] 위치 제어 영역 -->
-                                            <Border Margin="0,0,0,10"
-                                                    Background="#5F666D"
-                                                    BorderBrush="#95A5B0"
-                                                    BorderThickness="1.5"
-                                                    CornerRadius="5"
-                                                    Padding="10">
-
-                                                <StackPanel>
-
-                                                    <!-- [Position Control] 제목 -->
-                                                    <TextBlock Text="POSITION CONTROL"
-                                                               HorizontalAlignment="Center"
-                                                               Foreground="White"
-                                                               FontWeight="Bold"
-                                                               Margin="0,0,0,5"/>
-
-                                                    <!-- [Zoom] 목표 위치 입력 라벨 -->
-                                                    <TextBlock Text="Zoom Position"
-                                                               Foreground="White"
-                                                               FontSize="12"/>
-
-                                                    <!-- [Zoom] 목표 위치 입력 -->
-                                                    <TextBox Text="{Binding ZoomPositionValue, 
-                                                                            UpdateSourceTrigger=LostFocus,
-                                                                            TargetNullValue='0',
-                                                                            FallbackValue=''}"
-                                                             PreviewTextInput="IntegerNumberOnly_PreviewTextInput"
-                                                             LostFocus="PositionValue_LostFocus"
-                                                             IsEnabled="{Binding IsDeviceControlEnabled}"
-                                                             Height="24"
-                                                             Margin="0,3,0,5"
-                                                             FontWeight="Bold"
-                                                             VerticalContentAlignment="Center"/>
-
-                                                    <!-- [Zoom] 위치 이동 실행 -->
-                                                    <Button Content="SET ZOOM"
-                                                            Height="30"
-                                                            Margin="0,0,0,10"
-                                                            Style="{StaticResource EoControlButtonStyle}"
-                                                            IsEnabled="{Binding IsDeviceControlEnabled}"
-                                                            Command="{Binding SetZoomPositionCommand}"/>
-
-                                                    <!-- [Focus] 목표 위치 입력 라벨 -->
-                                                    <TextBlock Text="Focus Position"
-                                                               Foreground="White"
-                                                               FontSize="12"/>
-
-                                                    <!-- [Focus] 목표 위치 입력 -->
-                                                    <TextBox Text="{Binding FocusPositionValue, 
-                                                                            UpdateSourceTrigger=LostFocus,
-                                                                            TargetNullValue='0',
-                                                                            FallbackValue=''}"
-                                                             PreviewTextInput="IntegerNumberOnly_PreviewTextInput"
-                                                             LostFocus="PositionValue_LostFocus"
-                                                             IsEnabled="{Binding IsDeviceControlEnabled}"
-                                                             Height="24"
-                                                             Margin="0,3,0,5"
-                                                             FontWeight="Bold"
-                                                             VerticalContentAlignment="Center"/>
-
-                                                    <!-- [Focus] 위치 이동 실행 -->
-                                                    <Button Content="SET FOCUS"
-                                                            Height="30"
-                                                            Style="{StaticResource EoControlButtonStyle}"
-                                                            IsEnabled="{Binding IsDeviceControlEnabled}"
-                                                            Command="{Binding SetFocusPositionCommand}"/>
-                                                </StackPanel>
                                             </Border>
 
                                             <!-- [Home / Zero] 제어 영역 -->
-                                            <Border Margin="0,0,0,5"
+                                            <Border Margin="0,10,0,0"
                                                     Background="#5F666D"
                                                     BorderBrush="#95A5B0"
                                                     BorderThickness="1.5"
@@ -1149,8 +1000,8 @@
                                                     -->
                                                     <Button Content="HOME POSITION"
                                                             Height="30"
-                                                            Margin="0,0,0,5"
-                                                            Style="{StaticResource AutoFocusButtonStyle}"
+                                                            Margin="0,0,0,10"
+                                                            Style="{StaticResource HomePositionButtonStyle}"
                                                             IsEnabled="{Binding IsDeviceControlEnabled}"
                                                             Command="{Binding MoveHomePositionCommand}"/>
 
@@ -1162,7 +1013,7 @@
                                                         <Button Content="PAN ZERO"
                                                                 Width="85"
                                                                 Margin="5"
-                                                                Style="{StaticResource EoControlButtonStyle}"
+                                                                Style="{StaticResource ZeroPositionButtonStyle}"
                                                                 IsEnabled="{Binding IsDeviceControlEnabled}"
                                                                 Command="{Binding SetPanZeroCommand}"/>
 
@@ -1170,7 +1021,7 @@
                                                         <Button Content="TILT ZERO"
                                                                 Width="85"
                                                                 Margin="5"
-                                                                Style="{StaticResource EoControlButtonStyle}"
+                                                                Style="{StaticResource ZeroPositionButtonStyle}"
                                                                 IsEnabled="{Binding IsDeviceControlEnabled}"
                                                                 Command="{Binding SetTiltZeroCommand}"/>
                                                     </StackPanel>
@@ -1179,13 +1030,126 @@
 
                                             </Border>
 
-                                            <!-- [입력값 초기화 영역] -->
+                                            <!-- [Zoom] 위치 제어 영역 -->
                                             <Border Margin="0,10,0,0"
+                                                    Background="#5F666D"
+                                                    BorderBrush="#95A5B0"
+                                                    BorderThickness="1.5"
+                                                    CornerRadius="5"
+                                                    Padding="10">
+
+                                                <StackPanel>
+
+                                                    <!-- [Zoom] 위치 제어 영역 제목 -->
+                                                    <TextBlock Text="ZOOM MOVE"
+                                                               HorizontalAlignment="Center"
+                                                               Foreground="White"
+                                                               FontWeight="Bold"
+                                                               Margin="0,0,0,5"/>
+
+                                                    <!-- [Zoom] 목표 위치 입력 라벨 -->
+                                                    <TextBlock Text="Zoom Position"
+                                                               Foreground="White"
+                                                               FontSize="12"/>
+
+                                                    <!-- [Zoom] 목표 위치 입력 -->
+                                                    <TextBox Text="{Binding ZoomPositionValue, 
+                                                                            UpdateSourceTrigger=LostFocus}"
+                                                             PreviewTextInput="IntegerNumberOnly_PreviewTextInput"
+                                                             LostFocus="PositionValue_LostFocus"
+                                                             IsEnabled="{Binding IsDeviceControlEnabled}"
+                                                             Height="24"
+                                                             Margin="0,3,0,5"
+                                                             FontWeight="Bold"
+                                                             VerticalContentAlignment="Center"/>
+
+                                                    <!-- [Zoom] 위치 이동 실행 -->
+                                                    <Button Content="SET ZOOM"
+                                                            Height="30"
+                                                            Margin="0,0,0,10"
+                                                            Style="{StaticResource EoControlButtonStyle}"
+                                                            IsEnabled="{Binding IsDeviceControlEnabled}"
+                                                            Command="{Binding SetZoomPositionCommand}"/>
+
+                                                    <!-- [Zoom] 배율 입력 라벨 -->
+                                                    <TextBlock Text="Zoom Ratio"
+                                                               Foreground="White"
+                                                               FontSize="12"/>
+
+                                                    <!-- [Zoom] 배율 입력 -->
+                                                    <TextBox Text="{Binding ZoomRatioValue,
+                                                                            UpdateSourceTrigger=LostFocus}"
+                                                                            PreviewTextInput="ZoomRatio_PreviewTextInput"
+                                                                            LostFocus="ZoomRatio_LostFocus"
+                                                                            IsEnabled="{Binding IsDeviceControlEnabled}"
+                                                                            Height="24"
+                                                                            Margin="0,3,0,5"
+                                                                            FontWeight="Bold"
+                                                                            VerticalContentAlignment="Center"/>
+
+                                                    <!-- [Zoom] 배율 이동 실행 -->
+                                                    <Button Content="SET ZOOM RATIO"
+                                                            Height="30"
+                                                            Margin="0,0,0,10"
+                                                            Style="{StaticResource EoControlButtonStyle}"
+                                                            IsEnabled="{Binding IsDeviceControlEnabled}"
+                                                            Command="{Binding SetZoomRatioCommand}"/>
+
+                                                </StackPanel>
+
+                                            </Border>
+
+                                            <!-- [Focus] 위치 제어 영역 -->
+                                            <Border Margin="0,10,0,0"
+                                                    Background="#5F666D"
+                                                    BorderBrush="#95A5B0"
+                                                    BorderThickness="1.5"
+                                                    CornerRadius="5"
+                                                    Padding="10">
+
+                                                <StackPanel>
+
+                                                    <!-- [Focus] 위치 제어 영역 제목 -->
+                                                    <TextBlock Text="FOCUS MOVE"
+                                                               HorizontalAlignment="Center"
+                                                               Foreground="White"
+                                                               FontWeight="Bold"
+                                                               Margin="0,0,0,5"/>
+
+                                                    <!-- [Focus] 목표 위치 입력 라벨 -->
+                                                    <TextBlock Text="Focus Position"
+                                                               Foreground="White"
+                                                               FontSize="12"/>
+
+                                                    <!-- [Focus] 목표 위치 입력 -->
+                                                    <TextBox Text="{Binding FocusPositionValue, 
+                                                                            UpdateSourceTrigger=LostFocus}"
+                                                                            PreviewTextInput="IntegerNumberOnly_PreviewTextInput"
+                                                                            LostFocus="PositionValue_LostFocus"
+                                                                            IsEnabled="{Binding IsDeviceControlEnabled}"
+                                                                            Height="24"
+                                                                            Margin="0,3,0,5"
+                                                                            FontWeight="Bold"
+                                                                            VerticalContentAlignment="Center"/>
+
+                                                    <!-- [Focus] 위치 이동 실행 -->
+                                                    <Button Content="SET FOCUS"
+                                                            Height="30"
+                                                            Style="{StaticResource EoControlButtonStyle}"
+                                                            IsEnabled="{Binding IsDeviceControlEnabled}"
+                                                            Command="{Binding SetFocusPositionCommand}"/>
+
+                                                </StackPanel>
+
+                                            </Border>
+
+                                            <!-- [입력값 초기화 영역] -->
+                                            <Border Margin="0,10,0,5"
                                                     Background="#6A7178"
                                                     BorderBrush="#95A5B0"
                                                     BorderThickness="1"
                                                     CornerRadius="5"
-                                                    Padding="8">
+                                                    Padding="10">
 
                                                 <StackPanel>
 
@@ -1194,12 +1158,12 @@
                                                                HorizontalAlignment="Center"
                                                                Foreground="White"
                                                                FontWeight="Bold"
-                                                               Margin="0,0,0,8"/>
+                                                               Margin="0,0,0,10"/>
 
                                                     <!-- [위치 제어 입력값 초기화] -->
                                                     <Button Content="RESET INPUT"
                                                             Height="30"
-                                                            Style="{StaticResource EoControlButtonStyle}"
+                                                            Style="{StaticResource ResetInputButtonStyle}"
                                                             IsEnabled="{Binding IsDeviceControlEnabled}"
                                                             Command="{Binding ResetPositionInputCommand}"/>
 
@@ -1214,6 +1178,125 @@
                                 </TabItem>
 
                             </TabControl>
+
+                            <!-- 현재 장비 상태 표시 영역 -->
+                            <Border Grid.Row="2"
+                                    Margin="0,10,0,0"
+                                    Background="#40464D"
+                                    BorderBrush="#95A5B0"
+                                    BorderThickness="1"
+                                    CornerRadius="5"
+                                    Padding="10">
+
+                                <StackPanel Margin="1">
+                                    <!-- 현재 장비 상태 제목 -->
+                                    <Grid Margin="0,0,20,10">
+                                        <TextBlock Text="CURRENT STATUS"
+                                                   HorizontalAlignment="Stretch"
+                                                   TextAlignment="Center"
+                                                   Foreground="White"
+                                                   FontWeight="Bold"/>
+                                    </Grid>
+
+                                    <!-- [Pan] 현재 위치 -->
+                                    <Grid Margin="0,1,0,1">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="45"/>
+                                            <ColumnDefinition Width="10"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <TextBlock Grid.Column="0"
+                                                   Text="Pan"
+                                                   Foreground="White"
+                                                   FontWeight="Bold"/>
+
+                                        <TextBlock Grid.Column="1"
+                                                   Text=":"
+                                                   Foreground="White"
+                                                   FontWeight="Bold"/>
+
+                                        <TextBlock Grid.Column="2"
+                                                   Text="{Binding CurrentPan, StringFormat={}{0:F4}}"
+                                                   Foreground="White"
+                                                   FontWeight="Bold"/>
+                                    </Grid>
+
+                                    <!-- [Tilt] 현재 위치 -->
+                                    <Grid Margin="0,1,0,1">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="45"/>
+                                            <ColumnDefinition Width="10"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <TextBlock Grid.Column="0"
+                                                   Text="Tilt"
+                                                   Foreground="White"
+                                                   FontWeight="Bold"/>
+
+                                        <TextBlock Grid.Column="1"
+                                                   Text=":"
+                                                   Foreground="White"
+                                                   FontWeight="Bold"/>
+
+                                        <TextBlock Grid.Column="2"
+                                                   Text="{Binding CurrentTilt, StringFormat={}{0:F4}}"
+                                                   Foreground="White"
+                                                   FontWeight="Bold"/>
+                                    </Grid>
+
+                                    <!-- [Zoom] 현재 위치 -->
+                                    <Grid Margin="0,1,0,1">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="45"/>
+                                            <ColumnDefinition Width="10"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <TextBlock Grid.Column="0"
+                                                   Text="Zoom"
+                                                   Foreground="White"
+                                                   FontWeight="Bold"/>
+
+                                        <TextBlock Grid.Column="1"
+                                                   Text=":"
+                                                   Foreground="White"
+                                                   FontWeight="Bold"/>
+
+                                        <TextBlock Grid.Column="2"
+                                                   Text="{Binding CurrentZoomDisplayText}"
+                                                   Foreground="White"
+                                                   FontWeight="Bold"/>
+                                    </Grid>
+
+                                    <!-- [Focus] 현재 위치 -->
+                                    <Grid Margin="0,1,0,1">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="45"/>
+                                            <ColumnDefinition Width="10"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <TextBlock Grid.Column="0"
+                                                   Text="Focus"
+                                                   Foreground="White"
+                                                   FontWeight="Bold"/>
+
+                                        <TextBlock Grid.Column="1"
+                                                   Text=":"
+                                                   Foreground="White"
+                                                   FontWeight="Bold"/>
+
+                                        <TextBlock Grid.Column="2"
+                                                   Text="{Binding CurrentFocus}"
+                                                   Foreground="White"
+                                                   FontWeight="Bold"/>
+                                    </Grid>
+
+                                </StackPanel>
+
+                            </Border>
 
                         </Grid>
 
@@ -1230,9 +1313,11 @@
                 Padding="10"
                 Margin="0,10,0,0"
                 Background="#2B3038">
+
             <TextBlock Text="CSE Middleware Test UI - Console log enabled"
                        Foreground="#B8C7D9"
                        FontSize="14"/>
+
         </Border>
 
     </Grid>

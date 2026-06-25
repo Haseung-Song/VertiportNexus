@@ -92,7 +92,6 @@ namespace VertiportNexus.Services.ADS1000
         public double PanTiltSpeedLevel
         {
             get;
-
             set;
         }
 

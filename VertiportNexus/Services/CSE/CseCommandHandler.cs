@@ -537,6 +537,7 @@ namespace VertiportNexus.Services.Vertiport
             Console.WriteLine("[CSE][CMD][PTZ_MOVE] Pan : " + payload.Pan);
             Console.WriteLine("[CSE][CMD][PTZ_MOVE] Tilt : " + payload.Tilt);
             Console.WriteLine("[CSE][CMD][PTZ_MOVE] Zoom : " + payload.Zoom);
+            Console.WriteLine("[CSE][CMD][PTZ_MOVE] ZoomPosition : " + payload.ZoomPosition);
 
             CameraCommand cameraCommand =
                 new CameraCommand
@@ -555,6 +556,9 @@ namespace VertiportNexus.Services.Vertiport
 
                     Zoom =
                         payload.Zoom,
+
+                    ZoomPosition =
+                        payload.ZoomPosition,
 
                     SourceMsgId =
                         message.MsgId
@@ -650,8 +654,7 @@ namespace VertiportNexus.Services.Vertiport
 
             Console.WriteLine("[CSE][CMD] Mode : " + mode);
 
-            _cameraStateProvider.UpdatePtzControlMode(
-                mode);
+            _cameraStateProvider.UpdatePtzControlMode(mode);
 
             if (mode == "MANUAL")
             {

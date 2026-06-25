@@ -326,13 +326,46 @@ namespace VertiportNexus.Services.Command
                     true;
             }
 
-            if (command.Zoom.HasValue)
+            // [Zoom] 위치값 직접 제어
+            //
+            // [zoom_position] 값이 들어온 경우에는
+            // ADS1000 장비 위치값 [0 ~ 1000]으로 판단하여 그대로 제어한다.
+            if (command.ZoomPosition.HasValue)
             {
-                _ads1000CameraControlService.MoveZoomPosition(
+                ushort zoomPosition =
                     (ushort)Clamp(
-                        command.Zoom.Value,
+                        command.ZoomPosition.Value,
                         0,
-                        1000));
+                        1000);
+
+                Console.WriteLine("[CAMERA][ZOOM] Position Input : " + command.ZoomPosition.Value);
+                Console.WriteLine("[CAMERA][ZOOM] Position Target : " + zoomPosition);
+
+                _ads1000CameraControlService
+                    .MoveZoomPosition(
+                        zoomPosition);
+
+                isHandled =
+                    true;
+            }
+
+            // [Zoom] 배율 제어
+            //
+            // [zoom] 값이 들어온 경우에는
+            // 실제 배율 [1x ~ 66x] 기준으로 판단하여
+            // ADS1000 장비 위치값 [0 ~ 1000]으로 변환 후 제어한다.
+            else if (command.Zoom.HasValue)
+            {
+                ushort zoomPosition =
+                    ConvertZoomRatioToPosition(
+                        command.Zoom.Value);
+
+                Console.WriteLine("[CAMERA][ZOOM] Ratio Input : " + command.Zoom.Value);
+                Console.WriteLine("[CAMERA][ZOOM] Position Target : " + zoomPosition);
+
+                _ads1000CameraControlService
+                    .MoveZoomPosition(
+                        zoomPosition);
 
                 isHandled =
                     true;
@@ -401,6 +434,48 @@ namespace VertiportNexus.Services.Command
                 Console.WriteLine("[CAMERA][CMD] Relative Move Failed : No target value");
             }
 
+        }
+
+        #endregion
+
+        #region [Zoom Convert Methods]
+
+        /// <summary>
+        /// [Zoom] 배율을 [ADS1000] 위치값으로 변환
+        /// 
+        /// [IF-GUIS-CSE-006]의 [zoom] 값은 실제 배율 기준이고,
+        /// [ADS1000] 장비 제어는 [0 ~ 1000] 위치값 기준으로 수행한다.
+        /// 
+        /// 장비 스펙 기준으로 최대 배율을 [66x] 기준으로 구현한다.
+        /// </summary>
+        /// <param name="zoomRatio">
+        /// Zoom 배율
+        /// </param>
+        /// <returns>
+        /// ADS1000 Zoom 위치값
+        /// </returns>
+        private ushort ConvertZoomRatioToPosition(
+            double zoomRatio)
+        {
+            const double MIN_ZOOM_RATIO =
+                1.0;
+
+            const double MAX_ZOOM_RATIO =
+                66.0;
+
+            double clampedZoomRatio =
+                Clamp(
+                    zoomRatio,
+                    MIN_ZOOM_RATIO,
+                    MAX_ZOOM_RATIO);
+
+            double zoomPosition =
+                (clampedZoomRatio - MIN_ZOOM_RATIO)
+                / (MAX_ZOOM_RATIO - MIN_ZOOM_RATIO)
+                * 1000.0;
+
+            return (ushort)Math.Round(
+                zoomPosition);
         }
 
         #endregion

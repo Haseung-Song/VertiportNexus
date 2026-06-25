@@ -35,7 +35,7 @@
         /// Degree / Second
         /// </summary>
         public const double DEFAULT_POSITION_SPEED =
-            30.0;
+            25.0;
     }
 
 }

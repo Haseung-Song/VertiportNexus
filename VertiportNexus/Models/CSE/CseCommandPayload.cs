@@ -40,10 +40,30 @@ namespace VertiportNexus.Models.Vertiport
         public double? Tilt { get; set; }
 
         /// <summary>
-        /// [Zoom] 값
+        /// [Zoom] 배율값
+        /// 
+        /// [IF-GUIS-CSE-006] 기준으로
+        /// [Zoom] 값은 실제 배율 기준으로 수신한다.
+        /// 
+        /// 예)
+        /// 2.0 = 2배
+        /// 33.0 = 33배
+        /// 66.0 = 66배
         /// </summary>
         [JsonPropertyName("zoom")]
         public double? Zoom { get; set; }
+
+        /// <summary>
+        /// [Zoom] 위치값
+        /// 
+        /// 기존 테스트 및 장비 직접 제어용 값이다.
+        /// [0 ~ 1000] 범위의 ADS1000 Zoom Position 값으로 사용한다.
+        /// 
+        /// [IF-GUIS-CSE-006]에서 [zoom]은 배율값으로 사용하고,
+        /// [zoom_position]은 장비 위치값 직접 제어용으로 사용한다.
+        /// </summary>
+        [JsonPropertyName("zoom_position")]
+        public double? ZoomPosition { get; set; }
 
         #endregion
 

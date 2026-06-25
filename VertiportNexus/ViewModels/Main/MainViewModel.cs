@@ -40,8 +40,19 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         public enum ConnectionState
         {
+            /// <summary>
+            /// 장비 미연결 상태
+            /// </summary>
             Disconnected,
+
+            /// <summary>
+            /// 장비 연결 진행 상태
+            /// </summary>
             Connecting,
+
+            /// <summary>
+            /// 장비 연결 완료 상태
+            /// </summary>
             Connected
         }
 
@@ -149,7 +160,7 @@ namespace VertiportNexus.ViewModels.Main
         private readonly CseCommandResponseService _cseCommandResponseService;
 
         /// <summary>
-        /// 내부 카메라 명령 처리 서비스
+        /// [Camera] 내부 명령 처리 서비스
         /// </summary>
         private readonly CameraCommandService _cameraCommandService;
 
@@ -181,11 +192,6 @@ namespace VertiportNexus.ViewModels.Main
         /// [SCB] 연결 대상 [Port]
         /// </summary>
         private int _scbPort = DEFAULT_SCB_PORT;
-
-        /// <summary>
-        /// 기존 [TCP] UI 바인딩 호환용 [Port]
-        /// </summary>
-        private int _tcpLocalReceivePort = 5005;
 
         #endregion
 
@@ -294,38 +300,6 @@ namespace VertiportNexus.ViewModels.Main
         private bool _isUiContinuousMoveStarted;
 
         /// <summary>
-        /// [Pan] 위치 입력값 초기 반영 여부
-        /// 
-        /// [ADS1000] [Pan] 상태값을 최초 수신했을 때만
-        /// [Pan Absolute] 입력칸의 기본값으로 반영한다.
-        /// </summary>
-        private bool _isPanPositionInputInitialized;
-
-        /// <summary>
-        /// [Tilt] 위치 입력값 초기 반영 여부
-        /// 
-        /// [ADS1000] [Tilt] 상태값을 최초 수신했을 때만
-        /// [Tilt Absolute] 입력칸의 기본값으로 반영한다.
-        /// </summary>
-        private bool _isTiltPositionInputInitialized;
-
-        /// <summary>
-        /// [Zoom] 위치 입력값 초기 반영 여부
-        /// 
-        /// [ADS1000] [Zoom] 상태값을 최초 수신했을 때만
-        /// [Zoom Position] 입력칸의 기본값으로 반영한다.
-        /// </summary>
-        private bool _isZoomPositionInputInitialized;
-
-        /// <summary>
-        /// [Focus] 위치 입력값 초기 반영 여부
-        /// 
-        /// [ADS1000] [Focus] 상태값을 최초 수신했을 때만
-        /// [Focus Position] 입력칸의 기본값으로 반영한다.
-        /// </summary>
-        private bool _isFocusPositionInputInitialized;
-
-        /// <summary>
         /// [Pan] Absolute 이동 입력값
         /// </summary>
         private double? _panAbsoluteValue;
@@ -349,6 +323,11 @@ namespace VertiportNexus.ViewModels.Main
         /// [Zoom] 위치 이동 입력값
         /// </summary>
         private int? _zoomPositionValue;
+
+        /// <summary>
+        /// [Zoom] 배율 이동 입력값
+        /// </summary>
+        private double? _zoomRatioValue;
 
         /// <summary>
         /// [Focus] 위치 이동 입력값
@@ -506,6 +485,11 @@ namespace VertiportNexus.ViewModels.Main
         public ICommand SetZoomPositionCommand { get; }
 
         /// <summary>
+        /// [Zoom] 배율 이동 요청 [Command]
+        /// </summary>
+        public ICommand SetZoomRatioCommand { get; }
+
+        /// <summary>
         /// [Focus] 위치 이동 요청 [Command]
         /// </summary>
         public ICommand SetFocusPositionCommand { get; }
@@ -616,25 +600,21 @@ namespace VertiportNexus.ViewModels.Main
             _cameraStateProvider =
                 new CameraStateProvider();
 
-            /// <summary>
-            /// [Detection] 상태 저장 서비스
-            /// 
-            /// [IF-GUIS-CSE-001] ~ [IF-GUIS-CSE-005] 명령 처리 결과와
-            /// 영상처리유닛에서 전달되는 탐지 객체 정보를 보관한다.
-            /// 
-            /// 향후 [AUTO] 추적 제어 시
-            /// 마지막 탐지 객체 [Bounding Box]를 기준으로
-            /// [Pan] / [Tilt] 보정값 계산에 사용한다.
-            /// </summary>
+            // [Detection] 상태 저장 서비스 생성
+            //
+            // [IF-GUIS-CSE-001] ~ [IF-GUIS-CSE-005] 명령 처리 결과와
+            // 영상처리유닛에서 전달되는 탐지 객체 정보를 보관한다.
+            //
+            // 향후 [AUTO] 추적 제어 시
+            // 마지막 탐지 객체 [Bounding Box]를 기준으로
+            // [Pan] / [Tilt] 보정값 계산에 사용한다.
             _detectionStateProvider =
                 new DetectionStateProvider();
 
-            /// <summary>
-            /// [Tracking] 자동 추적 제어 서비스
-            /// 
-            /// 탐지 객체 [Bounding Box] 중심점과
-            /// 영상 중심점을 비교하여 자동 추적 보정 방향을 계산한다.
-            /// </summary>
+            // [Tracking] 자동 추적 제어 서비스 생성
+            //
+            // 탐지 객체 [Bounding Box] 중심점과
+            // 영상 중심점을 비교하여 자동 추적 보정 방향을 계산한다.
             _trackingControlService =
                 new TrackingControlService(
                     _ads1000CameraControlService);
@@ -806,6 +786,10 @@ namespace VertiportNexus.ViewModels.Main
                 new RelayCommand(
                     SetZoomPosition);
 
+            SetZoomRatioCommand =
+                new RelayCommand(
+                    SetZoomRatio);
+
             SetFocusPositionCommand =
                 new RelayCommand(
                     SetFocusPosition);
@@ -908,24 +892,6 @@ namespace VertiportNexus.ViewModels.Main
                 if (_scbPort != value)
                 {
                     _scbPort = value;
-                    OnPropertyChanged();
-                }
-
-            }
-
-        }
-
-        /// <summary>
-        /// 기존 [TCP] UI 바인딩 호환용 [Port]
-        /// </summary>
-        public int TcpLocalReceivePort
-        {
-            get => _tcpLocalReceivePort;
-            set
-            {
-                if (_tcpLocalReceivePort != value)
-                {
-                    _tcpLocalReceivePort = value;
                     OnPropertyChanged();
                 }
 
@@ -1238,8 +1204,39 @@ namespace VertiportNexus.ViewModels.Main
                 if (_currentZoom != value)
                 {
                     _currentZoom = value;
+
                     OnPropertyChanged();
+
+                    // [Zoom] 배율 표시값 갱신
+                    //
+                    // [Zoom] 위치값이 변경되면
+                    // 현재 위치값 기준 배율 표시 문자열도 함께 갱신한다.
+                    OnPropertyChanged(nameof(CurrentZoomDisplayText));
                 }
+
+            }
+
+        }
+
+        /// <summary>
+        /// 현재 [Zoom] 배율 표시 문자열
+        /// 
+        /// [ADS1000] Zoom 위치값 [0 ~ 1000]을
+        /// 임시 기준 [1x ~ 66x] 배율로 변환하여 표시한다.
+        /// </summary>
+        public string CurrentZoomDisplayText
+        {
+            get
+            {
+                double zoomRatio =
+                    ConvertZoomPositionToRatio(
+                        CurrentZoom);
+
+                return
+                    CurrentZoom.ToString("F0")
+                    + " (x"
+                    + zoomRatio.ToString("F1")
+                    + ")";
 
             }
 
@@ -1358,6 +1355,30 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
+        /// [Zoom] 배율 이동 입력값
+        /// 
+        /// 실제 카메라 배율 기준으로 입력한다.
+        /// 예)
+        /// 2.0  = 2배 Zoom
+        /// 33.0 = 33배 Zoom
+        /// 66.0 = 66배 Zoom
+        /// </summary>
+        public double? ZoomRatioValue
+        {
+            get => _zoomRatioValue;
+            set
+            {
+                if (_zoomRatioValue != value)
+                {
+                    _zoomRatioValue = value;
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        /// <summary>
         /// [Focus] 위치 이동 입력값
         /// </summary>
         public int? FocusPositionValue
@@ -1432,6 +1453,29 @@ namespace VertiportNexus.ViewModels.Main
 
             ScbPort =
                 DEFAULT_SCB_PORT;
+
+            // [위치 제어 입력값] 기본값 설정
+
+            PanAbsoluteValue =
+                0;
+
+            TiltAbsoluteValue =
+                0;
+
+            PanRelativeValue =
+                0;
+
+            TiltRelativeValue =
+                0;
+
+            ZoomPositionValue =
+                0;
+
+            ZoomRatioValue =
+                1;
+
+            FocusPositionValue =
+                0;
         }
 
         #endregion
@@ -1469,6 +1513,7 @@ namespace VertiportNexus.ViewModels.Main
                         MqStatusText =
                             "RabbitMQ Receive Started";
                     }));
+
                 }
                 catch (Exception ex)
                 {
@@ -2218,7 +2263,10 @@ namespace VertiportNexus.ViewModels.Main
         #region [Camera Continuous Control Methods]
 
         /// <summary>
-        /// [Pan] 왼쪽 연속 이동
+        /// [Pan] 왼쪽 연속 이동 시작
+        /// 
+        /// 화면 버튼 [MouseDown] 시
+        /// [Pan] 왼쪽 연속 이동 명령을 송신한다.
         /// </summary>
         public void StartPanLeftMove()
         {
@@ -2229,7 +2277,10 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
-        /// [Pan] 오른쪽 연속 이동
+        /// [Pan] 오른쪽 연속 이동 시작
+        /// 
+        /// 화면 버튼 [MouseDown] 시
+        /// [Pan] 오른쪽 연속 이동 명령을 송신한다.
         /// </summary>
         public void StartPanRightMove()
         {
@@ -2240,7 +2291,10 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
-        /// [Tilt] 위쪽 연속 이동
+        /// [Tilt] 위쪽 연속 이동 시작
+        /// 
+        /// 화면 버튼 [MouseDown] 시
+        /// [Tilt] 위쪽 연속 이동 명령을 송신한다.
         /// </summary>
         public void StartTiltUpMove()
         {
@@ -2251,7 +2305,10 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
-        /// [Tilt] 아래쪽 연속 이동
+        /// [Tilt] 아래쪽 연속 이동 시작
+        /// 
+        /// 화면 버튼 [MouseDown] 시
+        /// [Tilt] 아래쪽 연속 이동 명령을 송신한다.
         /// </summary>
         public void StartTiltDownMove()
         {
@@ -2262,7 +2319,10 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
-        /// [Zoom] 확대 연속 이동
+        /// [Zoom] 확대 연속 이동 시작
+        /// 
+        /// 화면 버튼 [MouseDown] 시
+        /// [Zoom] 확대 연속 이동 명령을 송신한다.
         /// </summary>
         public void StartZoomInMove()
         {
@@ -2273,7 +2333,10 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
-        /// [Zoom] 축소 연속 이동
+        /// [Zoom] 축소 연속 이동 시작
+        /// 
+        /// 화면 버튼 [MouseDown] 시
+        /// [Zoom] 축소 연속 이동 명령을 송신한다.
         /// </summary>
         public void StartZoomOutMove()
         {
@@ -2284,7 +2347,10 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
-        /// [Focus] Near 연속 이동
+        /// [Focus] Near 연속 이동 시작
+        /// 
+        /// 화면 버튼 [MouseDown] 시
+        /// [Focus] Near 연속 이동 명령을 송신한다.
         /// </summary>
         public void StartFocusNearMove()
         {
@@ -2295,7 +2361,10 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
-        /// [Focus] Far 연속 이동
+        /// [Focus] Far 연속 이동 시작
+        /// 
+        /// 화면 버튼 [MouseDown] 시
+        /// [Focus] Far 연속 이동 명령을 송신한다.
         /// </summary>
         public void StartFocusFarMove()
         {
@@ -2306,11 +2375,10 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
-        /// [Pan] / [Tilt] / [Zoom] / [Focus] = [UI]
-        ///
-        /// 즉, [UI] 연속 이동 정지
+        /// [UI] 연속 이동 정지
         /// 
-        /// 화면 버튼을 통해 시작된 연속 이동인 경우에만
+        /// 화면 버튼을 통해 시작된
+        /// [Pan] / [Tilt] / [Zoom] / [Focus] 연속 이동인 경우에만
         /// [MouseUp] / [MouseLeave] 정지 명령을 송신한다.
         /// 
         /// [RabbitMQ] / [CSE] 연속 이동 명령은
@@ -2339,6 +2407,9 @@ namespace VertiportNexus.ViewModels.Main
 
         /// <summary>
         /// [Pan] 절대 위치 이동
+        /// 
+        /// 입력된 [Pan Absolute] 값을 기준으로
+        /// [ADS1000] 장비에 절대 위치 이동 명령을 송신한다.
         /// </summary>
         private void MovePanAbsolute()
         {
@@ -2355,6 +2426,9 @@ namespace VertiportNexus.ViewModels.Main
 
         /// <summary>
         /// [Tilt] 절대 위치 이동
+        /// 
+        /// 입력된 [Tilt Absolute] 값을 기준으로
+        /// [ADS1000] 장비에 절대 위치 이동 명령을 송신한다.
         /// </summary>
         private void MoveTiltAbsolute()
         {
@@ -2375,6 +2449,9 @@ namespace VertiportNexus.ViewModels.Main
 
         /// <summary>
         /// [Pan] 상대 위치 이동
+        /// 
+        /// 입력된 [Pan Relative] 값을 기준으로
+        /// [ADS1000] 장비에 상대 위치 이동 명령을 송신한다.
         /// </summary>
         private void MovePanRelative()
         {
@@ -2391,6 +2468,9 @@ namespace VertiportNexus.ViewModels.Main
 
         /// <summary>
         /// [Tilt] 상대 위치 이동
+        /// 
+        /// 입력된 [Tilt Relative] 값을 기준으로
+        /// [ADS1000] 장비에 상대 위치 이동 명령을 송신한다.
         /// </summary>
         private void MoveTiltRelative()
         {
@@ -2410,98 +2490,12 @@ namespace VertiportNexus.ViewModels.Main
         #region [Position Input Initialize Methods]
 
         /// <summary>
-        /// 위치 제어 입력값 초기 반영
-        /// 
-        /// [ADS1000] 상태값을 최초 수신했을 때,
-        /// 수신된 항목별로 위치 제어 입력칸의 기본값을 반영한다.
-        /// 
-        /// [MCB] / [SCB] 상태 [Packet]이 분리되어 수신될 수 있으므로,
-        /// 전체 1회 초기화가 아니라 [Pan] / [Tilt] / [Zoom] / [Focus]
-        /// 항목별 1회 초기화 방식으로 처리한다.
-        /// 
-        /// 이후 동일 항목의 상태값이 계속 갱신되더라도
-        /// 사용자가 입력 중인 값은 덮어쓰지 않는다.
-        /// </summary>
-        /// <param name="updatedPan">
-        /// 갱신된 [Pan] 값
-        /// </param>
-        /// <param name="updatedTilt">
-        /// 갱신된 [Tilt] 값
-        /// </param>
-        /// <param name="updatedZoom">
-        /// 갱신된 [Zoom] 값
-        /// </param>
-        /// <param name="updatedFocus">
-        /// 갱신된 [Focus] 값
-        /// </param>
-        private void ApplyInitialPositionInputValue(
-            double? updatedPan,
-            double? updatedTilt,
-            double? updatedZoom,
-            double? updatedFocus)
-        {
-            if (updatedPan.HasValue &&
-                !_isPanPositionInputInitialized)
-            {
-                PanAbsoluteValue =
-                    Math.Round(
-                        updatedPan.Value,
-                        2);
-
-                _isPanPositionInputInitialized =
-                    true;
-
-                Console.WriteLine("[UI][POSITION] Initial Pan Value : " + PanAbsoluteValue);
-            }
-
-            if (updatedTilt.HasValue &&
-                !_isTiltPositionInputInitialized)
-            {
-                TiltAbsoluteValue =
-                    Math.Round(
-                        updatedTilt.Value,
-                        2);
-
-                _isTiltPositionInputInitialized =
-                    true;
-
-                Console.WriteLine("[UI][POSITION] Initial Tilt Value : " + TiltAbsoluteValue);
-            }
-
-            if (updatedZoom.HasValue &&
-                !_isZoomPositionInputInitialized)
-            {
-                ZoomPositionValue =
-                    (int)Math.Round(
-                        updatedZoom.Value);
-
-                _isZoomPositionInputInitialized =
-                    true;
-
-                Console.WriteLine("[UI][POSITION] Initial Zoom Value : " + ZoomPositionValue);
-            }
-
-            if (updatedFocus.HasValue &&
-                !_isFocusPositionInputInitialized)
-            {
-                FocusPositionValue =
-                    (int)Math.Round(
-                        updatedFocus.Value);
-
-                _isFocusPositionInputInitialized =
-                    true;
-
-                Console.WriteLine("[UI][POSITION] Initial Focus Value : " + FocusPositionValue);
-            }
-
-        }
-
-        /// <summary>
-        /// 위치 제어 입력값 초기화
+        /// [위치 제어] 입력값 초기화
         /// 
         /// [Pan] / [Tilt] / [Zoom] / [Focus] 위치 제어 입력칸을
-        /// 기본값 [0]으로 초기화한다.
+        /// 기본값으로 초기화한다.
         /// 
+        /// [Zoom Ratio]는 최소 배율 [1x] 기준으로 초기화하고,
         /// 실제 장비 위치값은 변경하지 않는다.
         /// </summary>
         private void ResetPositionInput()
@@ -2520,6 +2514,9 @@ namespace VertiportNexus.ViewModels.Main
 
             ZoomPositionValue =
                 0;
+
+            ZoomRatioValue =
+                1;
 
             FocusPositionValue =
                 0;
@@ -2565,6 +2562,78 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
+        /// [Zoom] 배율 기준 위치 이동
+        /// 
+        /// 입력된 [Zoom Ratio] 값을
+        /// 실제 배율 기준으로 보정한 후,
+        /// [ADS1000] 장비 위치값 [0 ~ 1000]으로 변환하여 전송한다.
+        /// 
+        /// 장비 스펙 기준 최대 배율을 [66x] 기준으로 구현한다.
+        /// </summary>
+        private void SetZoomRatio()
+        {
+            if (!ZoomRatioValue.HasValue)
+            {
+                Console.WriteLine(
+                    "[UI][ZOOM] Ratio Failed : Value is empty");
+
+                return;
+            }
+
+            ushort zoomPosition =
+                ConvertZoomRatioToPosition(
+                    ZoomRatioValue.Value);
+
+            Console.WriteLine("[UI][ZOOM] Set Ratio Target : " + ZoomRatioValue.Value);
+            Console.WriteLine("[UI][ZOOM] Converted Position : " + zoomPosition);
+            Console.WriteLine("[UI][ZOOM] Current Zoom Before : " + CurrentZoom);
+
+            _ads1000CameraControlService
+                .MoveZoomPosition(
+                    zoomPosition);
+        }
+
+        /// <summary>
+        /// [Zoom] 배율을 [ADS1000] 위치값으로 변환
+        /// 
+        /// [UI] 또는 [ICD]에서 사용하는 [Zoom] 배율값을
+        /// [ADS1000] 제어용 [0 ~ 1000] 위치값으로 변환한다.
+        /// 
+        /// 변환 기준:
+        /// [1x]  = 0
+        /// [66x] = 1000
+        /// </summary>
+        /// <param name="zoomRatio">
+        /// Zoom 배율
+        /// </param>
+        /// <returns>
+        /// ADS1000 Zoom 위치값
+        /// </returns>
+        private ushort ConvertZoomRatioToPosition(
+            double zoomRatio)
+        {
+            const double MIN_ZOOM_RATIO =
+                1.0;
+
+            const double MAX_ZOOM_RATIO =
+                66.0;
+
+            double clampedZoomRatio =
+                Clamp(
+                    zoomRatio,
+                    MIN_ZOOM_RATIO,
+                    MAX_ZOOM_RATIO);
+
+            double zoomPosition =
+                (clampedZoomRatio - MIN_ZOOM_RATIO)
+                / (MAX_ZOOM_RATIO - MIN_ZOOM_RATIO)
+                * 1000.0;
+
+            return (ushort)Math.Round(
+                zoomPosition);
+        }
+
+        /// <summary>
         /// [Focus] 지정 위치 이동
         /// 
         /// 입력된 [Focus Position] 값을
@@ -2600,7 +2669,11 @@ namespace VertiportNexus.ViewModels.Main
         #region [Status Apply Methods]
 
         /// <summary>
-        /// [ADS1000] 파싱 상태값을 화면 표시용 속성에 반영
+        /// [ADS1000] 파싱 상태값 화면 반영
+        /// 
+        /// 수신 [Packet]에서 추출된
+        /// [Pan] / [Tilt] / [Zoom] / [Focus] 값을
+        /// 화면 표시용 속성과 [CameraStateProvider]에 반영한다.
         /// </summary>
         /// <param name="parsedPacket">
         /// [ADS1000] 파싱 [Packet]
@@ -2668,20 +2741,6 @@ namespace VertiportNexus.ViewModels.Main
                     CurrentFocus;
             }
 
-            // [위치 제어 입력값] 초기 반영
-            //
-            // [MCB] / [SCB] 상태 [Packet]이 분리되어 수신될 수 있으므로
-            // 현재 수신 [Packet]에서 갱신된 항목만 입력칸에 초기 반영한다.
-            //
-            // 항목별 최초 1회만 반영하여,
-            // 이후 상태값이 계속 갱신되더라도
-            // 사용자가 입력 중인 값은 덮어쓰지 않는다.
-            ApplyInitialPositionInputValue(
-                updatedPan,
-                updatedTilt,
-                updatedZoom,
-                updatedFocus);
-
             // [Camera] 상태 저장소 갱신
             //
             // [CSE] 상태 조회 응답에서 사용할 수 있도록
@@ -2698,7 +2757,46 @@ namespace VertiportNexus.ViewModels.Main
         #region [Utility Methods]
 
         /// <summary>
-        /// 입력값을 지정 범위 안으로 제한
+        /// [ADS1000] Zoom 위치값을 배율로 변환
+        /// 
+        /// [Zoom] 위치값 [0 ~ 1000]을
+        /// 장비 스펙 기준으로 [1x ~ 66x] 배율로 변환한다.
+        /// 
+        /// 실제 장비 최대 배율 확인 후
+        /// [MAX_ZOOM_RATIO] 값은 조정 가능하다.
+        /// </summary>
+        /// <param name="zoomPosition">
+        /// ADS1000 Zoom 위치값
+        /// </param>
+        /// <returns>
+        /// Zoom 배율
+        /// </returns>
+        private double ConvertZoomPositionToRatio(
+            double zoomPosition)
+        {
+            const double MIN_ZOOM_RATIO =
+                1.0;
+
+            const double MAX_ZOOM_RATIO =
+                66.0;
+
+            double clampedZoomPosition =
+                Clamp(
+                    zoomPosition,
+                    0,
+                    1000);
+
+            return
+                MIN_ZOOM_RATIO
+                + (clampedZoomPosition / 1000.0)
+                * (MAX_ZOOM_RATIO - MIN_ZOOM_RATIO);
+        }
+
+        /// <summary>
+        /// 입력값 범위 제한
+        /// 
+        /// 입력값이 지정된 최소 / 최대 범위를 벗어난 경우
+        /// 최소 / 최대값으로 보정한다.
         /// </summary>
         /// <param name="value">
         /// 원본 값
@@ -3292,6 +3390,8 @@ namespace VertiportNexus.ViewModels.Main
 
         /// <summary>
         /// [Property] 변경 이벤트
+        /// 
+        /// [XAML] 바인딩 속성 갱신 시 사용한다.
         /// </summary>
         public event PropertyChangedEventHandler PropertyChanged;
 
