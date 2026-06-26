@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Threading;
-using System.Threading.Tasks;
 using VertiportNexus.Models.Camera;
 using VertiportNexus.Services.ADS1000;
 
@@ -10,10 +8,11 @@ namespace VertiportNexus.Services.Camera
     /// [Tracking] 자동 추적 제어 서비스
     /// 
     /// 탐지 객체 [Bounding Box] 중심점과
-    /// 영상 중심점을 비교하여 [Pan] / [Tilt] 추적 방향과 속도를 계산한다.
+    /// EO 영상 중심점을 비교한 뒤,
+    /// 현재 [Zoom] 배율 기준 화각을 이용하여
+    /// [Pixel] 오차를 [Pan] / [Tilt] 보정 각도로 변환한다.
     /// 
-    /// 선임 코드의 이미지 추적 방식처럼
-    /// [Relative 이동]이 아니라 [Continuous 이동 + Speed 제어] 방식으로 동작한다.
+    /// 변환된 각도는 [Relative 이동] 명령으로 송신한다.
     /// </summary>
     internal class TrackingControlService
     {
@@ -23,62 +22,101 @@ namespace VertiportNexus.Services.Camera
         /// EO 영상 가로 해상도
         /// </summary>
         private const double FRAME_WIDTH =
-            1920;
+            1920.0;
 
         /// <summary>
         /// EO 영상 세로 해상도
         /// </summary>
         private const double FRAME_HEIGHT =
-            1080;
+            1080.0;
 
         /// <summary>
         /// X축 중심 오차 허용 범위 [Pixel]
         /// </summary>
         private const double DEAD_ZONE_X_PIXEL =
-            320;
+            320.0;
 
         /// <summary>
         /// Y축 중심 오차 허용 범위 [Pixel]
         /// </summary>
         private const double DEAD_ZONE_Y_PIXEL =
-            180;
+            180.0;
 
         /// <summary>
         /// 자동 추적 명령 처리 제한 시간 [ms]
         /// </summary>
         private const double TRACKING_COMMAND_INTERVAL_MS =
-            500;
+            500.0;
 
         /// <summary>
-        /// 자동 추적 명령 후 자동 정지 대기 시간 [ms]
+        /// [Zoom] 최소 배율
+        /// </summary>
+        private const double MIN_ZOOM_RATIO =
+            1.0;
+
+        /// <summary>
+        /// [Zoom] 최대 배율
         /// 
-        /// [RabbitMQ] 수동 테스트처럼
-        /// [Detect Continue]가 1회만 들어오는 경우에도
-        /// 연속 이동 명령이 계속 유지되지 않도록 자동 정지를 수행한다.
+        /// 렌즈 사양 기준 최대 [66배]를 사용한다.
         /// </summary>
-        private const int TRACKING_AUTO_STOP_DELAY_MS =
-            300;
+        private const double MAX_ZOOM_RATIO =
+            66.0;
 
         /// <summary>
-        /// 자동 추적 최소 속도
+        /// [Zoom] 최소 Position
         /// </summary>
-        private const double MIN_TRACKING_SPEED =
-            10;
+        private const double MIN_ZOOM_POSITION =
+            0.0;
 
         /// <summary>
-        /// 자동 추적 최대 속도
+        /// [Zoom] 최대 Position
         /// </summary>
-        private const double MAX_TRACKING_SPEED =
-            40;
+        private const double MAX_ZOOM_POSITION =
+            1000.0;
 
         /// <summary>
-        /// 속도 변경 무시 기준
+        /// [Wide] 기준 수평 화각 [Degree]
         /// 
-        /// 동일 방향에서 속도 차이가 해당 값보다 작으면
-        /// 중복 명령으로 판단하여 재송신하지 않는다.
+        /// 렌즈 사양 기준:
+        /// Horizontal = 26.1°
         /// </summary>
-        private const double SPEED_CHANGE_THRESHOLD =
-            3;
+        private const double WIDE_HORIZONTAL_FOV_DEGREE =
+            26.1;
+
+        /// <summary>
+        /// [Wide] 기준 수직 화각 [Degree]
+        /// 
+        /// 렌즈 사양 기준:
+        /// Vertical = 15.0°
+        /// </summary>
+        private const double WIDE_VERTICAL_FOV_DEGREE =
+            15.0;
+
+        /// <summary>
+        /// [Tele] 기준 수평 화각 [Degree]
+        /// 
+        /// 렌즈 사양 기준:
+        /// Horizontal = 0.44°
+        /// </summary>
+        private const double TELE_HORIZONTAL_FOV_DEGREE =
+            0.44;
+
+        /// <summary>
+        /// [Tele] 기준 수직 화각 [Degree]
+        /// 
+        /// 렌즈 사양 기준:
+        /// Vertical = 0.25°
+        /// </summary>
+        private const double TELE_VERTICAL_FOV_DEGREE =
+            0.25;
+
+        /// <summary>
+        /// 자동 추적 Relative 이동 최소 각도 [Degree]
+        /// 
+        /// 너무 작은 각도 명령이 반복 송신되지 않도록 제한한다.
+        /// </summary>
+        private const double MIN_TRACKING_ANGLE_DEGREE =
+            0.02;
 
         #endregion
 
@@ -87,7 +125,7 @@ namespace VertiportNexus.Services.Camera
         /// <summary>
         /// [ADS1000] 카메라 제어 서비스
         /// 
-        /// 자동 추적 계산 결과를 실제 [Pan] / [Tilt] 연속 이동 명령으로 전송한다.
+        /// 자동 추적 계산 결과를 실제 [Pan] / [Tilt] Relative 이동 명령으로 송신한다.
         /// </summary>
         private readonly Ads1000CameraControlService _ads1000CameraControlService;
 
@@ -96,32 +134,6 @@ namespace VertiportNexus.Services.Camera
         /// </summary>
         private DateTime _lastTrackingCommandTime =
             DateTime.MinValue;
-
-        /// <summary>
-        /// 마지막 [Pan] 이동 방향
-        /// </summary>
-        private string _lastPanDirection =
-            "STOP";
-
-        /// <summary>
-        /// 마지막 [Tilt] 이동 방향
-        /// </summary>
-        private string _lastTiltDirection =
-            "STOP";
-
-        /// <summary>
-        /// 마지막 추적 속도
-        /// </summary>
-        private double _lastTrackingSpeed =
-            -1;
-
-        /// <summary>
-        /// 자동 추적 정지 예약 번호
-        /// 
-        /// 새 추적 명령이 발생할 때마다 증가시켜,
-        /// 이전 정지 예약이 늦게 실행되더라도 무시할 수 있게 한다.
-        /// </summary>
-        private int _autoStopSequence;
 
         #endregion
 
@@ -149,32 +161,44 @@ namespace VertiportNexus.Services.Camera
         /// <summary>
         /// [AUTO] 추적 처리
         /// 
-        /// 탐지 객체 [Bounding Box] 중심점과 영상 중심점을 비교하여
-        /// [Pan] / [Tilt] 이동 방향과 속도를 계산하고,
+        /// 탐지 객체 [Bounding Box] 중심점과 영상 중심점을 비교한 뒤,
+        /// 현재 [Zoom] 배율 기준 화각을 이용하여
+        /// [Pixel] 오차를 [Pan] / [Tilt] 보정 각도로 변환한다.
         /// 
-        /// 실제 [ADS1000] 연속 이동 명령을 수행한다.
+        /// 변환된 각도는 [Relative 이동] 명령으로 송신한다.
         /// </summary>
         /// <param name="boundingBox">
         /// 탐지 객체 영역 정보
         /// </param>
+        /// <param name="currentZoomPosition">
+        /// 현재 [Zoom] Position 값
+        /// </param>
         public void ProcessTracking(
-            DetectionBoundingBox boundingBox)
+            DetectionBoundingBox boundingBox,
+            double currentZoomPosition)
         {
             if (!CanProcessTracking())
             {
                 return;
             }
 
+            Console.WriteLine(
+                "[TRACKING][AUTO] Tracking Check");
+
             if (boundingBox == null)
             {
-                Console.WriteLine("[TRACKING][AUTO] Failed : Bounding Box is null");
+                Console.WriteLine(
+                    "[TRACKING][AUTO] Failed : Bounding Box is null");
+
                 return;
             }
 
             if (!boundingBox.CenterX.HasValue ||
                 !boundingBox.CenterY.HasValue)
             {
-                Console.WriteLine("[TRACKING][AUTO] Failed : Bounding Box Center is invalid");
+                Console.WriteLine(
+                    "[TRACKING][AUTO] Failed : Bounding Box Center is invalid");
+
                 return;
             }
 
@@ -190,59 +214,70 @@ namespace VertiportNexus.Services.Camera
             double errorY =
                 boundingBox.CenterY.Value - frameCenterY;
 
-            double trackingSpeed =
-                CalculateTrackingSpeed(
+            if (IsInDeadZone(
+                errorX,
+                errorY))
+            {
+                Console.WriteLine(
+                    "[TRACKING][AUTO] Stop : Target is in Dead Zone");
+
+                StopTracking();
+
+                return;
+            }
+
+            double currentZoomRatio =
+                CalculateZoomRatioByPosition(
+                    currentZoomPosition);
+
+            double horizontalFov =
+                CalculateHorizontalFov(
+                    currentZoomRatio);
+
+            double verticalFov =
+                CalculateVerticalFov(
+                    currentZoomRatio);
+
+            double panAngleOffset =
+                CalculatePanAngleOffset(
                     errorX,
-                    errorY);
+                    horizontalFov);
 
-            string panDirection =
-                GetPanDirection(
-                    errorX);
+            double tiltAngleOffset =
+                CalculateTiltAngleOffset(
+                    errorY,
+                    verticalFov);
 
-            string tiltDirection =
-                GetTiltDirection(
-                    errorY);
-
-            PrintTrackingLog(
+            PrintAngleTrackingLog(
                 boundingBox,
                 frameCenterX,
                 frameCenterY,
                 errorX,
                 errorY,
-                panDirection,
-                tiltDirection,
-                trackingSpeed);
+                currentZoomPosition,
+                currentZoomRatio,
+                horizontalFov,
+                verticalFov,
+                panAngleOffset,
+                tiltAngleOffset);
 
-            ExecuteTrackingCommand(
-                panDirection,
-                tiltDirection,
-                trackingSpeed);
+            ExecuteTrackingAngleCommand(
+                panAngleOffset,
+                tiltAngleOffset);
         }
 
         /// <summary>
         /// [AUTO] 추적 정지
         /// 
-        /// 추적 대상 유실 또는 [MANUAL] 전환 시
-        /// 진행 중인 [Pan] / [Tilt] 연속 이동을 정지한다.
+        /// 추적 대상이 중심 허용 범위에 들어오거나,
+        /// 추적 종료 / [MANUAL] 전환 시 진행 중인 [Pan] / [Tilt] 이동을 정지한다.
         /// </summary>
         public void StopTracking()
         {
-            Interlocked.Increment(
-                ref _autoStopSequence);
-
             Console.WriteLine(
                 "[TRACKING][AUTO] Tracking Stop");
 
             StopPtz();
-
-            _lastPanDirection =
-                "STOP";
-
-            _lastTiltDirection =
-                "STOP";
-
-            _lastTrackingSpeed =
-                0;
         }
 
         #endregion
@@ -251,6 +286,9 @@ namespace VertiportNexus.Services.Camera
 
         /// <summary>
         /// 자동 추적 처리 가능 여부 확인
+        /// 
+        /// [Detect Continue]가 짧은 주기로 반복 수신될 수 있으므로,
+        /// 지정 시간 이내의 중복 추적 명령은 무시한다.
         /// </summary>
         /// <returns>
         /// 자동 추적 처리 가능 여부
@@ -267,6 +305,9 @@ namespace VertiportNexus.Services.Camera
             if (elapsedMilliseconds <
                 TRACKING_COMMAND_INTERVAL_MS)
             {
+                Console.WriteLine(
+                    "[TRACKING][AUTO] Skip : Tracking Interval");
+
                 return false;
             }
 
@@ -277,40 +318,24 @@ namespace VertiportNexus.Services.Camera
         }
 
         /// <summary>
-        /// 중복 추적 명령 여부 확인
-        /// 
-        /// 이전 명령과 방향이 같고,
-        /// 속도 차이가 작으면 중복 명령으로 판단한다.
+        /// 중심 오차가 허용 범위 안에 있는지 확인
         /// </summary>
-        /// <param name="panDirection">
-        /// [Pan] 이동 방향
+        /// <param name="errorX">
+        /// X축 중심 오차 [Pixel]
         /// </param>
-        /// <param name="tiltDirection">
-        /// [Tilt] 이동 방향
-        /// </param>
-        /// <param name="trackingSpeed">
-        /// 추적 속도
+        /// <param name="errorY">
+        /// Y축 중심 오차 [Pixel]
         /// </param>
         /// <returns>
-        /// 중복 명령 여부
+        /// 중심 허용 범위 포함 여부
         /// </returns>
-        private bool IsDuplicateTrackingCommand(
-            string panDirection,
-            string tiltDirection,
-            double trackingSpeed)
+        private bool IsInDeadZone(
+            double errorX,
+            double errorY)
         {
-            bool isSameDirection =
-                panDirection == _lastPanDirection &&
-                tiltDirection == _lastTiltDirection;
-
-            bool isSameSpeed =
-                Math.Abs(
-                    trackingSpeed - _lastTrackingSpeed)
-                < SPEED_CHANGE_THRESHOLD;
-
             return
-                isSameDirection &&
-                isSameSpeed;
+                Math.Abs(errorX) <= DEAD_ZONE_X_PIXEL &&
+                Math.Abs(errorY) <= DEAD_ZONE_Y_PIXEL;
         }
 
         #endregion
@@ -318,110 +343,168 @@ namespace VertiportNexus.Services.Camera
         #region [Tracking Calculation Methods]
 
         /// <summary>
-        /// [Pan] 이동 방향 계산
-        /// </summary>
-        /// <param name="errorX">
-        /// X축 중심 오차 [Pixel]
-        /// </param>
-        /// <returns>
-        /// [LEFT] / [RIGHT] / [STOP]
-        /// </returns>
-        private string GetPanDirection(
-            double errorX)
-        {
-            if (Math.Abs(errorX) <=
-                DEAD_ZONE_X_PIXEL)
-            {
-                return "STOP";
-            }
-
-            if (errorX > 0)
-            {
-                return "RIGHT";
-            }
-            return "LEFT";
-        }
-
-        /// <summary>
-        /// [Tilt] 이동 방향 계산
-        /// </summary>
-        /// <param name="errorY">
-        /// Y축 중심 오차 [Pixel]
-        /// </param>
-        /// <returns>
-        /// [UP] / [DOWN] / [STOP]
-        /// </returns>
-        private string GetTiltDirection(
-            double errorY)
-        {
-            if (Math.Abs(errorY) <=
-                DEAD_ZONE_Y_PIXEL)
-            {
-                return "STOP";
-            }
-
-            if (errorY > 0)
-            {
-                return "DOWN";
-            }
-            return "UP";
-        }
-
-        /// <summary>
-        /// 자동 추적 속도 계산
+        /// [Zoom] Position 기준 현재 배율 계산
         /// 
-        /// X축 / Y축 중심 오차 중 큰 값을 기준으로
-        /// [MIN_TRACKING_SPEED] ~ [MAX_TRACKING_SPEED] 범위의 속도를 계산한다.
+        /// [0] → [1배]
+        /// [1000] → [66배]
+        /// 기준으로 선형 변환한다.
         /// </summary>
-        /// <param name="errorX">
-        /// X축 중심 오차 [Pixel]
-        /// </param>
-        /// <param name="errorY">
-        /// Y축 중심 오차 [Pixel]
+        /// <param name="zoomPosition">
+        /// 현재 [Zoom] Position 값
         /// </param>
         /// <returns>
-        /// 자동 추적 속도
+        /// 현재 [Zoom] 배율
         /// </returns>
-        private double CalculateTrackingSpeed(
-            double errorX,
-            double errorY)
+        private double CalculateZoomRatioByPosition(
+            double zoomPosition)
         {
-            double maxError =
-                Math.Max(
-                    Math.Abs(errorX),
-                    Math.Abs(errorY));
-
-            double maxBase =
-                Math.Max(
-                    FRAME_WIDTH,
-                    FRAME_HEIGHT)
-                / 2.0;
-
-            if (maxBase <= 0)
-            {
-                return MIN_TRACKING_SPEED;
-            }
+            double clampedZoomPosition =
+                Clamp(
+                    zoomPosition,
+                    MIN_ZOOM_POSITION,
+                    MAX_ZOOM_POSITION);
 
             double ratio =
-                maxError / maxBase;
+                clampedZoomPosition
+                / MAX_ZOOM_POSITION;
 
-            double speed =
-                MIN_TRACKING_SPEED +
-                ((MAX_TRACKING_SPEED - MIN_TRACKING_SPEED) * ratio);
+            return MIN_ZOOM_RATIO +
+                ((MAX_ZOOM_RATIO - MIN_ZOOM_RATIO) * ratio);
+        }
 
-            if (speed < MIN_TRACKING_SPEED)
+        /// <summary>
+        /// 현재 [Zoom] 배율 기준 수평 화각 계산
+        /// 
+        /// 렌즈는 배율이 증가할수록 화각이 좁아지므로,
+        /// [Wide] 화각을 현재 배율로 나누는 역비례 근사식을 사용한다.
+        /// 
+        /// 최저 화각은 [Tele] 화각보다 작아지지 않도록 제한한다.
+        /// </summary>
+        /// <param name="zoomRatio">
+        /// 현재 [Zoom] 배율
+        /// </param>
+        /// <returns>
+        /// 현재 수평 화각 [Degree]
+        /// </returns>
+        private double CalculateHorizontalFov(
+            double zoomRatio)
+        {
+            double clampedZoomRatio =
+                Clamp(
+                    zoomRatio,
+                    MIN_ZOOM_RATIO,
+                    MAX_ZOOM_RATIO);
+
+            double horizontalFov =
+                WIDE_HORIZONTAL_FOV_DEGREE
+                / clampedZoomRatio;
+
+            if (horizontalFov <
+                TELE_HORIZONTAL_FOV_DEGREE)
             {
-                return MIN_TRACKING_SPEED;
+                return TELE_HORIZONTAL_FOV_DEGREE;
+            }
+            return horizontalFov;
+        }
+
+        /// <summary>
+        /// 현재 [Zoom] 배율 기준 수직 화각 계산
+        /// 
+        /// 렌즈는 배율이 증가할수록 화각이 좁아지므로,
+        /// [Wide] 화각을 현재 배율로 나누는 역비례 근사식을 사용한다.
+        /// 
+        /// 최저 화각은 [Tele] 화각보다 작아지지 않도록 제한한다.
+        /// </summary>
+        /// <param name="zoomRatio">
+        /// 현재 [Zoom] 배율
+        /// </param>
+        /// <returns>
+        /// 현재 수직 화각 [Degree]
+        /// </returns>
+        private double CalculateVerticalFov(
+            double zoomRatio)
+        {
+            double clampedZoomRatio =
+                Clamp(
+                    zoomRatio,
+                    MIN_ZOOM_RATIO,
+                    MAX_ZOOM_RATIO);
+
+            double verticalFov =
+                WIDE_VERTICAL_FOV_DEGREE
+                / clampedZoomRatio;
+
+            if (verticalFov <
+                TELE_VERTICAL_FOV_DEGREE)
+            {
+                return TELE_VERTICAL_FOV_DEGREE;
+            }
+            return verticalFov;
+        }
+
+        /// <summary>
+        /// X축 [Pixel] 오차를 [Pan] 보정 각도로 변환
+        /// </summary>
+        /// <param name="errorX">
+        /// X축 중심 오차 [Pixel]
+        /// </param>
+        /// <param name="horizontalFov">
+        /// 현재 수평 화각 [Degree]
+        /// </param>
+        /// <returns>
+        /// [Pan] 보정 각도 [Degree]
+        /// </returns>
+        private double CalculatePanAngleOffset(
+            double errorX,
+            double horizontalFov)
+        {
+            return errorX
+                / FRAME_WIDTH
+                * horizontalFov;
+        }
+
+        /// <summary>
+        /// Y축 [Pixel] 오차를 [Tilt] 보정 각도로 변환
+        /// 
+        /// 화면 좌표계는 아래 방향이 [+]이고,
+        /// 장비 [Tilt]는 위 방향을 [+]로 사용하므로 부호를 반전한다.
+        /// </summary>
+        /// <param name="errorY">
+        /// Y축 중심 오차 [Pixel]
+        /// </param>
+        /// <param name="verticalFov">
+        /// 현재 수직 화각 [Degree]
+        /// </param>
+        /// <returns>
+        /// [Tilt] 보정 각도 [Degree]
+        /// </returns>
+        private double CalculateTiltAngleOffset(
+            double errorY,
+            double verticalFov)
+        {
+            return -errorY
+                / FRAME_HEIGHT
+                * verticalFov;
+        }
+
+        /// <summary>
+        /// 숫자 범위 보정
+        /// </summary>
+        private double Clamp(
+            double value,
+            double min,
+            double max)
+        {
+            if (value < min)
+            {
+                return min;
             }
 
-            if (speed > MAX_TRACKING_SPEED)
+            if (value > max)
             {
-                return MAX_TRACKING_SPEED;
+                return max;
             }
-
-            return Math.Round(
-                speed,
-                0);
+            return value;
         }
 
         #endregion
@@ -429,152 +512,56 @@ namespace VertiportNexus.Services.Camera
         #region [Tracking Command Methods]
 
         /// <summary>
-        /// 자동 추적 명령 실행
+        /// 자동 추적 각도 보정 명령 실행
         /// 
-        /// 계산된 [Pan] / [Tilt] 방향과 속도 기준으로
-        /// [ADS1000] 연속 이동 명령을 송신한다.
+        /// [Pixel] 오차를 화각 기준 [Degree]로 변환한 값을
+        /// [Pan] / [Tilt] Relative 이동 명령으로 송신한다.
+        /// 
+        /// Relative 이동은 지정 각도만큼 이동 후 장비가 정지하므로,
+        /// Continuous 이동에서 사용하던 자동 정지 예약은 사용하지 않는다.
         /// </summary>
-        /// <param name="panDirection">
-        /// [Pan] 이동 방향
+        /// <param name="panAngleOffset">
+        /// [Pan] 보정 각도 [Degree]
         /// </param>
-        /// <param name="tiltDirection">
-        /// [Tilt] 이동 방향
+        /// <param name="tiltAngleOffset">
+        /// [Tilt] 보정 각도 [Degree]
         /// </param>
-        /// <param name="trackingSpeed">
-        /// 추적 속도
-        /// </param>
-        private void ExecuteTrackingCommand(
-            string panDirection,
-            string tiltDirection,
-            double trackingSpeed)
+        private void ExecuteTrackingAngleCommand(
+            double panAngleOffset,
+            double tiltAngleOffset)
         {
-            if (panDirection == "STOP" &&
-                tiltDirection == "STOP")
+            bool hasPanMove =
+                Math.Abs(
+                    panAngleOffset)
+                >= MIN_TRACKING_ANGLE_DEGREE;
+
+            bool hasTiltMove =
+                Math.Abs(
+                    tiltAngleOffset)
+                >= MIN_TRACKING_ANGLE_DEGREE;
+
+            if (!hasPanMove &&
+                !hasTiltMove)
             {
-                StopTracking();
+                Console.WriteLine(
+                    "[TRACKING][AUTO] Skip : Angle Offset is too small");
+
                 return;
             }
 
-            if (IsDuplicateTrackingCommand(
-                panDirection,
-                tiltDirection,
-                trackingSpeed))
+            if (hasPanMove)
             {
-                Console.WriteLine("[TRACKING][COMMAND] Skip : Duplicate Command");
-                return;
+                _ads1000CameraControlService
+                    .MovePanRelative(
+                        panAngleOffset);
             }
 
-            _ads1000CameraControlService
-                .PanTiltSpeedLevel =
-                    trackingSpeed;
-
-            ExecutePanCommand(
-                panDirection);
-
-            ExecuteTiltCommand(
-                tiltDirection);
-
-            ScheduleAutoStop();
-
-            _lastPanDirection =
-                panDirection;
-
-            _lastTiltDirection =
-                tiltDirection;
-
-            _lastTrackingSpeed =
-                trackingSpeed;
-        }
-
-        /// <summary>
-        /// [Pan] 추적 명령 실행
-        /// </summary>
-        /// <param name="panDirection">
-        /// [Pan] 이동 방향
-        /// </param>
-        private void ExecutePanCommand(
-            string panDirection)
-        {
-            switch (panDirection)
+            if (hasTiltMove)
             {
-                case "LEFT":
-                    _ads1000CameraControlService
-                        .PanLeft();
-                    break;
-
-                case "RIGHT":
-                    _ads1000CameraControlService
-                        .PanRight();
-                    break;
+                _ads1000CameraControlService
+                    .MoveTiltRelative(
+                        tiltAngleOffset);
             }
-
-        }
-
-        /// <summary>
-        /// [Tilt] 추적 명령 실행
-        /// </summary>
-        /// <param name="tiltDirection">
-        /// [Tilt] 이동 방향
-        /// </param>
-        private void ExecuteTiltCommand(
-            string tiltDirection)
-        {
-            switch (tiltDirection)
-            {
-                case "UP":
-                    _ads1000CameraControlService
-                        .TiltUp();
-                    break;
-
-                case "DOWN":
-                    _ads1000CameraControlService
-                        .TiltDown();
-                    break;
-            }
-
-        }
-
-        /// <summary>
-        /// 자동 추적 정지 예약
-        /// 
-        /// 연속 이동 명령 송신 후 지정 시간이 지나면
-        /// [PTZ] 정지 명령을 자동으로 송신한다.
-        /// 
-        /// 새 추적 명령이 들어오면 예약 번호가 증가하므로,
-        /// 이전 예약 정지는 무시된다.
-        /// </summary>
-        private void ScheduleAutoStop()
-        {
-            int sequence =
-                Interlocked.Increment(
-                    ref _autoStopSequence);
-
-            Task.Run(
-                async () =>
-                {
-                    await Task.Delay(
-                        TRACKING_AUTO_STOP_DELAY_MS);
-
-                    if (sequence != _autoStopSequence)
-                    {
-                        return;
-                    }
-
-                    Console.WriteLine(
-                        "[TRACKING][AUTO] Auto Stop");
-
-                    StopPtz();
-
-                    _lastPanDirection =
-                        "STOP";
-
-                    _lastTiltDirection =
-                        "STOP";
-
-                    _lastTrackingSpeed =
-                        0;
-                });
-
 
         }
 
@@ -595,28 +582,71 @@ namespace VertiportNexus.Services.Camera
         #region [Log Methods]
 
         /// <summary>
-        /// [AUTO] 추적 계산 로그 출력
+        /// [AUTO] 화각 기반 추적 계산 로그 출력
         /// </summary>
-        private void PrintTrackingLog(
+        private void PrintAngleTrackingLog(
             DetectionBoundingBox boundingBox,
             double frameCenterX,
             double frameCenterY,
             double errorX,
             double errorY,
-            string panDirection,
-            string tiltDirection,
-            double trackingSpeed)
+            double currentZoomPosition,
+            double currentZoomRatio,
+            double horizontalFov,
+            double verticalFov,
+            double panAngleOffset,
+            double tiltAngleOffset)
         {
-            Console.WriteLine("[TRACKING][AUTO] Tracking Calculate");
-            Console.WriteLine("[TRACKING][BBOX] Center X : " + boundingBox.CenterX);
-            Console.WriteLine("[TRACKING][BBOX] Center Y : " + boundingBox.CenterY);
-            Console.WriteLine("[TRACKING][FRAME] Center X : " + frameCenterX);
-            Console.WriteLine("[TRACKING][FRAME] Center Y : " + frameCenterY);
-            Console.WriteLine("[TRACKING][ERROR] X : " + errorX);
-            Console.WriteLine("[TRACKING][ERROR] Y : " + errorY);
-            Console.WriteLine("[TRACKING][PTZ] Pan Direction : " + panDirection);
-            Console.WriteLine("[TRACKING][PTZ] Tilt Direction : " + tiltDirection);
-            Console.WriteLine("[TRACKING][PTZ] Speed : " + trackingSpeed);
+            Console.WriteLine(
+                "[TRACKING][AUTO] Angle Tracking Calculate");
+
+            Console.WriteLine(
+                "[TRACKING][BBOX] Center X : "
+                + boundingBox.CenterX);
+
+            Console.WriteLine(
+                "[TRACKING][BBOX] Center Y : "
+                + boundingBox.CenterY);
+
+            Console.WriteLine(
+                "[TRACKING][FRAME] Center X : "
+                + frameCenterX);
+
+            Console.WriteLine(
+                "[TRACKING][FRAME] Center Y : "
+                + frameCenterY);
+
+            Console.WriteLine(
+                "[TRACKING][ERROR] X : "
+                + errorX);
+
+            Console.WriteLine(
+                "[TRACKING][ERROR] Y : "
+                + errorY);
+
+            Console.WriteLine(
+                "[TRACKING][ZOOM] Position : "
+                + currentZoomPosition);
+
+            Console.WriteLine(
+                "[TRACKING][ZOOM] Ratio : x"
+                + currentZoomRatio.ToString("F1"));
+
+            Console.WriteLine(
+                "[TRACKING][FOV] Horizontal : "
+                + horizontalFov.ToString("F4"));
+
+            Console.WriteLine(
+                "[TRACKING][FOV] Vertical : "
+                + verticalFov.ToString("F4"));
+
+            Console.WriteLine(
+                "[TRACKING][ANGLE] Pan Offset : "
+                + panAngleOffset.ToString("F4"));
+
+            Console.WriteLine(
+                "[TRACKING][ANGLE] Tilt Offset : "
+                + tiltAngleOffset.ToString("F4"));
         }
         #endregion
     }

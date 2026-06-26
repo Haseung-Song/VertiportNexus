@@ -141,6 +141,7 @@ namespace VertiportNexus.Services.Vertiport
                 HandleCommandByMsgType(
                     message);
             }
+
             PrintCommandEndLog();
         }
 
@@ -492,9 +493,9 @@ namespace VertiportNexus.Services.Vertiport
                 "AUTO",
                 StringComparison.OrdinalIgnoreCase))
             {
-                _trackingControlService
-                    .ProcessTracking(
-                        boundingBox);
+                _trackingControlService.ProcessTracking(
+                    boundingBox,
+                    _cameraStateProvider.CurrentZoom ?? 0);
             }
             else
             {
@@ -905,6 +906,7 @@ namespace VertiportNexus.Services.Vertiport
             {
                 return;
             }
+
             Console.WriteLine("[CSE][CMD] FrameId : " + payload.FrameId);
             Console.WriteLine("[CSE][CMD] X1 : " + payload.X1);
             Console.WriteLine("[CSE][CMD] Y1 : " + payload.Y1);
