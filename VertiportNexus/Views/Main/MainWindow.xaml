@@ -200,7 +200,7 @@
                                 BorderBrush="#95A5B0"
                                 BorderThickness="1,1,1,0"
                                 CornerRadius="5,5,0,0"
-                                Padding="31,6">
+                                Padding="35,5">
 
                             <!-- Tab Header Text 표시 -->
                             <ContentPresenter ContentSource="Header"
