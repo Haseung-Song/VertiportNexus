@@ -141,22 +141,26 @@ namespace VertiportNexus.Services.ADS1000
         /// 송신 시 [Pan] 값만 부호를 반전하여 전달한다.
         /// </summary>
         public byte[] BuildPanAbsolutePositionPacket(
-            double angle)
+            double angle,
+            double speed)
         {
             return BuildAbsolutePositionPacket(
                 CMD1_PAN,
-                -angle);
+                -angle,
+                speed);
         }
 
         /// <summary>
         /// [Tilt] 절대 위치 이동 [Packet]
         /// </summary>
         public byte[] BuildTiltAbsolutePositionPacket(
-            double angle)
+            double angle,
+            double speed)
         {
             return BuildAbsolutePositionPacket(
                 CMD1_TILT,
-                angle);
+                angle,
+                speed);
         }
 
         /// <summary>
@@ -168,22 +172,26 @@ namespace VertiportNexus.Services.ADS1000
         /// 송신 시 [Pan] 값만 부호를 반전하여 전달한다.
         /// </summary>
         public byte[] BuildPanRelativePositionPacket(
-            double angle)
+            double angle,
+            double speed)
         {
             return BuildRelativePositionPacket(
                 CMD1_PAN,
-                -angle);
+                -angle,
+                speed);
         }
 
         /// <summary>
         /// [Tilt] 상대 위치 이동 [Packet]
         /// </summary>
         public byte[] BuildTiltRelativePositionPacket(
-            double angle)
+            double angle,
+            double speed)
         {
             return BuildRelativePositionPacket(
                 CMD1_TILT,
-                angle);
+                angle,
+                speed);
         }
 
         /// <summary>
@@ -269,12 +277,17 @@ namespace VertiportNexus.Services.ADS1000
         /// BG;
         /// 
         /// 지정한 목표 위치까지
-        /// 설정된 속도로 이동한다.
+        /// 화면에서 설정한 [PT Speed] 값으로 이동한다.
         /// </summary>
         private byte[] BuildAbsolutePositionPacket(
             byte cmd1,
-            double angle)
+            double angle,
+            double speed)
         {
+            double positionSpeed =
+                ClampPositionSpeed(
+                    speed);
+
             int motorPosition =
                 Convert.ToInt32(
                     Ads1000Constants.MOTOR_ENCODER_RESOLUTION
@@ -285,7 +298,7 @@ namespace VertiportNexus.Services.ADS1000
                 Convert.ToInt32(
                     Ads1000Constants.MOTOR_ENCODER_RESOLUTION
                     / 360.0
-                    * Ads1000Constants.DEFAULT_POSITION_SPEED);
+                    * positionSpeed);
 
             string commandText =
                 "PA="
@@ -308,12 +321,17 @@ namespace VertiportNexus.Services.ADS1000
         /// BG;
         /// 
         /// 현재 위치 기준으로
-        /// 지정한 각도만큼 상대 이동한다.
+        /// 지정한 각도만큼 화면에서 설정한 [PT Speed] 값으로 상대 이동한다.
         /// </summary>
         private byte[] BuildRelativePositionPacket(
             byte cmd1,
-            double angle)
+            double angle,
+            double speed)
         {
+            double positionSpeed =
+                ClampPositionSpeed(
+                    speed);
+
             int motorPosition =
                 Convert.ToInt32(
                     Ads1000Constants.MOTOR_ENCODER_RESOLUTION
@@ -324,7 +342,7 @@ namespace VertiportNexus.Services.ADS1000
                 Convert.ToInt32(
                     Ads1000Constants.MOTOR_ENCODER_RESOLUTION
                     / 360.0
-                    * Ads1000Constants.DEFAULT_POSITION_SPEED);
+                    * positionSpeed);
 
             string commandText =
                 "PR="
@@ -336,6 +354,34 @@ namespace VertiportNexus.Services.ADS1000
             return BuildTextPacket(
                 cmd1,
                 commandText);
+        }
+
+        /// <summary>
+        /// [Pan / Tilt] 위치 이동 속도 보정
+        /// 
+        /// 화면에서 설정한 [PT Speed] 값을
+        /// 위치 이동 Packet에 적용 가능한 범위로 보정한다.
+        /// </summary>
+        /// <param name="speed">
+        /// 화면 [PT Speed] 값
+        /// </param>
+        /// <returns>
+        /// 보정된 위치 이동 속도
+        /// </returns>
+        private double ClampPositionSpeed(
+            double speed)
+        {
+            if (speed < 0)
+            {
+                return 0;
+            }
+
+            if (speed > 100)
+            {
+                return 100;
+            }
+
+            return speed;
         }
 
         /// <summary>

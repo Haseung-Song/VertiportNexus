@@ -64,6 +64,107 @@
 
         #endregion
 
+        #region [PTZ Mode Types]
+
+        /// <summary>
+        /// [PTZ] Zoom 제어 모드
+        /// </summary>
+        public const string PtzModeZoom =
+            "zoom";
+
+        /// <summary>
+        /// [PTZ] 연속 이동 모드
+        /// </summary>
+        public const string PtzModeContinuous =
+            "continuous";
+
+        /// <summary>
+        /// [PTZ] 상대 이동 모드
+        /// 
+        /// 최신 ICD 허용값에는 없을 수 있으나,
+        /// 기존 ICD 호환을 위해 유지한다.
+        /// </summary>
+        public const string PtzModeRelative =
+            "relative";
+
+        /// <summary>
+        /// [PTZ] 절대 이동 모드
+        /// </summary>
+        public const string PtzModeAbsolute =
+            "absolute";
+
+        /// <summary>
+        /// [PTZ] 자동 제어 모드
+        /// </summary>
+        public const string PtzModeAuto =
+            "auto";
+
+        /// <summary>
+        /// [PTZ] 수동 제어 모드
+        /// </summary>
+        public const string PtzModeManual =
+            "manual";
+
+        #endregion
+
+        #region [PTZ Command Values]
+
+        /// <summary>
+        /// [PTZ] 정지 명령
+        /// </summary>
+        public const string PtzCommandStop =
+            "stop";
+
+        /// <summary>
+        /// [Pan] 좌측 이동 명령
+        /// </summary>
+        public const string PtzCommandLeft =
+            "left";
+
+        /// <summary>
+        /// [Pan] 우측 이동 명령
+        /// </summary>
+        public const string PtzCommandRight =
+            "right";
+
+        /// <summary>
+        /// [Tilt] 상향 이동 명령
+        /// </summary>
+        public const string PtzCommandUp =
+            "up";
+
+        /// <summary>
+        /// [Tilt] 하향 이동 명령
+        /// </summary>
+        public const string PtzCommandDown =
+            "down";
+
+        /// <summary>
+        /// [Pan / Tilt] 좌상향 이동 명령
+        /// </summary>
+        public const string PtzCommandLeftUp =
+            "left_up";
+
+        /// <summary>
+        /// [Pan / Tilt] 우상향 이동 명령
+        /// </summary>
+        public const string PtzCommandRightUp =
+            "right_up";
+
+        /// <summary>
+        /// [Pan / Tilt] 좌하향 이동 명령
+        /// </summary>
+        public const string PtzCommandLeftDown =
+            "left_down";
+
+        /// <summary>
+        /// [Pan / Tilt] 우하향 이동 명령
+        /// </summary>
+        public const string PtzCommandRightDown =
+            "right_down";
+
+        #endregion
+
         #region [Image Command Types]
 
         /// <summary>

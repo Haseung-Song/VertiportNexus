@@ -24,6 +24,17 @@
         public string Mode { get; set; }
 
         /// <summary>
+        /// 제어 명령
+        /// 
+        /// [IF-GUIS-CSE-006]의 [command] 값을
+        /// 내부 카메라 제어 서비스로 전달한다.
+        /// 
+        /// [continuous] 모드에서
+        /// Pan / Tilt 이동 방향 또는 정지 명령을 구분한다.
+        /// </summary>
+        public string Command { get; set; }
+
+        /// <summary>
         /// [Pan] 값
         /// </summary>
         public double? Pan { get; set; }

@@ -198,49 +198,77 @@ namespace VertiportNexus.Services.ADS1000
 
         /// <summary>
         /// [Pan] 절대 위치 이동
+        /// 
+        /// 현재 설정된 [PT Speed] 값을 함께 적용하여
+        /// 지정한 [Pan] 각도로 이동한다.
         /// </summary>
+        /// <param name="angle">
+        /// 이동 대상 [Pan] 각도
+        /// </param>
         public void MovePanAbsolute(
             double angle)
         {
             SendMcbPacket(
                 _mcbPacketBuilder.BuildPanAbsolutePositionPacket(
-                    angle),
+                    angle,
+                    PanTiltSpeedLevel),
                 "Pan Absolute");
         }
 
         /// <summary>
         /// [Tilt] 절대 위치 이동
+        /// 
+        /// 현재 설정된 [PT Speed] 값을 함께 적용하여
+        /// 지정한 [Tilt] 각도로 이동한다.
         /// </summary>
+        /// <param name="angle">
+        /// 이동 대상 [Tilt] 각도
+        /// </param>
         public void MoveTiltAbsolute(
             double angle)
         {
             SendMcbPacket(
                 _mcbPacketBuilder.BuildTiltAbsolutePositionPacket(
-                    angle),
+                    angle,
+                    PanTiltSpeedLevel),
                 "Tilt Absolute");
         }
 
         /// <summary>
         /// [Pan] 상대 위치 이동
+        /// 
+        /// 현재 설정된 [PT Speed] 값을 함께 적용하여
+        /// 현재 위치 기준으로 [Pan] 상대 이동을 수행한다.
         /// </summary>
+        /// <param name="angle">
+        /// 상대 이동 [Pan] 각도
+        /// </param>
         public void MovePanRelative(
             double angle)
         {
             SendMcbPacket(
                 _mcbPacketBuilder.BuildPanRelativePositionPacket(
-                    angle),
+                    angle,
+                    PanTiltSpeedLevel),
                 "Pan Relative");
         }
 
         /// <summary>
         /// [Tilt] 상대 위치 이동
+        /// 
+        /// 현재 설정된 [PT Speed] 값을 함께 적용하여
+        /// 현재 위치 기준으로 [Tilt] 상대 이동을 수행한다.
         /// </summary>
+        /// <param name="angle">
+        /// 상대 이동 [Tilt] 각도
+        /// </param>
         public void MoveTiltRelative(
             double angle)
         {
             SendMcbPacket(
                 _mcbPacketBuilder.BuildTiltRelativePositionPacket(
-                    angle),
+                    angle,
+                    PanTiltSpeedLevel),
                 "Tilt Relative");
         }
 
@@ -267,8 +295,8 @@ namespace VertiportNexus.Services.ADS1000
         /// <summary>
         /// [Home] 위치 이동
         /// 
-        /// [Pan] / [Tilt]를
-        /// 원점 [0도] 위치로 이동한다.
+        /// 현재 설정된 [PT Speed] 값을 함께 적용하여
+        /// [Pan] / [Tilt]를 원점 [0도] 위치로 이동한다.
         /// </summary>
         public void MoveHomePosition()
         {

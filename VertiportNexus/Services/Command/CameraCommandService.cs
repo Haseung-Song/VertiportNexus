@@ -33,6 +33,78 @@ namespace VertiportNexus.Services.Command
         private const string PTZ_MODE_RELATIVE =
             "relative";
 
+        /// <summary>
+        /// [PTZ] Zoom 제어 모드
+        /// </summary>
+        private const string PTZ_MODE_ZOOM =
+            "zoom";
+
+        /// <summary>
+        /// [PTZ] 자동 제어 모드
+        /// </summary>
+        private const string PTZ_MODE_AUTO =
+            "auto";
+
+        /// <summary>
+        /// [PTZ] 수동 제어 모드
+        /// </summary>
+        private const string PTZ_MODE_MANUAL =
+            "manual";
+
+        /// <summary>
+        /// [PTZ] 정지 명령
+        /// </summary>
+        private const string PTZ_COMMAND_STOP =
+            "stop";
+
+        /// <summary>
+        /// [Pan] 좌측 이동 명령
+        /// </summary>
+        private const string PTZ_COMMAND_LEFT =
+            "left";
+
+        /// <summary>
+        /// [Pan] 우측 이동 명령
+        /// </summary>
+        private const string PTZ_COMMAND_RIGHT =
+            "right";
+
+        /// <summary>
+        /// [Tilt] 상향 이동 명령
+        /// </summary>
+        private const string PTZ_COMMAND_UP =
+            "up";
+
+        /// <summary>
+        /// [Tilt] 하향 이동 명령
+        /// </summary>
+        private const string PTZ_COMMAND_DOWN =
+            "down";
+
+        /// <summary>
+        /// [Pan / Tilt] 좌상향 이동 명령
+        /// </summary>
+        private const string PTZ_COMMAND_LEFT_UP =
+            "left_up";
+
+        /// <summary>
+        /// [Pan / Tilt] 우상향 이동 명령
+        /// </summary>
+        private const string PTZ_COMMAND_RIGHT_UP =
+            "right_up";
+
+        /// <summary>
+        /// [Pan / Tilt] 좌하향 이동 명령
+        /// </summary>
+        private const string PTZ_COMMAND_LEFT_DOWN =
+            "left_down";
+
+        /// <summary>
+        /// [Pan / Tilt] 우하향 이동 명령
+        /// </summary>
+        private const string PTZ_COMMAND_RIGHT_DOWN =
+            "right_down";
+
         #endregion
 
         #region [Fields]
@@ -109,8 +181,9 @@ namespace VertiportNexus.Services.Command
         /// <summary>
         /// [PTZ] 이동 명령 처리
         /// 
-        /// [continuous] / [absolute] / [relative] 모드에 따라
-        /// 현재 장비 제어 서비스 호출을 분기한다.
+        /// 최신 [IF-GUIS-CSE-006] 기준
+        /// [zoom] / [continuous] / [relative] / [absolute] / [auto] / [manual]
+        /// 모드에 따라 실제 장비 제어 서비스를 호출한다.
         /// </summary>
         private void HandlePtzMove(
             CameraCommand command)
@@ -123,17 +196,19 @@ namespace VertiportNexus.Services.Command
             }
 
             string mode =
-                command.Mode.Trim().ToLower();
+                command.Mode
+                    .Trim()
+                    .ToLower();
 
             switch (mode)
             {
-                case PTZ_MODE_CONTINUOUS:
-                    HandleContinuousMove(
+                case PTZ_MODE_ZOOM:
+                    HandleZoomMove(
                         command);
                     break;
 
-                case PTZ_MODE_ABSOLUTE:
-                    HandleAbsoluteMove(
+                case PTZ_MODE_CONTINUOUS:
+                    HandleContinuousMove(
                         command);
                     break;
 
@@ -142,11 +217,54 @@ namespace VertiportNexus.Services.Command
                         command);
                     break;
 
+                case PTZ_MODE_ABSOLUTE:
+                    HandleAbsoluteMove(
+                        command);
+                    break;
+
+                case PTZ_MODE_AUTO:
+                    HandleAutoMode();
+                    break;
+
+                case PTZ_MODE_MANUAL:
+                    HandleManualMode();
+                    break;
+
                 default:
                     Console.WriteLine("[CAMERA][CMD] Unsupported PTZ Mode : " + command.Mode);
                     break;
             }
 
+        }
+
+        /// <summary>
+        /// [PTZ] [AUTO] 모드 설정 처리
+        /// 
+        /// 최신 [IF-GUIS-CSE-006]에서
+        /// [mode] 값이 [auto]인 경우 호출된다.
+        /// 
+        /// 실제 상태 저장은 [CseCommandHandler] 또는
+        /// [CameraStateProvider] 연동 단계에서 처리한다.
+        /// 현재 단계에서는 수신 흐름 확인용 로그만 출력한다.
+        /// </summary>
+        private void HandleAutoMode()
+        {
+            Console.WriteLine("[CAMERA][CMD] PTZ Mode : AUTO");
+        }
+
+        /// <summary>
+        /// [PTZ] [MANUAL] 모드 설정 처리
+        /// 
+        /// 최신 [IF-GUIS-CSE-006]에서
+        /// [mode] 값이 [manual]인 경우 호출된다.
+        /// 
+        /// 실제 상태 저장은 [CseCommandHandler] 또는
+        /// [CameraStateProvider] 연동 단계에서 처리한다.
+        /// 현재 단계에서는 수신 흐름 확인용 로그만 출력한다.
+        /// </summary>
+        private void HandleManualMode()
+        {
+            Console.WriteLine("[CAMERA][CMD] PTZ Mode : MANUAL");
         }
 
         /// <summary>
@@ -164,12 +282,24 @@ namespace VertiportNexus.Services.Command
         /// <summary>
         /// [continuous] 이동 명령 처리
         /// 
-        /// [pan] / [tilt] / [zoom] / [focus] 값의 부호를 기준으로
-        /// 현재 구현된 연속 제어 함수를 호출한다.
+        /// 최신 [IF-GUIS-CSE-006] 기준
+        /// [command] 값으로 Pan / Tilt 연속 이동 방향을 분기한다.
+        /// 
+        /// 기존 [pan] / [tilt] 부호 기반 제어도
+        /// 호환을 위해 유지한다.
         /// </summary>
         private void HandleContinuousMove(
             CameraCommand command)
         {
+            if (!string.IsNullOrWhiteSpace(
+                command.Command))
+            {
+                HandleContinuousCommandMove(
+                    command.Command);
+
+                return;
+            }
+
             if (TryHandleContinuousPan(
                 command))
             {
@@ -193,7 +323,90 @@ namespace VertiportNexus.Services.Command
             {
                 return;
             }
-            Console.WriteLine("[CAMERA][CMD] Continuous Move Failed : No direction value");
+            Console.WriteLine("[CAMERA][CMD] Continuous Move Failed : No command or direction value");
+        }
+
+        /// <summary>
+        /// [continuous] [command] 이동 처리
+        /// 
+        /// 최신 [IF-GUIS-CSE-006]의 [command] 허용값을 기준으로
+        /// Pan / Tilt 연속 이동 또는 정지 명령을 수행한다.
+        /// </summary>
+        /// <param name="command">
+        /// PTZ 이동 명령
+        /// </param>
+        private void HandleContinuousCommandMove(
+            string command)
+        {
+            string normalizedCommand =
+                command
+                    .Trim()
+                    .ToLower();
+
+            switch (normalizedCommand)
+            {
+                case PTZ_COMMAND_STOP:
+                    _ads1000CameraControlService
+                        .StopPanTiltMove();
+                    break;
+
+                case PTZ_COMMAND_LEFT:
+                    _ads1000CameraControlService
+                        .PanLeft();
+                    break;
+
+                case PTZ_COMMAND_RIGHT:
+                    _ads1000CameraControlService
+                        .PanRight();
+                    break;
+
+                case PTZ_COMMAND_UP:
+                    _ads1000CameraControlService
+                        .TiltUp();
+                    break;
+
+                case PTZ_COMMAND_DOWN:
+                    _ads1000CameraControlService
+                        .TiltDown();
+                    break;
+
+                case PTZ_COMMAND_LEFT_UP:
+                    _ads1000CameraControlService
+                        .PanLeft();
+
+                    _ads1000CameraControlService
+                        .TiltUp();
+                    break;
+
+                case PTZ_COMMAND_RIGHT_UP:
+                    _ads1000CameraControlService
+                        .PanRight();
+
+                    _ads1000CameraControlService
+                        .TiltUp();
+                    break;
+
+                case PTZ_COMMAND_LEFT_DOWN:
+                    _ads1000CameraControlService
+                        .PanLeft();
+
+                    _ads1000CameraControlService
+                        .TiltDown();
+                    break;
+
+                case PTZ_COMMAND_RIGHT_DOWN:
+                    _ads1000CameraControlService
+                        .PanRight();
+
+                    _ads1000CameraControlService
+                        .TiltDown();
+                    break;
+
+                default:
+                    Console.WriteLine("[CAMERA][CMD] Unsupported PTZ Command : " + command);
+                    break;
+            }
+
         }
 
         /// <summary>
@@ -290,6 +503,61 @@ namespace VertiportNexus.Services.Command
             }
 
             return true;
+        }
+
+        #endregion
+
+        #region [Zoom Move Methods]
+
+        /// <summary>
+        /// [zoom] 이동 명령 처리
+        /// 
+        /// 최신 [IF-GUIS-CSE-006] 기준
+        /// [Zoom] 단독 제어를 처리한다.
+        /// 
+        /// [Zoom] 제어는 [AUTO] / [MANUAL] 모드와 관계없이
+        /// 항상 수행 가능하다.
+        /// </summary>
+        /// <param name="command">
+        /// 내부 카메라 명령
+        /// </param>
+        private void HandleZoomMove(
+            CameraCommand command)
+        {
+            if (command.ZoomPosition.HasValue)
+            {
+                ushort zoomPosition =
+                    (ushort)Clamp(
+                        command.ZoomPosition.Value,
+                        0,
+                        1000);
+
+                Console.WriteLine("[CAMERA][ZOOM] Position Input : " + command.ZoomPosition.Value);
+                Console.WriteLine("[CAMERA][ZOOM] Position Target : " + zoomPosition);
+
+                _ads1000CameraControlService
+                    .MoveZoomPosition(
+                        zoomPosition);
+
+                return;
+            }
+
+            if (command.Zoom.HasValue)
+            {
+                ushort zoomPosition =
+                    ConvertZoomRatioToPosition(
+                        command.Zoom.Value);
+
+                Console.WriteLine("[CAMERA][ZOOM] Ratio Input : " + command.Zoom.Value);
+                Console.WriteLine("[CAMERA][ZOOM] Position Target : " + zoomPosition);
+
+                _ads1000CameraControlService
+                    .MoveZoomPosition(
+                        zoomPosition);
+
+                return;
+            }
+            Console.WriteLine("[CAMERA][CMD] Zoom Move Failed : Zoom value is empty");
         }
 
         #endregion
@@ -491,6 +759,7 @@ namespace VertiportNexus.Services.Command
             Console.WriteLine("[CAMERA][CMD] Camera Command Start");
             Console.WriteLine("[CAMERA][CMD] Type : " + command.CommandType);
             Console.WriteLine("[CAMERA][CMD] Mode : " + command.Mode);
+            Console.WriteLine("[CAMERA][CMD] Command : " + command.Command);
             Console.WriteLine("[CAMERA][CMD] Pan : " + command.Pan);
             Console.WriteLine("[CAMERA][CMD] Tilt : " + command.Tilt);
             Console.WriteLine("[CAMERA][CMD] Zoom : " + command.Zoom);

@@ -254,12 +254,12 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="75"/>
+            <RowDefinition Height="50"/>
         </Grid.RowDefinitions>
 
         <!-- 상단 상태 영역 -->
         <Border Grid.Row="0"
-                Padding="12"
+                Padding="8"
                 Margin="0,0,0,10"
                 Background="#2B3038"
                 CornerRadius="6">
@@ -353,12 +353,15 @@
                             BorderBrush="#95A5B0"
                             BorderThickness="1.5"
                             CornerRadius="5"
-                            Padding="10">
+                            Padding="6">
 
                         <Grid>
 
                             <Grid.RowDefinitions>
                                 <!-- 제어 패널 제목 영역 -->
+                                <RowDefinition Height="Auto"/>
+
+                                <!-- [PAN / TILT] 공통 속도 제어 영역 -->
                                 <RowDefinition Height="Auto"/>
 
                                 <!-- 기능별 Tab 영역 -->
@@ -372,9 +375,66 @@
                             <TextBlock Grid.Row="0"
                                        Text="장비 제어"
                                        Foreground="White"
-                                       FontSize="16"
+                                       FontSize="15"
                                        FontWeight="Bold"
-                                       Margin="0,0,0,10"/>
+                                       Margin="0,0,0,8"/>
+
+                            <!-- [PAN / TILT] 공통 속도 제어 영역 -->
+                            <Border Grid.Row="1"
+                                    Margin="0,0,0,5"
+                                    Background="#4B535A"
+                                    BorderBrush="#95A5B0"
+                                    BorderThickness="1"
+                                    CornerRadius="5"
+                                    Padding="4">
+
+                                <Grid>
+
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="25"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- [PAN / TILT] 공통 속도 제목 / 현재값 -->
+                                    <Grid Grid.Row="0" Margin="0,0,0,3">
+
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <TextBlock Grid.Column="0"
+                                                   Text="PAN / TILT SPEED"
+                                                   Foreground="White"
+                                                   FontWeight="Bold"
+                                                   FontSize="12"/>
+
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding PanTiltSpeedLevel, StringFormat={}{0:F0} deg/s}"
+                                                   Foreground="#D0D7DE"
+                                                   FontSize="12"
+                                                   FontWeight="Bold"/>
+
+                                    </Grid>
+
+                                    <!-- [PAN / TILT] 공통 속도 조절 -->
+                                    <Slider Grid.Row="1"
+                                            Minimum="0"
+                                            Maximum="100"
+                                            TickFrequency="10"
+                                            SmallChange="5"
+                                            LargeChange="10"
+                                            TickPlacement="BottomRight"
+                                            IsSnapToTickEnabled="True"
+                                            Value="{Binding PanTiltSpeedLevel,
+                                                            Mode=TwoWay,
+                                                            UpdateSourceTrigger=PropertyChanged}"
+                                            IsEnabled="{Binding IsDeviceControlEnabled}"
+                                            Height="26"/>
+
+                                </Grid>
+
+                            </Border>
 
                             <!--
                                 [우측 제어 패널] Tab 구성
@@ -386,7 +446,7 @@
                                 영상 영역은 유지하고,
                                 우측 제어 영역만 기능별로 전환한다.
                             -->
-                            <TabControl Grid.Row="1"
+                            <TabControl Grid.Row="2"
                                         Background="#5F666D"
                                         BorderBrush="#95A5B0"
                                         Foreground="White"
@@ -416,7 +476,7 @@
                                                     BorderBrush="#95A5B0"
                                                     BorderThickness="1.5"
                                                     CornerRadius="5"
-                                                    Padding="8">
+                                                    Padding="6">
 
                                                 <StackPanel>
 
@@ -590,7 +650,7 @@
                                                     BorderBrush="#95A5B0"
                                                     BorderThickness="1.5"
                                                     CornerRadius="5"
-                                                    Padding="8">
+                                                    Padding="6">
 
                                                 <StackPanel>
 
@@ -705,7 +765,7 @@
                                                     BorderBrush="#95A5B0"
                                                     BorderThickness="1.5"
                                                     CornerRadius="5"
-                                                    Padding="8">
+                                                    Padding="6">
 
                                                 <StackPanel>
 
@@ -830,12 +890,12 @@
                                         <StackPanel Margin="5">
 
                                             <!-- [PTZ 제어 모드 영역] -->
-                                            <Border Margin="0,0,0,5"
+                                            <Border Margin="0,0,0,10"
                                                     Background="#5F666D"
                                                     BorderBrush="#95A5B0"
                                                     BorderThickness="1.5"
                                                     CornerRadius="5"
-                                                    Padding="8">
+                                                    Padding="10">
 
                                                 <StackPanel>
 
@@ -884,12 +944,12 @@
                                             </Border>
 
                                             <!-- [PAN / TILT] 연속 이동 제어 영역 -->
-                                            <Border Margin="0,0,0,5"
+                                            <Border Margin="0,0,0,10"
                                                     Background="#5F666D"
                                                     BorderBrush="#95A5B0"
                                                     BorderThickness="1.5"
                                                     CornerRadius="5"
-                                                    Padding="8">
+                                                    Padding="10">
 
                                                 <StackPanel>
 
@@ -981,45 +1041,17 @@
 
                                                     </Grid>
 
-                                                    <!-- [PAN / TILT] 연속 이동 속도 제어 -->
-                                                    <StackPanel Margin="0,5,0,0">
-
-                                                        <!-- [PAN / TILT] 현재 속도 표시 -->
-                                                        <TextBlock Text="{Binding PanTiltSpeedLevel, StringFormat=PT SPEED LV : {0:F0} deg/s}"
-                                                                                  Foreground="#D0D7DE"
-                                                                                  FontSize="12"
-                                                                                  FontWeight="Bold"
-                                                                                  HorizontalAlignment="Center"
-                                                                                  Margin="0,0,0,5"/>
-
-                                                        <!-- [PAN / TILT] 속도 조절 [Slider] -->
-                                                        <!-- [Slider] 눈금 표시 -->
-                                                        <Slider Minimum="0"
-                                                                Maximum="100"
-                                                                TickFrequency="5"
-                                                                SmallChange="5"
-                                                                LargeChange="10"
-                                                                TickPlacement="BottomRight"
-                                                                IsSnapToTickEnabled="True"
-                                                                Value="{Binding PanTiltSpeedLevel, 
-                                                                                Mode=TwoWay, 
-                                                                                UpdateSourceTrigger=PropertyChanged}"
-                                                                IsEnabled="{Binding IsDeviceControlEnabled}"
-                                                                Width="220"/>
-
-                                                    </StackPanel>
-
                                                 </StackPanel>
 
                                             </Border>
 
                                             <!-- [ZOOM / FOCUS] 연속 제어 영역 -->
-                                            <Border Margin="0,0,0,5"
+                                            <Border Margin="0,0,0,0"
                                                     Background="#5F666D"
                                                     BorderBrush="#95A5B0"
                                                     BorderThickness="1.5"
                                                     CornerRadius="5"
-                                                    Padding="8">
+                                                    Padding="15">
 
                                                 <StackPanel>
 
@@ -1132,7 +1164,7 @@
                                                     BorderBrush="#95A5B0"
                                                     BorderThickness="1.5"
                                                     CornerRadius="5"
-                                                    Padding="10">
+                                                    Padding="8">
 
                                                 <StackPanel>
 
@@ -1195,12 +1227,12 @@
                                             </Border>
 
                                             <!-- [Relative] 위치 이동 영역 -->
-                                            <Border Margin="0,10,0,0"
+                                            <Border Margin="0,5,0,0"
                                                     Background="#5F666D"
                                                     BorderBrush="#95A5B0"
                                                     BorderThickness="1.5"
                                                     CornerRadius="5"
-                                                    Padding="10">
+                                                    Padding="8">
 
                                                 <StackPanel>
 
@@ -1261,12 +1293,12 @@
                                             </Border>
 
                                             <!-- [Home / Zero] 제어 영역 -->
-                                            <Border Margin="0,10,0,0"
+                                            <Border Margin="0,5,0,0"
                                                     Background="#5F666D"
                                                     BorderBrush="#95A5B0"
                                                     BorderThickness="1.5"
                                                     CornerRadius="5"
-                                                    Padding="10">
+                                                    Padding="8">
 
                                                 <StackPanel>
 
@@ -1317,12 +1349,12 @@
                                             </Border>
 
                                             <!-- [Zoom] 위치 제어 영역 -->
-                                            <Border Margin="0,10,0,0"
+                                            <Border Margin="0,5,0,0"
                                                     Background="#5F666D"
                                                     BorderBrush="#95A5B0"
                                                     BorderThickness="1.5"
                                                     CornerRadius="5"
-                                                    Padding="10">
+                                                    Padding="8">
 
                                                 <StackPanel>
 
@@ -1386,12 +1418,12 @@
                                             </Border>
 
                                             <!-- [Focus] 위치 제어 영역 -->
-                                            <Border Margin="0,10,0,0"
+                                            <Border Margin="0,5,0,0"
                                                     Background="#5F666D"
                                                     BorderBrush="#95A5B0"
                                                     BorderThickness="1.5"
                                                     CornerRadius="5"
-                                                    Padding="10">
+                                                    Padding="8">
 
                                                 <StackPanel>
 
@@ -1435,7 +1467,7 @@
                                                     BorderBrush="#95A5B0"
                                                     BorderThickness="1"
                                                     CornerRadius="5"
-                                                    Padding="10">
+                                                    Padding="8">
 
                                                 <StackPanel>
 
@@ -1466,7 +1498,7 @@
                             </TabControl>
 
                             <!-- 현재 장비 상태 표시 영역 -->
-                            <Border Grid.Row="2"
+                            <Border Grid.Row="3"
                                     Margin="0,10,0,0"
                                     Background="#40464D"
                                     BorderBrush="#95A5B0"
@@ -1608,11 +1640,9 @@
                 Padding="10"
                 Margin="0,10,0,0"
                 Background="#2B3038">
-
             <TextBlock Text="CSE Middleware Test UI - Console log enabled"
                        Foreground="#B8C7D9"
                        FontSize="14"/>
-
         </Border>
 
     </Grid>

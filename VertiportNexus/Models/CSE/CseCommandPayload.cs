@@ -28,6 +28,27 @@ namespace VertiportNexus.Models.Vertiport
         public string Mode { get; set; }
 
         /// <summary>
+        /// [PTZ] 제어 명령
+        /// 
+        /// [IF-GUIS-CSE-006] 기준
+        /// [continuous] 모드에서 실제 이동 방향 또는
+        /// 정지 명령을 구분한다.
+        /// 
+        /// 예)
+        /// stop
+        /// left
+        /// right
+        /// up
+        /// down
+        /// left_up
+        /// right_up
+        /// left_down
+        /// right_down
+        /// </summary>
+        [JsonPropertyName("command")]
+        public string Command { get; set; }
+
+        /// <summary>
         /// [Pan] 방위각
         /// </summary>
         [JsonPropertyName("pan")]

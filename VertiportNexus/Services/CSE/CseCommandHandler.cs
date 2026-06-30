@@ -23,6 +23,18 @@ namespace VertiportNexus.Services.Vertiport
         private const string STATE_TIMESTAMP_FORMAT =
             "yyyy-MM-ddTHH:mm:ss";
 
+        /// <summary>
+        /// [PTZ] 자동 제어 모드
+        /// </summary>
+        private const string PTZ_MODE_AUTO =
+            "auto";
+
+        /// <summary>
+        /// [PTZ] 수동 제어 모드
+        /// </summary>
+        private const string PTZ_MODE_MANUAL =
+            "manual";
+
         #endregion
 
         #region [Fields]
@@ -141,7 +153,6 @@ namespace VertiportNexus.Services.Vertiport
                 HandleCommandByMsgType(
                     message);
             }
-
             PrintCommandEndLog();
         }
 
@@ -534,7 +545,25 @@ namespace VertiportNexus.Services.Vertiport
                 return;
             }
 
+
+            // [PTZ 제어 모드] 처리
+            //
+            // 최신 [IF-GUIS-CSE-006]에서는
+            // 기존 [IF-GUIS-CSE-008]의 [AUTO] / [MANUAL] 모드 설정이
+            // [ptz_move]의 [mode] 값으로 통합된다.
+            //
+            // [mode] 값이 [auto] 또는 [manual]인 경우에는
+            // 장비 이동 명령을 생성하지 않고,
+            // 내부 [PTZ 제어 모드] 상태값만 갱신한다.
+            if (TryHandlePtzControlMode(
+                message,
+                payload))
+            {
+                return;
+            }
+
             Console.WriteLine("[CSE][CMD][PTZ_MOVE] Mode : " + payload.Mode);
+            Console.WriteLine("[CSE][CMD][PTZ_MOVE] Command : " + payload.Command);
             Console.WriteLine("[CSE][CMD][PTZ_MOVE] Pan : " + payload.Pan);
             Console.WriteLine("[CSE][CMD][PTZ_MOVE] Tilt : " + payload.Tilt);
             Console.WriteLine("[CSE][CMD][PTZ_MOVE] Zoom : " + payload.Zoom);
@@ -548,6 +577,9 @@ namespace VertiportNexus.Services.Vertiport
 
                     Mode =
                         payload.Mode,
+
+                    Command =
+                        payload.Command,
 
                     Pan =
                         payload.Pan,
@@ -571,6 +603,75 @@ namespace VertiportNexus.Services.Vertiport
             SendAcceptedResponse(
                 message,
                 "PTZ Move");
+        }
+
+        /// <summary>
+        /// [PTZ 제어 모드] 통합 명령 처리
+        /// 
+        /// 최신 [IF-GUIS-CSE-006] 기준
+        /// 기존 [IF-GUIS-CSE-008]의 [AUTO] / [MANUAL] 모드 설정을
+        /// [ptz_move] 명령 안에서 처리한다.
+        /// </summary>
+        /// <param name="message">
+        /// [CSE] 명령 메시지
+        /// </param>
+        /// <param name="payload">
+        /// [CSE] 명령 Payload
+        /// </param>
+        /// <returns>
+        /// [PTZ 제어 모드] 처리 여부
+        /// </returns>
+        private bool TryHandlePtzControlMode(
+            CseCommandMessage message,
+            CseCommandPayload payload)
+        {
+            if (payload == null ||
+                string.IsNullOrWhiteSpace(
+                    payload.Mode))
+            {
+                return false;
+            }
+
+            string normalizedMode =
+                payload.Mode
+                    .Trim()
+                    .ToLower();
+
+            if (normalizedMode != PTZ_MODE_AUTO &&
+                normalizedMode != PTZ_MODE_MANUAL)
+            {
+                return false;
+            }
+
+            string ptzControlMode =
+                normalizedMode.ToUpper();
+
+            PrintCommandLog(
+                message,
+                "PTZ Control Mode");
+
+            Console.WriteLine("[CSE][CMD][PTZ_MODE] Mode : " + ptzControlMode);
+
+            _cameraStateProvider
+                .UpdatePtzControlMode(
+                    ptzControlMode);
+
+            // [MANUAL] 전환 시 자동 추적 정지
+            //
+            // 수동 운용으로 전환된 경우,
+            // 이전 [AUTO] 추적에서 수행 중이던
+            // Pan / Tilt 이동을 정지한다.
+            if (ptzControlMode == "MANUAL")
+            {
+                _trackingControlService
+                    .StopTracking();
+            }
+
+            SendAcceptedResponse(
+                message,
+                "PTZ Control Mode");
+
+            return true;
         }
 
         /// <summary>
@@ -607,6 +708,10 @@ namespace VertiportNexus.Services.Vertiport
         /// [PTZ 제어 모드] 명령 처리
         /// 
         /// ICD 기준 [IF-GUIS-CSE-008] 요청을 처리한다.
+        /// 
+        /// 최신 ICD에서는 [IF-GUIS-CSE-006] [ptz_move]의
+        /// [mode] 값 [auto] / [manual]로 통합될 예정이므로,
+        /// 본 메서드는 기존 ICD 호환용으로만 유지한다.
         /// </summary>
         private void HandlePtzMode(
             CseCommandMessage message)
