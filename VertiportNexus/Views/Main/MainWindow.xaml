@@ -52,6 +52,7 @@
                     Value="30"/>
 
             <Style.Triggers>
+
                 <Trigger Property="IsMouseOver"
                          Value="True">
 
@@ -59,6 +60,7 @@
                             Value="0.85"/>
 
                 </Trigger>
+
             </Style.Triggers>
 
         </Style>
@@ -67,22 +69,27 @@
         <Style x:Key="ConnectButtonStyle"
                TargetType="Button"
                BasedOn="{StaticResource DeviceControlButtonStyle}">
+
             <Setter Property="Background"
                     Value="#2F4F5F"/>
+
         </Style>
 
         <!-- [연결 해제] 버튼 스타일 -->
         <Style x:Key="DisconnectButtonStyle"
                TargetType="Button"
                BasedOn="{StaticResource DeviceControlButtonStyle}">
+
             <Setter Property="Background"
                     Value="#4A2F2F"/>
+
         </Style>
 
         <!-- [PAN/TILT] 방향 버튼 스타일 -->
         <Style x:Key="PanTiltDirectionButtonStyle"
                TargetType="Button"
                BasedOn="{StaticResource DeviceControlButtonStyle}">
+
             <Setter Property="Background"
                     Value="#37474F"/>
             <Setter Property="Margin"
@@ -93,12 +100,14 @@
                     Value="32"/>
             <Setter Property="FontSize"
                     Value="18"/>
+
         </Style>
 
         <!-- [STOP] 버튼 스타일 -->
         <Style x:Key="StopButtonStyle"
                TargetType="Button"
                BasedOn="{StaticResource DeviceControlButtonStyle}">
+
             <Setter Property="Background"
                     Value="#7A2525"/>
             <Setter Property="Foreground"
@@ -109,50 +118,61 @@
                     Value="#708090"/>
             <Setter Property="FontSize"
                     Value="10"/>
+
         </Style>
 
         <!-- [EO] 제어 버튼 스타일 -->
         <Style x:Key="EoControlButtonStyle"
                TargetType="Button"
                BasedOn="{StaticResource DeviceControlButtonStyle}">
+
             <Setter Property="Background"
                     Value="#30475A"/>
             <Setter Property="Height"
                     Value="32"/>
             <Setter Property="FontSize"
                     Value="12"/>
+
         </Style>
 
         <!-- [Auto Focus] 버튼 스타일 -->
         <Style x:Key="AutoFocusButtonStyle"
                TargetType="Button"
                BasedOn="{StaticResource DeviceControlButtonStyle}">
+
             <Setter Property="Background" 
                     Value="#453666"/>
+
         </Style>
 
         <!-- [Home Position] 버튼 스타일 -->
         <Style x:Key="HomePositionButtonStyle"
                TargetType="Button"
                BasedOn="{StaticResource DeviceControlButtonStyle}">
+
             <Setter Property="Background"
                     Value="#4F5D7A"/>
+
         </Style>
 
         <!-- [Pan Zero] / [Tilt Zero] 버튼 스타일 -->
         <Style x:Key="ZeroPositionButtonStyle"
                TargetType="Button"
                BasedOn="{StaticResource DeviceControlButtonStyle}">
+
             <Setter Property="Background"
                     Value="#4A5F3F"/>
+
         </Style>
 
         <!-- [Reset Input] 버튼 스타일 -->
         <Style x:Key="ResetInputButtonStyle"
                TargetType="Button"
                BasedOn="{StaticResource DeviceControlButtonStyle}">
+
             <Setter Property="Background"
                     Value="#345963"/>
+
         </Style>
 
         <!-- [우측 제어 패널] TabItem 스타일 -->
@@ -169,7 +189,9 @@
                     Value="12"/>
 
             <Setter Property="Template">
+
                 <Setter.Value>
+
                     <ControlTemplate TargetType="TabItem">
 
                         <!-- Tab Header 외곽 -->
@@ -178,7 +200,7 @@
                                 BorderBrush="#95A5B0"
                                 BorderThickness="1,1,1,0"
                                 CornerRadius="5,5,0,0"
-                                Padding="66,6">
+                                Padding="31,6">
 
                             <!-- Tab Header Text 표시 -->
                             <ContentPresenter ContentSource="Header"
@@ -219,7 +241,9 @@
                         </ControlTemplate.Triggers>
 
                     </ControlTemplate>
+
                 </Setter.Value>
+
             </Setter>
 
         </Style>
@@ -241,6 +265,7 @@
                 CornerRadius="6">
 
             <StackPanel>
+
                 <TextBlock Text="Vertiport Nexus Middleware"
                            Foreground="White"
                            FontSize="22"
@@ -257,12 +282,14 @@
                                           FontSize="14"
                                           FontWeight="SemiBold"
                                           Margin="0,5,0,0"/>
+
             </StackPanel>
 
         </Border>
 
         <!-- 본문 영역 -->
         <Grid Grid.Row="1">
+
             <Grid.ColumnDefinitions>
                 <!-- EO 영상 영역 -->
                 <ColumnDefinition Width="*"/>
@@ -294,6 +321,7 @@
                     Padding="8">
 
                 <Grid>
+
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="50"/>
@@ -328,6 +356,7 @@
                             Padding="10">
 
                         <Grid>
+
                             <Grid.RowDefinitions>
                                 <!-- 제어 패널 제목 영역 -->
                                 <RowDefinition Height="Auto"/>
@@ -350,9 +379,9 @@
                             <!--
                                 [우측 제어 패널] Tab 구성
 
-                                1) [운용 제어]
-                                2) [이동 제어]
-                                3) [ZOOM / FOCUS]
+                                1) [통신 설정]
+                                2) [운용 제어]
+                                3) [이동 제어]
 
                                 영상 영역은 유지하고,
                                 우측 제어 영역만 기능별로 전환한다.
@@ -364,30 +393,30 @@
                                         ItemContainerStyle="{StaticResource RightPanelTabItemStyle}">
 
                                 <!--
-                                    [운용 제어] Tab
+                                    [통신 설정] Tab
 
                                     1) [MCB / SCB] 통신 설정
-                                    2) [MCB / SCB] 연결 상태 표시
-                                    3) [PTZ] 제어 모드 전환
-                                    4) [PAN / TILT] 연속 이동 제어
-                                    5) [ZOOM / FOCUS] 연속 제어
-                                    6) 현재 [PAN / TILT / ZOOM / FOCUS] 위치 표시
--->
-                                <TabItem Header="운용 제어">
+                                    2) [Radar UDP] 통신 설정
+                                    3) [Rabbit MQ] 통신 설정
 
-                                    <!-- [운용 제어] Tab 내부 Scroll 영역 -->
+                                    장비 제어와 별개로
+                                    통신 연결 정보를 관리한다.
+-->
+                                <TabItem Header="통신 설정">
+
+                                    <!-- [통신 설정] Tab 내부 Scroll 영역 -->
                                     <ScrollViewer VerticalScrollBarVisibility="Visible"
                                                   HorizontalScrollBarVisibility="Disabled">
 
                                         <StackPanel Margin="5">
 
-                                            <!-- [운용 제어 설정 영역] -->
+                                            <!-- 1. [MCB, SCB 통신 설정] Border -->
                                             <Border Margin="0,0,0,5"
                                                     Background="#5F666D"
                                                     BorderBrush="#95A5B0"
                                                     BorderThickness="1.5"
                                                     CornerRadius="5"
-                                                    Padding="10">
+                                                    Padding="8">
 
                                                 <StackPanel>
 
@@ -406,6 +435,7 @@
                                                             Margin="0,0,0,10">
 
                                                         <Grid>
+
                                                             <Grid.RowDefinitions>
                                                                 <!-- [MCB 제목 / 상태] 표시 -->
                                                                 <RowDefinition Height="Auto"/>
@@ -415,9 +445,6 @@
                                                             </Grid.RowDefinitions>
 
                                                             <Grid.ColumnDefinitions>
-                                                                <!-- 여백용 Column -->
-                                                                <ColumnDefinition Width="Auto"/>
-
                                                                 <!-- IP 입력 Column -->
                                                                 <ColumnDefinition Width="*"/>
 
@@ -428,7 +455,7 @@
                                                             <!-- [MCB 제목 및 연결 상태] 표시 -->
                                                             <Grid Grid.Row="0"
                                                                   Grid.Column="0"
-                                                                  Grid.ColumnSpan="3"
+                                                                  Grid.ColumnSpan="2"
                                                                   Margin="0,0,0,6">
 
                                                                 <Grid.ColumnDefinitions>
@@ -449,11 +476,12 @@
                                                                            Foreground="{Binding McbConnectionStatusBrush}"
                                                                            FontSize="11"
                                                                            FontWeight="Bold"/>
+
                                                             </Grid>
 
                                                             <!-- [MCB IP] 입력 -->
                                                             <TextBox Grid.Row="1"
-                                                                     Grid.Column="1"
+                                                                     Grid.Column="0"
                                                                      Text="{Binding McbIpAddress, UpdateSourceTrigger=PropertyChanged}"
                                                                      IsEnabled="{Binding IsDeviceConnectionSettingEnabled}"
                                                                      Height="24"
@@ -464,13 +492,14 @@
 
                                                             <!-- [MCB Port] 입력 -->
                                                             <TextBox Grid.Row="1"
-                                                                     Grid.Column="2"
+                                                                     Grid.Column="1"
                                                                      Text="{Binding McbPort, UpdateSourceTrigger=PropertyChanged}"
                                                                      IsEnabled="{Binding IsDeviceConnectionSettingEnabled}"
                                                                      Height="24"
                                                                      FontSize="12"
                                                                      FontWeight="Bold"
                                                                      VerticalContentAlignment="Center"/>
+
                                                         </Grid>
 
                                                     </Border>
@@ -482,6 +511,7 @@
                                                             Padding="8">
 
                                                         <Grid>
+
                                                             <Grid.RowDefinitions>
                                                                 <!-- [SCB 제목 / 상태] 표시 -->
                                                                 <RowDefinition Height="Auto"/>
@@ -491,9 +521,6 @@
                                                             </Grid.RowDefinitions>
 
                                                             <Grid.ColumnDefinitions>
-                                                                <!-- 여백용 Column -->
-                                                                <ColumnDefinition Width="Auto"/>
-
                                                                 <!-- IP 입력 Column -->
                                                                 <ColumnDefinition Width="*"/>
 
@@ -504,7 +531,7 @@
                                                             <!-- [SCB 제목 및 연결 상태] 표시 -->
                                                             <Grid Grid.Row="0"
                                                                   Grid.Column="0"
-                                                                  Grid.ColumnSpan="3"
+                                                                  Grid.ColumnSpan="2"
                                                                   Margin="0,0,0,6">
 
                                                                 <Grid.ColumnDefinitions>
@@ -525,11 +552,12 @@
                                                                            Foreground="{Binding ScbConnectionStatusBrush}"
                                                                            FontSize="11"
                                                                            FontWeight="Bold"/>
+
                                                             </Grid>
 
                                                             <!-- [SCB IP] 입력 -->
                                                             <TextBox Grid.Row="1"
-                                                                     Grid.Column="1"
+                                                                     Grid.Column="0"
                                                                      Text="{Binding ScbIpAddress, UpdateSourceTrigger=PropertyChanged}"
                                                                      IsEnabled="{Binding IsDeviceConnectionSettingEnabled}"
                                                                      Height="24"
@@ -540,13 +568,14 @@
 
                                                             <!-- [SCB Port] 입력 -->
                                                             <TextBox Grid.Row="1"
-                                                                     Grid.Column="2"
+                                                                     Grid.Column="1"
                                                                      Text="{Binding ScbPort, UpdateSourceTrigger=PropertyChanged}"
                                                                      IsEnabled="{Binding IsDeviceConnectionSettingEnabled}"
                                                                      Height="24"
                                                                      FontSize="12"
                                                                      FontWeight="Bold"
                                                                      VerticalContentAlignment="Center"/>
+
                                                         </Grid>
 
                                                     </Border>
@@ -555,13 +584,258 @@
 
                                             </Border>
 
-                                            <!-- [PTZ 제어 모드 영역] -->
-                                            <Border Margin="0,0,0,10"
+                                            <!-- 2. [Radar 통신 설정] Border -->
+                                            <Border Margin="0,5,0,5"
                                                     Background="#5F666D"
                                                     BorderBrush="#95A5B0"
                                                     BorderThickness="1.5"
                                                     CornerRadius="5"
-                                                    Padding="10">
+                                                    Padding="8">
+
+                                                <StackPanel>
+
+                                                    <!-- [Radar 통신] 설정 제목 -->
+                                                    <TextBlock Text="Radar 통신 설정"
+                                                               HorizontalAlignment="Center"
+                                                               Foreground="White"
+                                                               FontWeight="Bold"
+                                                               Margin="0,0,0,10"/>
+
+                                                    <!-- [Radar UDP] 설정 영역 -->
+                                                    <Border Background="#40464D"
+                                                            BorderBrush="#95A5B0"
+                                                            BorderThickness="1"
+                                                            Padding="8">
+
+                                                        <StackPanel>
+
+                                                            <!-- [Radar UDP 제목 및 수신 상태] 표시 -->
+                                                            <Grid Margin="0,0,0,5">
+
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                </Grid.ColumnDefinitions>
+
+                                                                <!-- [Radar UDP] 설정 제목 -->
+                                                                <TextBlock Grid.Column="0"
+                                                                           Text="UDP 통신 설정"
+                                                                           Foreground="White"
+                                                                           FontSize="12"
+                                                                           FontWeight="Bold"/>
+
+                                                                <!-- [Radar UDP] 통신 상태 표시 -->
+                                                                <TextBlock Grid.Column="1"
+                                                                           Text="{Binding RadarUdpConnectionStatusText}"
+                                                                           Foreground="{Binding RadarUdpConnectionStatusBrush}"
+                                                                           FontSize="11"
+                                                                           FontWeight="Bold"/>
+
+                                                            </Grid>
+
+                                                            <!-- [Radar UDP IP / Port] 입력 -->
+                                                            <Grid>
+
+                                                                <Grid.ColumnDefinitions>
+                                                                    <!-- IP 입력 Column -->
+                                                                    <ColumnDefinition Width="*"/>
+
+                                                                    <!-- Port 입력 Column -->
+                                                                    <ColumnDefinition Width="65"/>
+                                                                </Grid.ColumnDefinitions>
+
+                                                                <!-- [Radar UDP IP] 입력 -->
+                                                                <TextBox Grid.Column="0"
+                                                                         Text="{Binding RadarUdpIpAddress, UpdateSourceTrigger=PropertyChanged}"
+                                                                         IsEnabled="{Binding IsRadarUdpConnectionSettingEnabled}"
+                                                                         Height="24"
+                                                                         FontSize="12"
+                                                                         FontWeight="Bold"
+                                                                         VerticalContentAlignment="Center"
+                                                                         Margin="0,0,5,0"/>
+
+                                                                <!-- [Radar UDP Local Port] 입력 -->
+                                                                <TextBox Grid.Column="1"
+                                                                         Text="{Binding RadarUdpLocalPort, UpdateSourceTrigger=PropertyChanged}"
+                                                                         IsEnabled="{Binding IsRadarUdpConnectionSettingEnabled}"
+                                                                         Height="24"
+                                                                         FontSize="12"
+                                                                         FontWeight="Bold"
+                                                                         VerticalContentAlignment="Center"/>
+
+                                                            </Grid>
+
+                                                            <!-- [Radar UDP] 수신 시작 / 중지 버튼 -->
+                                                            <Grid Margin="0,10,0,0">
+
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                </Grid.ColumnDefinitions>
+
+                                                                <!-- [Radar UDP] 수신 시작 -->
+                                                                <Button Grid.Column="0"
+                                                                        Content="UDP START"
+                                                                        Style="{StaticResource ConnectButtonStyle}"
+                                                                        IsEnabled="{Binding IsRadarUdpStartButtonEnabled}"
+                                                                        Command="{Binding StartRadarUdpReceiveCommand}"
+                                                                        Margin="0,0,0,0"/>
+
+                                                                <!-- [Radar UDP] 수신 중지 -->
+                                                                <Button Grid.Column="1"
+                                                                        Content="UDP STOP"
+                                                                        Style="{StaticResource DisconnectButtonStyle}"
+                                                                        IsEnabled="{Binding IsRadarUdpStopButtonEnabled}"
+                                                                        Command="{Binding StopRadarUdpReceiveCommand}"
+                                                                        Margin="5,0,0,0"/>
+
+                                                            </Grid>
+
+                                                        </StackPanel>
+
+                                                    </Border>
+
+                                                </StackPanel>
+
+                                            </Border>
+
+                                            <!-- 3. [RabbitMQ 통신 설정] Border -->
+                                            <Border Margin="0,5,0,0"
+                                                    Background="#5F666D"
+                                                    BorderBrush="#95A5B0"
+                                                    BorderThickness="1.5"
+                                                    CornerRadius="5"
+                                                    Padding="8">
+
+                                                <StackPanel>
+
+                                                    <!-- [RabbitMQ 통신] 설정 제목 -->
+                                                    <TextBlock Text="RabbitMQ 통신 설정"
+                                                               HorizontalAlignment="Center"
+                                                               Foreground="White"
+                                                               FontWeight="Bold"
+                                                               Margin="0,0,0,10"/>
+
+                                                    <!-- [RabbitMQ] 설정 영역 -->
+                                                    <Border Background="#40464D"
+                                                            BorderBrush="#95A5B0"
+                                                            BorderThickness="1"
+                                                            Padding="8">
+
+                                                        <StackPanel>
+
+                                                            <!-- [RabbitMQ 제목 및 상태] 표시 -->
+                                                            <Grid Margin="0,0,0,5">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                </Grid.ColumnDefinitions>
+
+                                                                <TextBlock Grid.Column="0"
+                                                                           Text="MQ 통신 설정"
+                                                                           Foreground="White"
+                                                                           FontSize="12"
+                                                                           FontWeight="Bold"/>
+
+                                                                <!-- [RabbitMQ] 수신 상태 표시 -->
+                                                                <TextBlock Grid.Column="1"
+                                                                           Text="{Binding RabbitMqConnectionStatusText}"
+                                                                           Foreground="{Binding RabbitMqConnectionStatusBrush}"
+                                                                           FontSize="11"
+                                                                           FontWeight="Bold"/>
+
+                                                            </Grid>
+
+                                                            <!-- [RabbitMQ Host / Port] 입력 -->
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="65"/>
+                                                                </Grid.ColumnDefinitions>
+
+                                                                <TextBox Grid.Column="0"
+                                                                         Text="{Binding MqHostName, UpdateSourceTrigger=PropertyChanged}"
+                                                                         IsEnabled="{Binding IsRabbitMqConnectionSettingEnabled}"
+                                                                         Height="24"
+                                                                         FontSize="12"
+                                                                         FontWeight="Bold"
+                                                                         VerticalContentAlignment="Center"
+                                                                         Margin="0,0,5,0"/>
+
+                                                                <TextBox Grid.Column="1"
+                                                                         Text="{Binding MqPort, UpdateSourceTrigger=PropertyChanged}"
+                                                                         IsEnabled="{Binding IsRabbitMqConnectionSettingEnabled}"
+                                                                         Height="24"
+                                                                         FontSize="12"
+                                                                         FontWeight="Bold"
+                                                                         VerticalContentAlignment="Center"/>
+
+                                                            </Grid>
+
+                                                            <!-- [RabbitMQ] 수신 시작 / 중지 버튼 -->
+                                                            <Grid Margin="0,10,0,0">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                </Grid.ColumnDefinitions>
+
+                                                                <!-- [RabbitMQ] 수신 시작 -->
+                                                                <Button Grid.Column="0"
+                                                                        Content="MQ START"
+                                                                        Style="{StaticResource ConnectButtonStyle}"
+                                                                        IsEnabled="{Binding IsRabbitMqStartButtonEnabled}"
+                                                                        Command="{Binding StartMqReceiveCommand}"
+                                                                        Margin="0,0,0,0"/>
+
+                                                                <!-- [RabbitMQ] 수신 중지 -->
+                                                                <Button Grid.Column="1"
+                                                                        Content="MQ STOP"
+                                                                        Style="{StaticResource DisconnectButtonStyle}"
+                                                                        IsEnabled="{Binding IsRabbitMqStopButtonEnabled}"
+                                                                        Command="{Binding StopMqReceiveCommand}"
+                                                                        Margin="5,0,0,0"/>
+
+                                                            </Grid>
+
+                                                        </StackPanel>
+
+                                                    </Border>
+
+                                                </StackPanel>
+
+                                            </Border>
+
+                                        </StackPanel>
+
+                                    </ScrollViewer>
+
+                                </TabItem>
+
+                                <!--
+                                    [운용 제어] Tab
+
+                                    1) [MCB / SCB] 통신 제어
+                                    2) [MCB / SCB] 연결 상태 표시
+                                    3) [PTZ] 제어 모드 전환
+                                    4) [PAN / TILT] 연속 이동 제어
+                                    5) [ZOOM / FOCUS] 연속 제어
+                                    6) 현재 [PAN / TILT / ZOOM / FOCUS] 위치 표시
+-->
+                                <TabItem Header="운용 제어">
+
+                                    <!-- [운용 제어] Tab 내부 Scroll 영역 -->
+                                    <ScrollViewer VerticalScrollBarVisibility="Visible"
+                                                  HorizontalScrollBarVisibility="Disabled">
+
+                                        <StackPanel Margin="5">
+
+                                            <!-- [PTZ 제어 모드 영역] -->
+                                            <Border Margin="0,0,0,5"
+                                                    Background="#5F666D"
+                                                    BorderBrush="#95A5B0"
+                                                    BorderThickness="1.5"
+                                                    CornerRadius="5"
+                                                    Padding="8">
 
                                                 <StackPanel>
 
@@ -582,28 +856,31 @@
 
                                                     <!-- [PTZ 제어 모드 버튼 영역] -->
                                                     <Grid>
+
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="*"/>
                                                             <ColumnDefinition Width="8"/>
                                                             <ColumnDefinition Width="*"/>
                                                         </Grid.ColumnDefinitions>
 
-                                                        <!-- [AUTO] 모드 설정 -->
+                                                        <!-- [AUTO] 모드 제어 -->
                                                         <Button Grid.Column="0"
                                                                 Content="AUTO"
                                                                 Height="26"
                                                                 IsEnabled="{Binding IsDeviceControlEnabled}"
                                                                 Command="{Binding SetPtzAutoModeCommand}"/>
 
-                                                        <!-- [MANUAL] 모드 설정 -->
+                                                        <!-- [MANUAL] 모드 제어 -->
                                                         <Button Grid.Column="2"
                                                                 Content="MANUAL"
                                                                 Height="26"
                                                                 IsEnabled="{Binding IsDeviceControlEnabled}"
                                                                 Command="{Binding SetPtzManualModeCommand}"/>
+
                                                     </Grid>
 
                                                 </StackPanel>
+
                                             </Border>
 
                                             <!-- [PAN / TILT] 연속 이동 제어 영역 -->
@@ -612,7 +889,7 @@
                                                     BorderBrush="#95A5B0"
                                                     BorderThickness="1.5"
                                                     CornerRadius="5"
-                                                    Padding="10">
+                                                    Padding="8">
 
                                                 <StackPanel>
 
@@ -679,6 +956,7 @@
                                                                     Style="{StaticResource StopButtonStyle}"
                                                                     IsEnabled="{Binding IsDeviceControlEnabled}"
                                                                     Command="{Binding StopMoveCommand}"/>
+
                                                         </Border>
 
                                                         <!-- [Pan 오른쪽] 연속 이동 -->
@@ -700,9 +978,10 @@
                                                                 PreviewMouseDown="TiltDown_MouseDown"
                                                                 PreviewMouseUp="MoveStop_MouseUp"
                                                                 MouseLeave="MoveStop_MouseUp"/>
+
                                                     </Grid>
 
-                                                    <!-- [PAN / TILT] 연속 이동 속도 설정 -->
+                                                    <!-- [PAN / TILT] 연속 이동 속도 제어 -->
                                                     <StackPanel Margin="0,5,0,0">
 
                                                         <!-- [PAN / TILT] 현재 속도 표시 -->
@@ -740,7 +1019,7 @@
                                                     BorderBrush="#95A5B0"
                                                     BorderThickness="1.5"
                                                     CornerRadius="5"
-                                                    Padding="10">
+                                                    Padding="8">
 
                                                 <StackPanel>
 
@@ -777,6 +1056,7 @@
                                                                 PreviewMouseDown="ZoomOut_MouseDown"
                                                                 PreviewMouseUp="MoveStop_MouseUp"
                                                                 MouseLeave="MoveStop_MouseUp"/>
+
                                                     </StackPanel>
 
                                                     <!-- [Focus] 연속 제어 버튼 영역 -->
@@ -805,6 +1085,7 @@
                                                                 PreviewMouseDown="FocusNear_MouseDown"
                                                                 PreviewMouseUp="MoveStop_MouseUp"
                                                                 MouseLeave="MoveStop_MouseUp"/>
+
                                                     </StackPanel>
 
                                                     <!-- [Auto Focus] 실행 -->
@@ -815,6 +1096,7 @@
                                                             IsEnabled="{Binding IsDeviceControlEnabled}"
                                                             Style="{StaticResource AutoFocusButtonStyle}"
                                                             Command="{Binding AutoFocusCommand}"/>
+
                                                 </StackPanel>
 
                                             </Border>
@@ -907,6 +1189,7 @@
                                                             Style="{StaticResource EoControlButtonStyle}"
                                                             IsEnabled="{Binding IsDeviceControlEnabled}"
                                                             Command="{Binding MoveTiltAbsoluteCommand}"/>
+
                                                 </StackPanel>
 
                                             </Border>
@@ -1026,6 +1309,7 @@
                                                                 Style="{StaticResource ZeroPositionButtonStyle}"
                                                                 IsEnabled="{Binding IsDeviceControlEnabled}"
                                                                 Command="{Binding SetTiltZeroCommand}"/>
+
                                                     </StackPanel>
 
                                                 </StackPanel>
@@ -1057,13 +1341,13 @@
                                                     <!-- [Zoom] 목표 위치 입력 -->
                                                     <TextBox Text="{Binding ZoomPositionValue, 
                                                                             UpdateSourceTrigger=LostFocus}"
-                                                             PreviewTextInput="IntegerNumberOnly_PreviewTextInput"
-                                                             LostFocus="PositionValue_LostFocus"
-                                                             IsEnabled="{Binding IsDeviceControlEnabled}"
-                                                             Height="24"
-                                                             Margin="0,3,0,5"
-                                                             FontWeight="Bold"
-                                                             VerticalContentAlignment="Center"/>
+                                                                            PreviewTextInput="IntegerNumberOnly_PreviewTextInput"
+                                                                            LostFocus="PositionValue_LostFocus"
+                                                                            IsEnabled="{Binding IsDeviceControlEnabled}"
+                                                                            Height="24"
+                                                                            Margin="0,3,0,5"
+                                                                            FontWeight="Bold"
+                                                                            VerticalContentAlignment="Center"/>
 
                                                     <!-- [Zoom] 위치 이동 실행 -->
                                                     <Button Content="SET ZOOM"
@@ -1191,6 +1475,7 @@
                                     Padding="10">
 
                                 <StackPanel Margin="1">
+
                                     <!-- 현재 장비 상태 제목 -->
                                     <Grid Margin="0,0,20,10">
                                         <TextBlock Text="CURRENT STATUS"
@@ -1202,6 +1487,7 @@
 
                                     <!-- [Pan] 현재 위치 -->
                                     <Grid Margin="0,1,0,1">
+
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="45"/>
                                             <ColumnDefinition Width="10"/>
@@ -1222,10 +1508,12 @@
                                                    Text="{Binding CurrentPan, StringFormat={}{0:F4}}"
                                                    Foreground="White"
                                                    FontWeight="Bold"/>
+
                                     </Grid>
 
                                     <!-- [Tilt] 현재 위치 -->
                                     <Grid Margin="0,1,0,1">
+
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="45"/>
                                             <ColumnDefinition Width="10"/>
@@ -1246,10 +1534,12 @@
                                                    Text="{Binding CurrentTilt, StringFormat={}{0:F4}}"
                                                    Foreground="White"
                                                    FontWeight="Bold"/>
+
                                     </Grid>
 
                                     <!-- [Zoom] 현재 위치 -->
                                     <Grid Margin="0,1,0,1">
+
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="45"/>
                                             <ColumnDefinition Width="10"/>
@@ -1270,10 +1560,12 @@
                                                    Text="{Binding CurrentZoomDisplayText}"
                                                    Foreground="White"
                                                    FontWeight="Bold"/>
+
                                     </Grid>
 
                                     <!-- [Focus] 현재 위치 -->
                                     <Grid Margin="0,1,0,1">
+
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="45"/>
                                             <ColumnDefinition Width="10"/>
@@ -1294,6 +1586,7 @@
                                                    Text="{Binding CurrentFocus}"
                                                    Foreground="White"
                                                    FontWeight="Bold"/>
+
                                     </Grid>
 
                                 </StackPanel>
@@ -1315,9 +1608,11 @@
                 Padding="10"
                 Margin="0,10,0,0"
                 Background="#2B3038">
+
             <TextBlock Text="CSE Middleware Test UI - Console log enabled"
                        Foreground="#B8C7D9"
                        FontSize="14"/>
+
         </Border>
 
     </Grid>

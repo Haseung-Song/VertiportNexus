@@ -147,6 +147,7 @@
     </Compile>
     <Compile Include="Common\Constants\Ads1000Constants.cs" />
     <Compile Include="Common\Commands\AsyncRelayCommand.cs" />
+    <Compile Include="Common\Constants\RadarPacketConstants.cs" />
     <Compile Include="Common\Helpers\ConsoleLogHelper.cs" />
     <Compile Include="Common\Commands\RelayCommand.cs" />
     <Compile Include="Common\Converters\MatToBitmapSourceConverter.cs" />
@@ -165,6 +166,13 @@
     <Compile Include="Models\CSE\CseInterfaceId.cs" />
     <Compile Include="Models\CSE\CseMqQueue.cs" />
     <Compile Include="Models\CSE\CsePtzStatePayload.cs" />
+    <Compile Include="Models\Radar\RadarBistRequestPayload.cs" />
+    <Compile Include="Models\Radar\RadarBistResponsePayload.cs" />
+    <Compile Include="Models\Radar\RadarPacket.cs" />
+    <Compile Include="Models\Radar\RadarPacketHeader.cs" />
+    <Compile Include="Models\Radar\RadarPacketTail.cs" />
+    <Compile Include="Models\Radar\RadarTrackingRequestPayload.cs" />
+    <Compile Include="Models\Radar\RadarTrackingResponsePayload.cs" />
     <Compile Include="Services\ADS1000\Ads1000CameraControlService.cs" />
     <Compile Include="Services\ADS1000\Ads1000StatusService.cs" />
     <Compile Include="Services\Command\CameraCommandService.cs" />
@@ -192,6 +200,14 @@
     <Compile Include="Services\CSE\CseCommandReceiveService.cs" />
     <Compile Include="Services\CSE\CseCommandResponseService.cs" />
     <Compile Include="Services\CSE\CseMessageParser.cs" />
+    <Compile Include="Services\Radar\RadarCommandHandler.cs" />
+    <Compile Include="Services\Radar\RadarMockPacketTestService.cs" />
+    <Compile Include="Services\Radar\RadarPacketBuilder.cs" />
+    <Compile Include="Services\Radar\RadarPacketParser.cs" />
+    <Compile Include="Services\Radar\RadarStateProvider.cs" />
+    <Compile Include="Services\Radar\RadarTrackingControlService.cs" />
+    <Compile Include="Services\Radar\RadarUdpMockSenderService.cs" />
+    <Compile Include="Services\Radar\RadarUdpService.cs" />
     <Compile Include="ViewModels\Main\MainViewModel.cs" />
     <Compile Include="Views\Main\MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>

@@ -15,10 +15,17 @@ namespace VertiportNexus.Services.Communication.MQ
         #region [Constants]
 
         /// <summary>
+        /// [RabbitMQ] 기본 연결 대상 [Host]
+        /// </summary>
+        private const string DEFAULT_RABBITMQ_HOST_NAME = "127.0.0.1";
+
+        /// <summary>
+        /// [RabbitMQ] 기본 연결 대상 [Port]
+        /// </summary>
+        private const int DEFAULT_RABBITMQ_PORT = 5672;
+
+        /// <summary>
         /// [RabbitMQ] 연결 제한 시간 [초]
-        /// 
-        /// RabbitMQ 서버가 실행 중이 아니어도
-        /// 프로그램 실행이 오래 지연되지 않도록 제한한다.
         /// </summary>
         private const int RABBITMQ_CONNECTION_TIMEOUT_SECONDS = 2;
 
@@ -39,12 +46,30 @@ namespace VertiportNexus.Services.Communication.MQ
         /// [RabbitMqSender] 생성자
         /// </summary>
         public RabbitMqSender()
+            : this(
+                  DEFAULT_RABBITMQ_HOST_NAME,
+                  DEFAULT_RABBITMQ_PORT)
+        {
+        }
+
+        /// <summary>
+        /// [RabbitMqSender] 생성자
+        /// </summary>
+        /// <param name="hostName">
+        /// [RabbitMQ] 연결 대상 [Host]
+        /// </param>
+        /// <param name="port">
+        /// [RabbitMQ] 연결 대상 [Port]
+        /// </param>
+        public RabbitMqSender(
+            string hostName,
+            int port)
         {
             _connectionFactory =
                 new ConnectionFactory
                 {
-                    HostName = "localhost",
-                    Port = 5672,
+                    HostName = hostName,
+                    Port = port,
                     UserName = "vertiport_GS",
                     Password = "rmffhqjf1!",
 
@@ -60,7 +85,6 @@ namespace VertiportNexus.Services.Communication.MQ
                         TimeSpan.FromSeconds(
                             RABBITMQ_CONNECTION_TIMEOUT_SECONDS)
                 };
-
         }
 
         #endregion
@@ -114,6 +138,8 @@ namespace VertiportNexus.Services.Communication.MQ
 
                 ConsoleLogHelper.PrintLine();
                 Console.WriteLine("[RabbitMQ][SEND] Send Start");
+                Console.WriteLine("[RabbitMQ][SEND] Host : " + _connectionFactory.HostName);
+                Console.WriteLine("[RabbitMQ][SEND] Port : " + _connectionFactory.Port);
                 Console.WriteLine("[RabbitMQ][SEND] Queue : " + queueName);
                 Console.WriteLine("[RabbitMQ][SEND] Message");
                 Console.WriteLine(message);
@@ -165,7 +191,6 @@ namespace VertiportNexus.Services.Communication.MQ
                 Console.WriteLine("[RabbitMQ][SEND] Send Failed : Message is empty");
                 return false;
             }
-
             return true;
         }
         #endregion

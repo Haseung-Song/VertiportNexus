@@ -33,7 +33,7 @@
         /// 단위:
         /// Degree / Second
         /// </summary>
-        public const double DEFAULT_POSITION_SPEED = 25.0;
+        public const double DEFAULT_POSITION_SPEED = 50.0;
     }
 
 }

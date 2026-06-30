@@ -17,10 +17,17 @@ namespace VertiportNexus.Services.Communication.MQ
         #region [Constants]
 
         /// <summary>
+        /// [RabbitMQ] 기본 연결 대상 [Host]
+        /// </summary>
+        private const string DEFAULT_RABBITMQ_HOST_NAME = "127.0.0.1";
+
+        /// <summary>
+        /// [RabbitMQ] 기본 연결 대상 [Port]
+        /// </summary>
+        private const int DEFAULT_RABBITMQ_PORT = 5672;
+
+        /// <summary>
         /// [RabbitMQ] 연결 제한 시간 [초]
-        /// 
-        /// RabbitMQ 서버가 실행 중이 아니어도
-        /// 프로그램 실행이 오래 지연되지 않도록 제한한다.
         /// </summary>
         private const int RABBITMQ_CONNECTION_TIMEOUT_SECONDS = 2;
 
@@ -45,8 +52,6 @@ namespace VertiportNexus.Services.Communication.MQ
 
         /// <summary>
         /// [RabbitMQ] Consumer 식별값
-        /// 
-        /// 수신 중지 시 [BasicCancel] 처리에 사용한다.
         /// </summary>
         private string _consumerTag;
 
@@ -67,12 +72,31 @@ namespace VertiportNexus.Services.Communication.MQ
         /// [RabbitMqReceiver] 생성자
         /// </summary>
         public RabbitMqReceiver()
+            : this(
+                  DEFAULT_RABBITMQ_HOST_NAME,
+                  DEFAULT_RABBITMQ_PORT)
+        {
+        }
+
+        /// <summary>
+        /// [RabbitMqReceiver] 생성자
+        /// </summary>
+        /// <param name="hostName">
+        /// [RabbitMQ] 연결 대상 [Host]
+        /// </param>
+        /// <param name="port">
+        /// [RabbitMQ] 연결 대상 [Port]
+        /// </param>
+        public RabbitMqReceiver(
+            string hostName,
+            int port)
         {
             _connectionFactory =
                 new ConnectionFactory
                 {
-                    HostName = "localhost",
-                    Port = 5672,
+                    HostName = hostName,
+                    Port = port,
+
                     UserName = "vertiport_GS",
                     Password = "rmffhqjf1!",
 
@@ -135,7 +159,8 @@ namespace VertiportNexus.Services.Communication.MQ
                         consumer: consumer);
 
                 Console.WriteLine("[RabbitMQ][RECV] Receive Start");
-                Console.WriteLine();
+                Console.WriteLine("[RabbitMQ][RECV] Host : " + _connectionFactory.HostName);
+                Console.WriteLine("[RabbitMQ][RECV] Port : " + _connectionFactory.Port);
                 Console.WriteLine("[RabbitMQ][RECV] Queue : " + CseMqQueue.CommandRequest);
                 ConsoleLogHelper.PrintLine();
             }
@@ -148,6 +173,8 @@ namespace VertiportNexus.Services.Communication.MQ
                 ConsoleLogHelper.PrintLine();
 
                 ReleaseResources();
+
+                throw;
             }
 
         }

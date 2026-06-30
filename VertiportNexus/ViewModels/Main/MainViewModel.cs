@@ -14,6 +14,8 @@ using VertiportNexus.Services.Camera;
 using VertiportNexus.Services.Command;
 using VertiportNexus.Services.Communication.MQ;
 using VertiportNexus.Services.Communication.TCP;
+using VertiportNexus.Services.Communication.UDP;
+using VertiportNexus.Services.Radar;
 using VertiportNexus.Services.Vertiport;
 
 namespace VertiportNexus.ViewModels.Main
@@ -169,6 +171,57 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         private readonly CseCommandHandler _cseCommandHandler;
 
+        /// <summary>
+        /// [Radar] UDP 통신 서비스
+        /// </summary>
+        private readonly UdpClientService _radarUdpClientService;
+
+        /// <summary>
+        /// [Radar] Packet Parser
+        /// </summary>
+        private readonly RadarPacketParser _radarPacketParser;
+
+        /// <summary>
+        /// [Radar] Packet Builder
+        /// </summary>
+        private readonly RadarPacketBuilder _radarPacketBuilder;
+
+        /// <summary>
+        /// [Radar] 상태 저장 서비스
+        /// </summary>
+        private readonly RadarStateProvider _radarStateProvider;
+
+        /// <summary>
+        /// [Radar] Command 처리 서비스
+        /// </summary>
+        private readonly RadarCommandHandler _radarCommandHandler;
+
+        /// <summary>
+        /// [Radar] UDP 연동 서비스
+        /// </summary>
+        private readonly RadarUdpService _radarUdpService;
+
+        /// <summary>
+        /// [Radar] UDP Mock 송신 서비스
+        /// 
+        /// RadarUdpService 수신 흐름을 검증하기 위해
+        /// Mock Packet을 UDP Loopback으로 송신한다.
+        /// </summary>
+        private readonly RadarUdpMockSenderService _radarUdpMockSenderService;
+
+        /// <summary>
+        /// [Radar] Mock Packet 테스트 서비스
+        /// </summary>
+        private readonly RadarMockPacketTestService _radarMockPacketTestService;
+
+        /// <summary>
+        /// [Radar] 추적 제어 서비스
+        /// 
+        /// Radar Tracking Request에서 수신한
+        /// 방위각 / 고각 정보를 ADS1000 Pan / Tilt 제어로 연결한다.
+        /// </summary>
+        private readonly RadarTrackingControlService _radarTrackingControlService;
+
         #endregion
 
         #region [Network Setting Fields]
@@ -192,6 +245,33 @@ namespace VertiportNexus.ViewModels.Main
         /// [SCB] 연결 대상 [Port]
         /// </summary>
         private int _scbPort = DEFAULT_SCB_PORT;
+
+        /// <summary>
+        /// [Radar] UDP 수신 대상 [IP]
+        /// 
+        /// Loopback 테스트 시 [127.0.0.1]을 사용하고,
+        /// 실제 장비 연동 시 CSE 수신 IP 또는 테스트 대상 IP로 변경한다.
+        /// </summary>
+        private string _radarUdpIpAddress =
+            "127.0.0.1";
+
+        /// <summary>
+        /// [Radar] UDP 수신 [Port]
+        /// </summary>
+        private int _radarUdpLocalPort =
+            5000;
+
+        /// <summary>
+        /// [MQ] 연결 대상 [Host]
+        /// </summary>
+        private string _mqHostName =
+            "127.0.0.1";
+
+        /// <summary>
+        /// [MQ] 연결 대상 [Port]
+        /// </summary>
+        private int _mqPort =
+            5672;
 
         #endregion
 
@@ -245,6 +325,18 @@ namespace VertiportNexus.ViewModels.Main
         /// [SCB] 연결 상태
         /// </summary>
         private ConnectionState _scbConnectionState =
+            ConnectionState.Disconnected;
+
+        /// <summary>
+        /// [Radar] UDP 수신 상태
+        /// </summary>
+        private ConnectionState _radarUdpConnectionState =
+            ConnectionState.Disconnected;
+
+        /// <summary>
+        /// [RabbitMQ] 수신 상태
+        /// </summary>
+        private ConnectionState _rabbitMqConnectionState =
             ConnectionState.Disconnected;
 
         /// <summary>
@@ -366,14 +458,14 @@ namespace VertiportNexus.ViewModels.Main
         #region [Command Properties]
 
         /// <summary>
-        /// [TCP] 연결 요청 [Command]
+        /// [MQ] 연결 요청 [Command]
         /// </summary>
-        public ICommand ConnectTcpCommand { get; }
+        public ICommand StartMqReceiveCommand { get; }
 
         /// <summary>
-        /// [TCP] 연결 해제 요청 [Command]
+        /// [MQ] 연결 해제 요청 [Command]
         /// </summary>
-        public ICommand DisconnectTcpCommand { get; }
+        public ICommand StopMqReceiveCommand { get; }
 
         /// <summary>
         /// [TCP] 수신 시작 요청 [Command]
@@ -509,6 +601,16 @@ namespace VertiportNexus.ViewModels.Main
         /// [PTZ] [MANUAL] 모드 설정 요청 [Command]
         /// </summary>
         public ICommand SetPtzManualModeCommand { get; }
+
+        /// <summary>
+        /// [Radar] UDP 수신 시작 요청 [Command]
+        /// </summary>
+        public ICommand StartRadarUdpReceiveCommand { get; }
+
+        /// <summary>
+        /// [Radar] UDP 수신 중지 요청 [Command]
+        /// </summary>
+        public ICommand StopRadarUdpReceiveCommand { get; }
 
         #endregion
 
@@ -650,14 +752,18 @@ namespace VertiportNexus.ViewModels.Main
             // 실제 [RabbitMQ]의 [q.command.req] Queue에서
             // [CSE] 명령 [JSON]을 수신한다.
             _mqReceiver =
-                new RabbitMqReceiver();
+                new RabbitMqReceiver(
+                    MqHostName,
+                    MqPort);
 
             // [MQ] 송신 서비스 지정
             //
             // [CSE] 명령 처리 결과를
             // 실제 [RabbitMQ] Queue로 송신한다.
             _mqSender =
-                new RabbitMqSender();
+                new RabbitMqSender(
+                    MqHostName,
+                    MqPort);
 
             // [CSE] 명령 수신 서비스 생성
             _cseCommandReceiveService =
@@ -690,27 +796,108 @@ namespace VertiportNexus.ViewModels.Main
             _cseCommandReceiveService.CommandReceived +=
                 OnCseCommandReceived;
 
-            // [CSE] 명령 수신 시작
+            // [CSE] 명령 수신은 [MQ START] 버튼을 통해
+            // 사용자가 수동으로 시작한다.
             //
             // [RabbitMQ] 서버 연결 실패로 인해
-            // 화면 초기화가 지연되지 않도록 백그라운드에서 시작한다.
-            StartCseReceiveInBackground();
+            // 화면 초기화가 지연되지 않도록 자동 시작하지 않는다.
+
+            #endregion
+
+            #region [Radar Initialize]
+
+            // [Radar] UDP 통신 서비스 생성
+            //
+            // [CSR]에서 CSE로 전달되는 Radar Packet을
+            // UDP로 수신하기 위해 사용한다.
+            _radarUdpClientService =
+                new UdpClientService(
+                    "RADAR");
+
+            // [Radar] Packet Parser 생성
+            //
+            // 수신 byte[] 데이터를 Header / SubData / Tail 구조로 분리하고,
+            // Command별 Payload 모델로 변환한다.
+            _radarPacketParser =
+                new RadarPacketParser();
+
+            // [Radar] Packet Builder 생성
+            //
+            // CSE에서 CSR로 송신할 응답 Packet을 생성한다.
+            _radarPacketBuilder =
+                new RadarPacketBuilder();
+
+            // [Radar] 상태 저장 서비스 생성
+            //
+            // 마지막 추적 요청 / BIST 요청 정보를 보관한다.
+            _radarStateProvider =
+                new RadarStateProvider();
+
+            // [Radar] 추적 제어 서비스 생성
+            //
+            // Radar Tracking Request에서 수신한
+            // 방위각 / 고각 정보를 ADS1000 Pan / Tilt 제어로 연결한다.
+            //
+            // 현재 ADS1000 제어 구조는
+            // Pan Absolute / Tilt Absolute 명령을 각각 송신하는 방식이므로,
+            // Radar Tracking 제어도 동일한 방식으로 처리한다.
+            _radarTrackingControlService =
+                new RadarTrackingControlService(
+                    _ads1000CameraControlService);
+
+            // [Radar] Command 처리 서비스 생성
+            //
+            // Radar Packet의 Command를 기준으로
+            // Tracking Request / BIST Request를 분기 처리하고,
+            // Tracking Request 수신 시 ADS1000 PTZ 제어까지 수행한다.
+            _radarCommandHandler =
+                new RadarCommandHandler(
+                    _radarPacketParser,
+                    _radarPacketBuilder,
+                    _radarStateProvider,
+                    _radarTrackingControlService);
+
+            // [Radar] Mock Packet 테스트 서비스 생성
+            //
+            // Tracking Request / BIST Request Mock Packet을 생성하여
+            // 실제 UDP 통신 없이 Radar Command 처리 로직을 테스트한다.
+            _radarMockPacketTestService =
+                new RadarMockPacketTestService(
+                    _radarCommandHandler);
+
+            // [Radar] UDP 연동 서비스 생성
+            //
+            // UDP 수신 Packet을 Handler로 전달하고,
+            // 처리 결과 응답 Packet을 송신자에게 반환한다.
+            _radarUdpService =
+                new RadarUdpService(
+                    _radarUdpClientService,
+                    _radarCommandHandler);
+
+            // [Radar] UDP Mock 송신 서비스 생성
+            //
+            // 실제 Radar 장비 연동 전,
+            // Mock Packet을 UDP Loopback으로 송신하여
+            // RadarUdpService 수신 / Handler 처리 / ADS1000 제어 흐름을 검증한다.
+            _radarUdpMockSenderService =
+                new RadarUdpMockSenderService(
+                    _radarMockPacketTestService);
 
             #endregion
 
             #region [Command Initialize]
 
-            ConnectTcpCommand =
-                new RelayCommand(ConnectMq);
+            StartMqReceiveCommand =
+                new RelayCommand(
+                    StartRabbitMqReceive);
 
-            DisconnectTcpCommand =
-                new RelayCommand(DisconnectMq);
+            StopMqReceiveCommand =
+                new RelayCommand(
+                    StopRabbitMqReceive);
 
-            // [MCB] / [SCB] 직접 [TCP] 연결 시작 [Command]
             StartTcpReceiveCommand =
                 new AsyncRelayCommand(ConnectDevicesAsync);
 
-            // [MCB] / [SCB] 직접 [TCP] 연결 해제 [Command]
             StopTcpReceiveCommand =
                 new AsyncRelayCommand(DisconnectDevicesAsync);
 
@@ -814,6 +1001,14 @@ namespace VertiportNexus.ViewModels.Main
                 new RelayCommand(
                      SetPtzManualMode);
 
+            StartRadarUdpReceiveCommand =
+                new RelayCommand(
+                    StartRadarUdpReceive);
+
+            StopRadarUdpReceiveCommand =
+                new RelayCommand(
+                    StopRadarUdpReceive);
+
             #endregion
 
             #region [Default Initialize]
@@ -895,6 +1090,78 @@ namespace VertiportNexus.ViewModels.Main
                 if (_scbPort != value)
                 {
                     _scbPort = value;
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [Radar] UDP 수신 대상 [IP]
+        /// </summary>
+        public string RadarUdpIpAddress
+        {
+            get => _radarUdpIpAddress;
+            set
+            {
+                if (_radarUdpIpAddress != value)
+                {
+                    _radarUdpIpAddress = value;
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [Radar] UDP 수신 [Port]
+        /// </summary>
+        public int RadarUdpLocalPort
+        {
+            get => _radarUdpLocalPort;
+            set
+            {
+                if (_radarUdpLocalPort != value)
+                {
+                    _radarUdpLocalPort = value;
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [MQ] 연결 대상 [Host]
+        /// </summary>
+        public string MqHostName
+        {
+            get => _mqHostName;
+            set
+            {
+                if (_mqHostName != value)
+                {
+                    _mqHostName = value;
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [MQ] 연결 대상 [Port]
+        /// </summary>
+        public int MqPort
+        {
+            get => _mqPort;
+            set
+            {
+                if (_mqPort != value)
+                {
+                    _mqPort = value;
                     OnPropertyChanged();
                 }
 
@@ -1039,6 +1306,98 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
+        /// [Radar] UDP 수신 상태 표시 문자열
+        /// </summary>
+        public string RadarUdpConnectionStatusText
+        {
+            get
+            {
+                switch (_radarUdpConnectionState)
+                {
+                    case ConnectionState.Connected:
+                        return "● Connected";
+
+                    case ConnectionState.Connecting:
+                        return "● Connecting";
+
+                    default:
+                        return "● Disconnected";
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [Radar] UDP 수신 상태 표시 색상
+        /// </summary>
+        public Brush RadarUdpConnectionStatusBrush
+        {
+            get
+            {
+                switch (_radarUdpConnectionState)
+                {
+                    case ConnectionState.Connected:
+                        return Brushes.LimeGreen;
+
+                    case ConnectionState.Connecting:
+                        return Brushes.Gold;
+
+                    default:
+                        return Brushes.IndianRed;
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [RabbitMQ] 연결 상태 표시 문자열
+        /// </summary>
+        public string RabbitMqConnectionStatusText
+        {
+            get
+            {
+                switch (_rabbitMqConnectionState)
+                {
+                    case ConnectionState.Connected:
+                        return "● Connected";
+
+                    case ConnectionState.Connecting:
+                        return "● Connecting";
+
+                    default:
+                        return "● Disconnected";
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [RabbitMQ] 연결 상태 표시 색상
+        /// </summary>
+        public Brush RabbitMqConnectionStatusBrush
+        {
+            get
+            {
+                switch (_rabbitMqConnectionState)
+                {
+                    case ConnectionState.Connected:
+                        return Brushes.LimeGreen;
+
+                    case ConnectionState.Connecting:
+                        return Brushes.Gold;
+
+                    default:
+                        return Brushes.IndianRed;
+                }
+
+            }
+
+        }
+
+        /// <summary>
         /// 장비 제어 가능 여부
         /// 
         /// [MCB] / [SCB] 중 하나 이상 연결된 경우
@@ -1088,6 +1447,91 @@ namespace VertiportNexus.ViewModels.Main
             get
             {
                 return !_isDeviceConnecting;
+            }
+
+        }
+
+        /// <summary>
+        /// [Radar UDP 수신 시작] 버튼 활성화 여부
+        /// </summary>
+        public bool IsRadarUdpStartButtonEnabled
+        {
+            get
+            {
+                return _mcbConnectionState == ConnectionState.Connected &&
+                       _scbConnectionState == ConnectionState.Connected &&
+                       _radarUdpConnectionState != ConnectionState.Connected;
+            }
+
+        }
+
+        /// <summary>
+        /// [Radar UDP 수신 중지] 버튼 활성화 여부
+        /// </summary>
+        public bool IsRadarUdpStopButtonEnabled
+        {
+            get
+            {
+                return _mcbConnectionState == ConnectionState.Connected &&
+                       _scbConnectionState == ConnectionState.Connected &&
+                       _radarUdpConnectionState == ConnectionState.Connected;
+            }
+
+        }
+
+        /// <summary>
+        /// [Radar UDP 통신 설정] 입력 가능 여부
+        /// </summary>
+        public bool IsRadarUdpConnectionSettingEnabled
+        {
+            get
+            {
+                return _mcbConnectionState == ConnectionState.Connected &&
+                       _scbConnectionState == ConnectionState.Connected &&
+                       _radarUdpConnectionState == ConnectionState.Disconnected;
+            }
+
+        }
+
+        /// <summary>
+        /// [RabbitMQ 수신 시작] 버튼 활성화 여부
+        /// </summary>
+        public bool IsRabbitMqStartButtonEnabled
+        {
+            get
+            {
+                return _mcbConnectionState == ConnectionState.Connected &&
+                       _scbConnectionState == ConnectionState.Connected &&
+                       _rabbitMqConnectionState != ConnectionState.Connected &&
+                       _rabbitMqConnectionState != ConnectionState.Connecting;
+            }
+
+        }
+
+        /// <summary>
+        /// [RabbitMQ 수신 중지] 버튼 활성화 여부
+        /// </summary>
+        public bool IsRabbitMqStopButtonEnabled
+        {
+            get
+            {
+                return _mcbConnectionState == ConnectionState.Connected &&
+                       _scbConnectionState == ConnectionState.Connected &&
+                       _rabbitMqConnectionState == ConnectionState.Connected;
+            }
+
+        }
+
+        /// <summary>
+        /// [RabbitMQ 통신 설정] 입력 가능 여부
+        /// </summary>
+        public bool IsRabbitMqConnectionSettingEnabled
+        {
+            get
+            {
+                return _mcbConnectionState == ConnectionState.Connected &&
+                       _scbConnectionState == ConnectionState.Connected &&
+                       _rabbitMqConnectionState == ConnectionState.Disconnected;
             }
 
         }
@@ -1501,96 +1945,137 @@ namespace VertiportNexus.ViewModels.Main
         #region [MQ Methods]
 
         /// <summary>
-        /// [CSE] [MQ] 수신 백그라운드 시작
-        /// 
-        /// RabbitMQ 서버가 실행 중이 아니거나 연결이 실패하더라도
-        /// 프로그램 화면 초기화가 지연되지 않도록 별도 작업으로 실행한다.
+        /// [RabbitMQ] 연결 상태 반영
         /// </summary>
-        private void StartCseReceiveInBackground()
+        /// <param name="connectionState">
+        /// [RabbitMQ] 연결 상태
+        /// </param>
+        private void SetRabbitMqConnectionState(
+            ConnectionState connectionState)
         {
-            if (_isCseMqReceiveStarted)
+            // [RabbitMQ] 연결 상태 저장
+            //
+            // [RabbitMQ] 수신 시작 / 중지 여부를
+            // 내부 상태값에 반영한다.
+            _rabbitMqConnectionState =
+                connectionState;
+
+            // [RabbitMQ] 연결 상태 UI 갱신
+            //
+            // 연결 상태 텍스트 및
+            // 상태 표시 색상을 갱신한다.
+            OnPropertyChanged(nameof(RabbitMqConnectionStatusText));
+            OnPropertyChanged(nameof(RabbitMqConnectionStatusBrush));
+
+            // [RabbitMQ 수신 시작] 버튼 활성화 상태 갱신
+            //
+            // [RabbitMQ] 수신 상태에 따라
+            // [MQ START] 버튼 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsRabbitMqStartButtonEnabled));
+
+            // [RabbitMQ 수신 중지] 버튼 활성화 상태 갱신
+            //
+            // [RabbitMQ] 수신 상태에 따라
+            // [MQ STOP] 버튼 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsRabbitMqStopButtonEnabled));
+
+            // [RabbitMQ 통신 설정] 입력 가능 상태 갱신
+            //
+            // [MCB] / [SCB] 연결 상태 및
+            // [RabbitMQ] 수신 상태에 따라
+            // RabbitMQ Host / Port 입력칸 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsRabbitMqConnectionSettingEnabled));
+        }
+
+        /// <summary>
+        /// [RabbitMQ] 수신 시작
+        /// 
+        /// 화면에서 입력한 [RabbitMQ Host] / [Port]를 기준으로
+        /// CSE 명령 JSON 수신을 시작한다.
+        /// </summary>
+        private async void StartRabbitMqReceive()
+        {
+            if (_rabbitMqConnectionState == ConnectionState.Connected ||
+                _rabbitMqConnectionState == ConnectionState.Connecting)
             {
-                Console.WriteLine("[CSE][MQ] Receive Start Ignored : Already Started");
+                ConsoleLogHelper.PrintLine();
+                Console.WriteLine("[CSE][MQ] Start Ignored : Already Started");
+                Console.WriteLine();
+
                 return;
             }
 
-            _isCseMqReceiveStarted =
-                true;
-
-            MqStatusText =
-                "RabbitMQ Receive Starting";
-
-            Task.Run(() =>
-            {
-                try
-                {
-                    _cseCommandReceiveService.StartReceive();
-
-                    App.Current.Dispatcher.BeginInvoke(new Action(() =>
-                    {
-                        MqStatusText =
-                            "RabbitMQ Receive Started";
-                    }));
-
-                }
-                catch (Exception ex)
-                {
-                    _isCseMqReceiveStarted =
-                        false;
-
-                    App.Current.Dispatcher.BeginInvoke(new Action(() =>
-                    {
-                        MqStatusText =
-                            "RabbitMQ Receive Failed";
-                    }));
-
-                    ConsoleLogHelper.PrintLine();
-                    Console.WriteLine("[CSE][MQ] Receive Start Failed");
-                    Console.WriteLine("[CSE][MQ] Error : " + ex.Message);
-                    ConsoleLogHelper.PrintLine();
-                }
-
-            });
-
-        }
-
-        /// <summary>
-        /// [MQ] 연결 처리
-        /// 
-        /// [RabbitMQ] [q.command.req] Queue 수신을 다시 시작한다.
-        /// </summary>
-        private void ConnectMq()
-        {
-            StartCseReceiveInBackground();
-        }
-
-        /// <summary>
-        /// [MQ] 연결 해제 처리
-        /// 
-        /// 현재 [RabbitMQ] 수신 객체를 중지한다.
-        /// </summary>
-        private void DisconnectMq()
-        {
             try
             {
-                _mqReceiver.StopReceive();
+                SetRabbitMqConnectionState(
+                    ConnectionState.Connecting);
+
+                // [RabbitMQ] 연결 상태 표시 지연
+                //
+                // RabbitMQ 수신 시작 처리가 빠르게 완료되는 경우
+                // 화면에서 [Connecting] 상태가 너무 빠르게 지나가지 않도록
+                // 짧은 표시 지연을 둔다.
+                await Task.Delay(
+                    500);
+
+                _cseCommandReceiveService
+                    .StartReceive();
+
+                _isCseMqReceiveStarted =
+                    true;
+
+                SetRabbitMqConnectionState(
+                    ConnectionState.Connected);
+            }
+            catch (Exception ex)
+            {
+                _isCseMqReceiveStarted =
+                    false;
+
+                SetRabbitMqConnectionState(
+                    ConnectionState.Disconnected);
+
+                ConsoleLogHelper.PrintLine();
+                Console.WriteLine("[CSE][MQ] Start Failed");
+                Console.WriteLine(ex.Message);
+                Console.WriteLine();
+            }
+
+        }
+
+        /// <summary>
+        /// [RabbitMQ] 수신 중지
+        /// 
+        /// 현재 실행 중인 RabbitMQ CSE 명령 수신을 중지한다.
+        /// </summary>
+        private void StopRabbitMqReceive()
+        {
+            if (_rabbitMqConnectionState != ConnectionState.Connected)
+            {
+                ConsoleLogHelper.PrintLine();
+                Console.WriteLine("[CSE][MQ] Stop Ignored : Not Started");
+                Console.WriteLine();
+
+                return;
+            }
+
+            try
+            {
+                _mqReceiver
+                    .StopReceive();
 
                 _isCseMqReceiveStarted =
                     false;
 
-                MqStatusText =
-                    "RabbitMQ Receive Stopped";
-
-                ConsoleLogHelper.PrintLine();
-                Console.WriteLine("[CSE][MQ] Receive Stop");
-                ConsoleLogHelper.PrintLine();
+                SetRabbitMqConnectionState(
+                    ConnectionState.Disconnected);
             }
             catch (Exception ex)
             {
                 ConsoleLogHelper.PrintLine();
-                Console.WriteLine("[CSE][MQ] Receive Stop Failed");
-                Console.WriteLine("[CSE][MQ] Error : " + ex.Message);
-                ConsoleLogHelper.PrintLine();
+                Console.WriteLine("[CSE][MQ] Stop Failed");
+                Console.WriteLine(ex.Message);
+                Console.WriteLine();
             }
 
         }
@@ -1648,6 +2133,20 @@ namespace VertiportNexus.ViewModels.Main
                 // IP / Port 입력칸 활성 / 비활성 상태를 갱신한다.
                 OnPropertyChanged(nameof(IsDeviceConnectionSettingEnabled));
 
+                // [Radar UDP 통신 설정] 입력 가능 상태 갱신
+                //
+                // 장비 연결 시도 종료 후
+                // [MCB] / [SCB] 연결 상태에 따라
+                // Radar UDP IP / Port 입력칸 활성 / 비활성 상태를 갱신한다.
+                OnPropertyChanged(nameof(IsRadarUdpConnectionSettingEnabled));
+
+                // [RabbitMQ 통신 설정] 입력 가능 상태 갱신
+                //
+                // 장비 연결 시도 종료 후
+                // [MCB] / [SCB] 연결 상태에 따라
+                // RabbitMQ Host / Port 입력칸 활성 / 비활성 상태를 갱신한다.
+                OnPropertyChanged(nameof(IsRabbitMqConnectionSettingEnabled));
+
                 // [MCB] / [SCB] 연결 시도 상태 표시
                 SetDeviceConnectionState(
                     ConnectionState.Connecting,
@@ -1690,6 +2189,17 @@ namespace VertiportNexus.ViewModels.Main
                     //
                     // 테스트 완료 후 실제 운용 시에는 주석 처리한다.
                     //_ = RunCsePtzDeviceTestAsync();
+
+                    // [Radar] Mock Packet 장비 연동 테스트
+                    //
+                    // [MCB] / [SCB] 연결 완료 후,
+                    // Radar Tracking Request Mock Packet을 처리하여
+                    // Azimuth / Elevation 기반 Pan / Tilt 제어 명령이
+                    // 실제 ADS1000 장비로 송신되는지 확인한다.
+                    //
+                    // 테스트 완료 후 실제 운용 시에는 주석 처리한다.
+                    //_radarMockPacketTestService
+                    //    .RunTrackingRequestTest();
                 }
 
                 // [EO] 영상 연결 처리
@@ -1893,6 +2403,46 @@ namespace VertiportNexus.ViewModels.Main
             // [MCB] / [SCB] 연결 상태 변경에 따라
             // 중복 연결 요청 가능 여부를 갱신한다.
             OnPropertyChanged(nameof(IsDeviceConnectButtonEnabled));
+
+            // [Radar UDP 수신 시작] 버튼 활성화 상태 갱신
+            //
+            // [MCB] / [SCB] 연결 상태 및
+            // [Radar UDP] 수신 상태에 따라
+            // [UDP START] 버튼 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsRadarUdpStartButtonEnabled));
+
+            // [Radar UDP 수신 중지] 버튼 활성화 상태 갱신
+            //
+            // [MCB] / [SCB] 연결 상태 및
+            // [Radar UDP] 수신 상태에 따라
+            // [UDP STOP] 버튼 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsRadarUdpStopButtonEnabled));
+
+            // [Radar UDP 통신 설정] 입력 가능 상태 갱신
+            //
+            // [Radar UDP] 수신 상태 변경에 따라
+            // Radar UDP IP / Port 입력칸 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsRadarUdpConnectionSettingEnabled));
+
+            // [RabbitMQ 수신 시작] 버튼 활성화 상태 갱신
+            //
+            // [MCB] / [SCB] 연결 상태 및
+            // [RabbitMQ] 수신 상태에 따라
+            // [MQ START] 버튼 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsRabbitMqStartButtonEnabled));
+
+            // [RabbitMQ 수신 중지] 버튼 활성화 상태 갱신
+            //
+            // [MCB] / [SCB] 연결 상태 및
+            // [RabbitMQ] 수신 상태에 따라
+            // [MQ STOP] 버튼 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsRabbitMqStopButtonEnabled));
+
+            // [RabbitMQ 통신 설정] 입력 가능 상태 갱신
+            //
+            // [RabbitMQ] 수신 상태 변경에 따라
+            // RabbitMQ Host / Port 입력칸 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsRabbitMqConnectionSettingEnabled));
         }
 
         /// <summary>
@@ -2024,6 +2574,37 @@ namespace VertiportNexus.ViewModels.Main
                 _isDeviceDisconnecting =
                     true;
 
+                // [Radar UDP] 수신 중지
+                //
+                // [MCB] / [SCB] 장비 연결 해제 시,
+                // Radar UDP 수신 상태가 Connected로 남지 않도록
+                // 실행 중인 UDP 수신을 먼저 중지한다.
+                if (_radarUdpConnectionState == ConnectionState.Connected)
+                {
+                    _radarUdpService
+                        .StopReceive();
+
+                    SetRadarUdpConnectionState(
+                        ConnectionState.Disconnected);
+                }
+
+                // [RabbitMQ] 수신 중지
+                //
+                // [MCB] / [SCB] 장비 연결 해제 시,
+                // RabbitMQ 수신 상태가 Connected로 남지 않도록
+                // 실행 중인 MQ 수신을 먼저 중지한다.
+                if (_rabbitMqConnectionState == ConnectionState.Connected)
+                {
+                    _mqReceiver
+                        .StopReceive();
+
+                    _isCseMqReceiveStarted =
+                        false;
+
+                    SetRabbitMqConnectionState(
+                        ConnectionState.Disconnected);
+                }
+
                 _ads1000ConnectionService.Disconnect();
 
                 MainStatusText =
@@ -2066,6 +2647,194 @@ namespace VertiportNexus.ViewModels.Main
                 _isDeviceDisconnecting = false;
             }
             return Task.CompletedTask;
+        }
+
+        #endregion
+
+        #region [UDP Connection Methods]
+
+        /// <summary>
+        /// [Radar] UDP Loopback 테스트
+        /// 
+        /// 실제 Radar 장비 연동 전,
+        /// UDP Loopback 방식으로 Tracking Request / BIST Request를 송신하여
+        /// Radar UDP 수신 / Packet 파싱 / 응답 생성 / ADS1000 제어 흐름을 검증한다.
+        /// </summary>
+        private async Task RunRadarUdpLoopbackTestAsync()
+        {
+            // [Radar] Tracking 테스트 지연
+            //
+            // 장비 연결 직후 바로 카메라가 움직이면
+            // EO 영상 화면에서 이동 전 상태를 확인하기 어렵기 때문에,
+            // 영상 연결 및 초기 화면 표시 시간을 확보한다.
+            await Task.Delay(
+                5000);
+
+            ConsoleLogHelper.PrintLine();
+            Console.WriteLine("[RADAR][UDP][MOCK] Loopback Tracking Test Start");
+            ConsoleLogHelper.PrintLine();
+
+            _radarUdpMockSenderService
+                .SendTrackingRequest(
+                    RadarUdpIpAddress,
+                    RadarUdpLocalPort);
+
+            // [Radar] BIST 테스트 지연
+            //
+            // Tracking Request 처리 및 Pan / Tilt 이동 로그 확인 후,
+            // BIST Request 응답 흐름을 분리해서 확인하기 위해 대기한다.
+            await Task.Delay(
+                3000);
+
+            ConsoleLogHelper.PrintLine();
+            Console.WriteLine("[RADAR][UDP][MOCK] Loopback BIST Test Start");
+            ConsoleLogHelper.PrintLine();
+
+            _radarUdpMockSenderService
+                .SendBistRequest(
+                    RadarUdpIpAddress,
+                    RadarUdpLocalPort);
+        }
+
+        /// <summary>
+        /// [Radar] UDP 연결 상태 반영
+        /// </summary>
+        /// <param name="connectionState">
+        /// [Radar] UDP 연결 상태
+        /// </param>
+        private void SetRadarUdpConnectionState(
+            ConnectionState connectionState)
+        {
+            // [Radar UDP] 연결 상태 저장
+            //
+            // [Radar UDP] 수신 시작 / 중지 여부를
+            // 내부 상태값에 반영한다.
+            _radarUdpConnectionState =
+                connectionState;
+
+            // [Radar UDP] 연결 상태 UI 갱신
+            //
+            // 연결 상태 텍스트 및
+            // 상태 표시 색상을 갱신한다.
+            OnPropertyChanged(nameof(RadarUdpConnectionStatusText));
+            OnPropertyChanged(nameof(RadarUdpConnectionStatusBrush));
+
+            // [Radar UDP 수신 시작] 버튼 활성화 상태 갱신
+            //
+            // [MCB] / [SCB] 연결 상태 및
+            // [Radar UDP] 수신 상태에 따라
+            // [UDP START] 버튼 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsRadarUdpStartButtonEnabled));
+
+            // [Radar UDP 수신 중지] 버튼 활성화 상태 갱신
+            //
+            // [MCB] / [SCB] 연결 상태 및
+            // [Radar UDP] 수신 상태에 따라
+            // [UDP STOP] 버튼 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsRadarUdpStopButtonEnabled));
+
+            // [Radar UDP 통신 설정] 입력 가능 상태 갱신
+            //
+            // [MCB] / [SCB] 연결 상태 및
+            // [Radar UDP] 수신 상태에 따라
+            // Radar UDP IP / Port 입력칸 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsRadarUdpConnectionSettingEnabled));
+        }
+
+        /// <summary>
+        /// [Radar] UDP 수신 시작
+        /// 
+        /// 화면에서 입력한 [Radar UDP Port]를 기준으로
+        /// Radar Packet 수신을 시작한다.
+        /// </summary>
+        private async void StartRadarUdpReceive()
+        {
+            if (_mcbConnectionState != ConnectionState.Connected ||
+                _scbConnectionState != ConnectionState.Connected)
+            {
+                ConsoleLogHelper.PrintLine();
+                Console.WriteLine("[RADAR][UDP] Start Failed : MCB / SCB Not Connected");
+                Console.WriteLine();
+
+                return;
+            }
+
+            if (_radarUdpConnectionState == ConnectionState.Connected ||
+                _radarUdpConnectionState == ConnectionState.Connecting)
+            {
+                ConsoleLogHelper.PrintLine();
+                Console.WriteLine("[RADAR][UDP] Start Ignored : Already Started");
+                Console.WriteLine();
+
+                return;
+            }
+
+            try
+            {
+                SetRadarUdpConnectionState(
+                    ConnectionState.Connecting);
+
+                // [Radar UDP] 연결 상태 표시 지연
+                //
+                // UDP는 TCP처럼 연결 Handshake가 없기 때문에
+                // 수신 시작 처리가 즉시 완료된다.
+                // 화면에서 [Connecting] 상태가 너무 빠르게 지나가지 않도록
+                // 짧은 표시 지연을 둔다.
+                await Task.Delay(
+                    500);
+
+                _radarUdpService
+                    .StartReceive(
+                        RadarUdpLocalPort);
+
+                SetRadarUdpConnectionState(
+                    ConnectionState.Connected);
+            }
+            catch (Exception ex)
+            {
+                SetRadarUdpConnectionState(
+                    ConnectionState.Disconnected);
+
+                ConsoleLogHelper.PrintLine();
+                Console.WriteLine("[RADAR][UDP] Start Failed");
+                Console.WriteLine(ex.Message);
+                Console.WriteLine();
+            }
+
+        }
+
+        /// <summary>
+        /// [Radar] UDP 수신 중지
+        /// 
+        /// 현재 실행 중인 Radar UDP 수신을 중지한다.
+        /// </summary>
+        private void StopRadarUdpReceive()
+        {
+            if (_radarUdpConnectionState != ConnectionState.Connected)
+            {
+                ConsoleLogHelper.PrintLine();
+                Console.WriteLine("[RADAR][UDP] Stop Ignored : Not Started");
+                Console.WriteLine();
+
+                return;
+            }
+
+            try
+            {
+                _radarUdpService
+                    .StopReceive();
+
+                SetRadarUdpConnectionState(
+                    ConnectionState.Disconnected);
+            }
+            catch (Exception ex)
+            {
+                ConsoleLogHelper.PrintLine();
+                Console.WriteLine("[RADAR][UDP] Stop Failed");
+                Console.WriteLine(ex.Message);
+                Console.WriteLine();
+            }
+
         }
 
         #endregion
@@ -2791,10 +3560,11 @@ namespace VertiportNexus.ViewModels.Main
             if (parsedPacket.HasPanValue)
             {
                 CurrentPan =
-                    Clamp(
-                        parsedPacket.PanValue,
-                        -180,
-                        180);
+                    NormalizePosition(
+                        Clamp(
+                            parsedPacket.PanValue,
+                            -180,
+                            180));
 
                 updatedPan =
                     CurrentPan;
@@ -2803,10 +3573,11 @@ namespace VertiportNexus.ViewModels.Main
             if (parsedPacket.HasTiltValue)
             {
                 CurrentTilt =
-                    Clamp(
-                        parsedPacket.TiltValue,
-                        -90,
-                        90);
+                    NormalizePosition(
+                        Clamp(
+                            parsedPacket.TiltValue,
+                            -90,
+                            90));
 
                 updatedTilt =
                     CurrentTilt;
@@ -2885,6 +3656,28 @@ namespace VertiportNexus.ViewModels.Main
                 MIN_ZOOM_RATIO
                 + (clampedZoomPosition / 1000.0)
                 * (MAX_ZOOM_RATIO - MIN_ZOOM_RATIO);
+        }
+
+        /// <summary>
+        /// [PTZ] 위치값 보정
+        ///
+        /// ADS1000 Encoder 특성상
+        /// 0 부근에서 미세 오차가 발생할 수 있으므로,
+        /// 허용 오차 범위 내 값은 0으로 보정한다.
+        /// </summary>
+        private double NormalizePosition(
+            double value)
+        {
+            const double POSITION_TOLERANCE =
+                0.01;
+
+            if (Math.Abs(value) <=
+                POSITION_TOLERANCE)
+            {
+                return 0;
+            }
+
+            return value;
         }
 
         /// <summary>
