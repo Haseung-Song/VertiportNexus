@@ -1,98 +1,85 @@
-﻿namespace VertiportNexus.Models.Vertiport
+﻿namespace VertiportNexus.Models.CSE
 {
     /// <summary>
-    /// [CSE] 인터페이스 ID
+    /// [CSE] Interface ID
     /// 
-    /// ICD 문서 기준
-    /// [IF-GUIS-CSE-001] ~ [IF-GUIS-CSE-012] 명령을 구분한다.
+    /// [GUIS] / [CSE] 간 JSON 메시지의
+    /// Interface 식별값을 정의한다.
     /// </summary>
-    public static class CseInterfaceId
+    internal static class CseInterfaceId
     {
-        #region [Detect Interface Ids]
+        #region [GUIS -> CSE]
 
         /// <summary>
-        /// 카메라 제어 - 탐지 활성화
+        /// [GUIS -> CSE] 탐지 요청
         /// </summary>
-        public const string DetectEnable =
+        public const string DetectOn =
             "IF-GUIS-CSE-001";
 
         /// <summary>
-        /// 카메라 제어 - 탐지 활성화 취소
+        /// [GUIS -> CSE] 탐지 해제 요청
         /// </summary>
-        public const string DetectDisable =
+        public const string DetectOff =
             "IF-GUIS-CSE-002";
 
         /// <summary>
-        /// 카메라 제어 - 탐지
+        /// [GUIS -> CSE] 탐지 결과 연속 갱신
+        /// 
+        /// 탐지 상태에서 약 [30Hz] 주기로
+        /// 최신 객체 화면 좌표를 수신한다.
         /// </summary>
-        public const string DetectOn =
+        public const string DetectConf =
             "IF-GUIS-CSE-003";
 
         /// <summary>
-        /// 카메라 제어 - 탐지 해제
+        /// [GUIS -> CSE] PTZ 수동 제어 요청
         /// </summary>
-        public const string DetectOff =
+        public const string PtzMove =
             "IF-GUIS-CSE-004";
 
         /// <summary>
-        /// 카메라 제어 - 탐지 계속
+        /// [GUIS -> CSE] 카메라 상태 조회 요청
+        /// 
+        /// [q.status.req] Queue로 수신된다.
         /// </summary>
-        public const string DetectContinue =
+        public const string GetState =
             "IF-GUIS-CSE-005";
 
         #endregion
 
-        #region [PTZ Interface Ids]
+        #region [CSE -> GUIS]
 
         /// <summary>
-        /// 카메라 제어 - PTZ 제어
+        /// [CSE -> GUIS] 탐지 요청 응답
         /// </summary>
-        public const string PtzMove =
-            "IF-GUIS-CSE-006";
+        public const string DetectOnResponse =
+            "IF-CSE-GUIS-001";
 
         /// <summary>
-        /// 카메라 제어 - PTZ 제어 해제
+        /// [CSE -> GUIS] 탐지 해제 응답
         /// </summary>
-        public const string PtzStop =
-            "IF-GUIS-CSE-007";
+        public const string DetectOffResponse =
+            "IF-CSE-GUIS-002";
 
         /// <summary>
-        /// 카메라 제어 - PTZ 제어 모드
+        /// [CSE -> GUIS] 탐지 결과 연속 갱신 응답
         /// </summary>
-        public const string PtzMode =
-            "IF-GUIS-CSE-008";
-
-        #endregion
-
-        #region [Image Interface Ids]
+        public const string DetectConfResponse =
+            "IF-CSE-GUIS-003";
 
         /// <summary>
-        /// 카메라 제어 - 영상 설정
+        /// [CSE -> GUIS] PTZ 수동 제어 요청 응답
         /// </summary>
-        public const string SetImage =
-            "IF-GUIS-CSE-009";
+        public const string PtzMoveResponse =
+            "IF-CSE-GUIS-004";
 
         /// <summary>
-        /// 카메라 제어 - 영상 플립
+        /// [CSE -> GUIS] 카메라 상태 응답
+        /// 
+        /// [q.status.res] Queue로 송신된다.
         /// </summary>
-        public const string SetFlip =
-            "IF-GUIS-CSE-010";
-
-        #endregion
-
-        #region [Status Interface Ids]
-
-        /// <summary>
-        /// 카메라 상태 - 설정 조회
-        /// </summary>
-        public const string GetConfig =
-            "IF-GUIS-CSE-011";
-
-        /// <summary>
-        /// 카메라 상태 - PTZ 조회
-        /// </summary>
-        public const string GetPtzState =
-            "IF-GUIS-CSE-012";
+        public const string GetStateResponse =
+            "IF-CSE-GUIS-112";
 
         #endregion
     }

@@ -58,6 +58,84 @@ namespace VertiportNexus.ViewModels.Main
             Connected
         }
 
+        /// <summary>
+        /// [Pan / Tilt] 연속 이동 방향
+        /// </summary>
+        private enum PanTiltContinuousMoveDirection
+        {
+            /// <summary>
+            /// 이동 없음
+            /// </summary>
+            None,
+
+            /// <summary>
+            /// [Pan] 왼쪽 이동
+            /// </summary>
+            PanLeft,
+
+            /// <summary>
+            /// [Pan] 오른쪽 이동
+            /// </summary>
+            PanRight,
+
+            /// <summary>
+            /// [Tilt] 위쪽 이동
+            /// </summary>
+            TiltUp,
+
+            /// <summary>
+            /// [Tilt] 아래쪽 이동
+            /// </summary>
+            TiltDown
+        }
+
+        /// <summary>
+        /// [Pan / Tilt] 이동 축
+        /// </summary>
+        private enum PanTiltMoveAxis
+        {
+            /// <summary>
+            /// 이동 없음
+            /// </summary>
+            None,
+
+            /// <summary>
+            /// [Pan] 축 이동
+            /// </summary>
+            Pan,
+
+            /// <summary>
+            /// [Tilt] 축 이동
+            /// </summary>
+            Tilt
+        }
+
+        /// <summary>
+        /// [Pan / Tilt] 이동 제어 유형
+        /// </summary>
+        private enum PanTiltMoveType
+        {
+            /// <summary>
+            /// 이동 없음
+            /// </summary>
+            None,
+
+            /// <summary>
+            /// 절대 위치 이동
+            /// </summary>
+            Absolute,
+
+            /// <summary>
+            /// 상대 위치 이동
+            /// </summary>
+            Relative,
+
+            /// <summary>
+            /// 연속 이동
+            /// </summary>
+            Continuous
+        }
+
         #endregion
 
         #region [Constants]
@@ -305,6 +383,15 @@ namespace VertiportNexus.ViewModels.Main
         private bool _isDeviceConnecting;
 
         /// <summary>
+        /// [Home Position] 이동 진행 여부
+        /// 
+        /// 장비 연결 후 자동 Home Position 이동 또는
+        /// 사용자가 [HOME POSITION] 버튼을 누른 경우,
+        /// 이동 완료 전까지 다른 장비 제어 명령을 막기 위해 사용한다.
+        /// </summary>
+        private bool _isHomePositionMoving;
+
+        /// <summary>
         /// 장비 연결 해제 진행 여부
         /// </summary>
         private bool _isDeviceDisconnecting;
@@ -357,6 +444,15 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         private string _ptzControlModeText;
 
+        /// <summary>
+        /// ViewModel 종료 처리 여부
+        /// 
+        /// 프로그램 종료 중
+        /// EO Camera Frame 수신 Callback에서
+        /// UI Binding 객체 접근이 발생하지 않도록 방지한다.
+        /// </summary>
+        private bool _isDisposing;
+
         #endregion
 
         #region [Camera State Fields]
@@ -367,9 +463,51 @@ namespace VertiportNexus.ViewModels.Main
         private double _currentPan;
 
         /// <summary>
+        /// [Pan] 누적 위치값
+        /// 
+        /// 화면 표시용 [Pan] 값은 [0 ~ 360] 범위로 정규화하지만,
+        /// 장비 제어용 [Pan] 위치는 한 바퀴 이상 회전한 값을 유지해야 하므로
+        /// 내부적으로 누적 위치값을 별도로 관리한다.
+        /// </summary>
+        private double _currentPanAccumulated;
+
+        /// <summary>
+        /// [Pan] 누적 위치값 초기화 여부
+        /// </summary>
+        private bool _hasPanAccumulatedStatus;
+
+        /// <summary>
+        /// 마지막 [Pan] 표시 상태값
+        /// 
+        /// 장비 상태 Packet에서 수신한 [Pan] 값을 기준으로
+        /// 회전 방향과 누적 이동량을 계산하기 위해 사용한다.
+        /// </summary>
+        private double _lastPanDisplayStatus;
+
+        /// <summary>
         /// 현재 [Tilt] 값
         /// </summary>
         private double _currentTilt;
+
+        /// <summary>
+        /// 현재 [Pan / Tilt] 이동 축
+        /// 
+        /// [Absolute] / [Relative] / [Continuous] 이동 중
+        /// Pan / Tilt Speed 값이 변경된 경우,
+        /// 현재 이동 중인 축에 속도 갱신 명령을 송신하기 위해 사용한다.
+        /// </summary>
+        private PanTiltMoveAxis _currentPanTiltMoveAxis =
+            PanTiltMoveAxis.None;
+
+        /// <summary>
+        /// 현재 [Pan / Tilt] 이동 제어 유형
+        /// 
+        /// 이동 중 [Pan / Tilt Speed] 값이 변경된 경우,
+        /// Absolute / Relative 제어 방식에 따라
+        /// 속도 갱신 Packet 형식을 다르게 선택하기 위해 사용한다.
+        /// </summary>
+        private PanTiltMoveType _currentPanTiltMoveType =
+            PanTiltMoveType.None;
 
         /// <summary>
         /// 현재 [Zoom] 값
@@ -377,9 +515,27 @@ namespace VertiportNexus.ViewModels.Main
         private double _currentZoom;
 
         /// <summary>
+        /// 현재 [Zoom] 배율 값
+        /// 
+        /// [Zoom] 위치값 [0 ~ 1000]을
+        /// 실제 배율 기준 [x1.0 ~ x66.0]으로 변환한 값이다.
+        /// </summary>
+        private double _currentZoomRatio =
+            1.0;
+
+        /// <summary>
         /// 현재 [Focus] 값
         /// </summary>
         private double _currentFocus;
+
+        /// <summary>
+        /// [Pan] 선회 모드
+        /// 
+        /// [Pan Absolute] 이동 시
+        /// [Via 0] / [Short] 이동 방식을 결정한다.
+        /// </summary>
+        private Ads1000PanTurnMode _panTurnMode =
+            Ads1000PanTurnMode.Short;
 
         /// <summary>
         /// [UI] 연속 이동 제어 진행 여부
@@ -391,6 +547,15 @@ namespace VertiportNexus.ViewModels.Main
         /// [UI] MouseUp 정지 처리를 분리하기 위해 사용한다.
         /// </summary>
         private bool _isUiContinuousMoveStarted;
+
+        /// <summary>
+        /// 현재 [Pan / Tilt] 연속 이동 방향
+        /// 
+        /// 사용자가 화면 버튼으로 [Pan] / [Tilt] 연속 이동을 시작한 경우,
+        /// 이동 중 속도 변경 시 동일 방향 명령을 다시 송신하기 위해 사용한다.
+        /// </summary>
+        private PanTiltContinuousMoveDirection _currentPanTiltContinuousMoveDirection =
+            PanTiltContinuousMoveDirection.None;
 
         /// <summary>
         /// [Pan] Absolute 이동 입력값
@@ -707,19 +872,45 @@ namespace VertiportNexus.ViewModels.Main
                 new Ads1000StatusService();
 
             // [Camera] 상태 저장 서비스 생성
+            //
+            // ADS1000 수신 Packet에서 파싱된
+            // Pan / Tilt / Zoom / Focus 상태와
+            // 현재 PTZ 제어 모드를 보관한다.
             _cameraStateProvider =
                 new CameraStateProvider();
 
             // [Detection] 상태 저장 서비스 생성
             //
-            // [IF-GUIS-CSE-001] ~ [IF-GUIS-CSE-005] 명령 처리 결과와
+            // 최종 ICD [IF-GUIS-CSE-001] ~ [IF-GUIS-CSE-003] 명령 처리 결과와
             // 영상처리유닛에서 전달되는 탐지 객체 정보를 보관한다.
             //
-            // 향후 [AUTO] 추적 제어 시
+            // [AUTO] 추적 제어 시
             // 마지막 탐지 객체 [Bounding Box]를 기준으로
             // [Pan] / [Tilt] 보정값 계산에 사용한다.
             _detectionStateProvider =
                 new DetectionStateProvider();
+
+            // [Radar] 상태 저장 서비스 생성
+            //
+            // Radar Tracking Request 수신 상태와
+            // Radar 우선 제어 여부를 보관한다.
+            //
+            // [CSE] detect_conf 처리 시,
+            // Radar Tracking 활성 상태라면 GUI BBOX 기반 추적 제어를 수행하지 않는다.
+            _radarStateProvider =
+                new RadarStateProvider();
+
+            // 내부 [Camera] 명령 처리 서비스 생성
+            //
+            // [CSE] 명령 처리부에서 변환한 [CameraCommand]를 받아
+            // 실제 ADS1000 장비 제어 명령으로 분기한다.
+            //
+            // 현재 [PTZ] 제어 모드가 [AUTO]인 경우
+            // Pan / Tilt 수동 제어를 무시하기 위해 [CameraStateProvider]를 함께 전달한다.
+            _cameraCommandService =
+                new CameraCommandService(
+                    _ads1000CameraControlService,
+                    _cameraStateProvider);
 
             // [Tracking] 자동 추적 제어 서비스 생성
             //
@@ -734,7 +925,7 @@ namespace VertiportNexus.ViewModels.Main
             // [MQ] 수신으로 [AUTO] / [MANUAL] 모드가 변경된 경우
             // 화면 표시값을 즉시 갱신한다.
             _cameraStateProvider.PtzControlModeChanged +=
-                    OnPtzControlModeChanged;
+                OnPtzControlModeChanged;
 
             #endregion
 
@@ -749,7 +940,7 @@ namespace VertiportNexus.ViewModels.Main
 
             // [MQ] 수신 서비스 지정
             //
-            // 실제 [RabbitMQ]의 [q.command.req] Queue에서
+            // 실제 [RabbitMQ]의 [q.command.req] / [q.status.req] Queue에서
             // [CSE] 명령 [JSON]을 수신한다.
             _mqReceiver =
                 new RabbitMqReceiver(
@@ -770,27 +961,30 @@ namespace VertiportNexus.ViewModels.Main
                 new CseCommandReceiveService(
                     _mqReceiver);
 
-            // 내부 [Camera] 명령 처리 서비스 생성
-            _cameraCommandService =
-                new CameraCommandService(
-                    _ads1000CameraControlService);
-
             // [CSE] 명령 응답 송신 서비스 생성
             //
             // [q.command.res] / [q.status.res] Queue로
-            // 명령 처리 결과를 송신한다.
+            // 명령 처리 결과와 카메라 상태 응답을 송신한다.
             _cseCommandResponseService =
                 new CseCommandResponseService(
                     _mqSender);
 
             // [CSE] 명령 처리 서비스 생성
+            //
+            // 최종 ICD 기준 [detect_on] / [detect_off] / [detect_conf] /
+            // [ptz_move] / [get_state] 명령을 처리한다.
+            //
+            // Radar Tracking 활성 상태에서는
+            // GUI BBOX 기반 추적보다 Radar 제어를 우선하기 위해
+            // [RadarStateProvider]를 함께 전달한다.
             _cseCommandHandler =
                 new CseCommandHandler(
                     _cameraCommandService,
                     _cseCommandResponseService,
                     _cameraStateProvider,
                     _detectionStateProvider,
-                    _trackingControlService);
+                    _trackingControlService,
+                    _radarStateProvider);
 
             // [CSE] 명령 수신 이벤트 연결
             _cseCommandReceiveService.CommandReceived +=
@@ -827,12 +1021,6 @@ namespace VertiportNexus.ViewModels.Main
             _radarPacketBuilder =
                 new RadarPacketBuilder();
 
-            // [Radar] 상태 저장 서비스 생성
-            //
-            // 마지막 추적 요청 / BIST 요청 정보를 보관한다.
-            _radarStateProvider =
-                new RadarStateProvider();
-
             // [Radar] 추적 제어 서비스 생성
             //
             // Radar Tracking Request에서 수신한
@@ -849,7 +1037,10 @@ namespace VertiportNexus.ViewModels.Main
             //
             // Radar Packet의 Command를 기준으로
             // Tracking Request / BIST Request를 분기 처리하고,
-            // Tracking Request 수신 시 ADS1000 PTZ 제어까지 수행한다.
+            // Tracking Request 수신 시 Radar 우선 제어 상태를 활성화한다.
+            //
+            // [RadarStateProvider]는 [CSE] 명령 처리 서비스와 공유하여,
+            // Radar Tracking 활성 중에는 GUI BBOX 기반 Tracking 제어를 막는다.
             _radarCommandHandler =
                 new RadarCommandHandler(
                     _radarPacketParser,
@@ -907,23 +1098,23 @@ namespace VertiportNexus.ViewModels.Main
 
             PanLeftCommand =
                 new RelayCommand(
-                    _ads1000CameraControlService.PanLeft);
+                    StartPanLeftMove);
 
             PanRightCommand =
                 new RelayCommand(
-                    _ads1000CameraControlService.PanRight);
+                    StartPanRightMove);
 
             TiltUpCommand =
                 new RelayCommand(
-                    _ads1000CameraControlService.TiltUp);
+                    StartTiltUpMove);
 
             TiltDownCommand =
                 new RelayCommand(
-                    _ads1000CameraControlService.TiltDown);
+                    StartTiltDownMove);
 
             StopMoveCommand =
                 new RelayCommand(
-                    _ads1000CameraControlService.StopMove);
+                    StopContinuousMove);
 
             ZoomInCommand =
                 new RelayCommand(
@@ -962,12 +1153,12 @@ namespace VertiportNexus.ViewModels.Main
                     MoveTiltRelative);
 
             MoveHomePositionCommand =
-                new RelayCommand(
-                    _ads1000CameraControlService.MoveHomePosition);
+                new AsyncRelayCommand(
+                    MoveHomePositionAsync);
 
             SetPanZeroCommand =
                 new RelayCommand(
-                    _ads1000CameraControlService.SetPanZero);
+                    SetPanZero);
 
             SetTiltZeroCommand =
                 new RelayCommand(
@@ -1015,7 +1206,15 @@ namespace VertiportNexus.ViewModels.Main
 
             InitializeDefaultValues();
 
-            Console.WriteLine("[MAIN] ADS1000 Direct TCP Test Initialize Complete");
+            Console.WriteLine(
+                "[MAIN] ADS1000 Direct TCP Test Initialize Complete");
+
+            ConsoleLogHelper.PrintLine();
+
+            Console.WriteLine(
+                "[CAMERA][STATE] Pan Turn Mode : "
+                + _panTurnMode);
+
             ConsoleLogHelper.PrintLine();
 
             #endregion
@@ -1403,15 +1602,16 @@ namespace VertiportNexus.ViewModels.Main
         /// [MCB] / [SCB] 중 하나 이상 연결된 경우
         /// [PTZ] / [Zoom] / [Focus] 제어 영역을 활성화한다.
         /// 
-        /// 장비 미연결 상태에서 버튼 오조작으로
-        /// 불필요한 제어 명령이 발생하지 않도록 사용한다.
+        /// 단, Home Position 이동 중에는
+        /// Pan / Tilt 제어 명령이 중복 송신되지 않도록
+        /// 장비 제어 영역을 비활성화한다.
         /// </summary>
         public bool IsDeviceControlEnabled
         {
             get
             {
-                return _mcbConnectionState == ConnectionState.Connected ||
-                       _scbConnectionState == ConnectionState.Connected;
+                return (_mcbConnectionState == ConnectionState.Connected ||
+                        _scbConnectionState == ConnectionState.Connected);
             }
 
         }
@@ -1437,16 +1637,76 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
+        /// 장비 제어 탭 활성화 여부
+        /// 
+        /// Home Position 이동 중에는
+        /// 통신 설정 / 운용 제어 / 이동 제어 탭을 비활성화하여
+        /// 장비 설정 변경 및 제어 명령 입력을 막는다.
+        /// </summary>
+        public bool IsDeviceControlTabEnabled
+        {
+            get
+            {
+                return !_isHomePositionMoving;
+            }
+
+        }
+
+        /// <summary>
+        /// [Pan / Tilt Speed] 설정 가능 여부
+        /// 
+        /// [MCB] 연결 상태에서만 Pan / Tilt Speed 설정을 허용한다.
+        /// 
+        /// 단, Home Position 이동 중에는
+        /// 장비 내부 Home Script가 실행 중이므로
+        /// Pan / Tilt Speed 설정을 비활성화한다.
+        /// </summary>
+        public bool IsPanTiltSpeedEnabled
+        {
+            get
+            {
+                return _mcbConnectionState == ConnectionState.Connected &&
+                       !_isHomePositionMoving;
+            }
+
+        }
+
+        /// <summary>
         /// 장비 연결 버튼 활성화 여부
         /// 
-        /// 장비 연결 시도 중에는
-        /// 중복 연결 요청을 방지하기 위해 비활성화한다.
+        /// 장비 연결 처리 중이거나,
+        /// Home Position 이동 중인 경우
+        /// [장비 연결] 버튼을 비활성화한다.
         /// </summary>
         public bool IsDeviceConnectButtonEnabled
         {
             get
             {
-                return !_isDeviceConnecting;
+                return !_isDeviceConnecting &&
+                       !_isDeviceDisconnecting &&
+                       !_isHomePositionMoving;
+            }
+
+        }
+
+        /// <summary>
+        /// 장비 연결 해제 버튼 활성화 여부
+        /// 
+        /// [MCB] / [SCB] 중 하나 이상 연결된 경우
+        /// [연결 해제] 버튼을 활성화한다.
+        /// 
+        /// 단, Home Position 이동 중에는
+        /// 장비 내부 Home Script가 실행 중일 수 있으므로
+        /// 통신 연결 해제를 막는다.
+        /// </summary>
+        public bool IsDeviceDisconnectButtonEnabled
+        {
+            get
+            {
+                return (_mcbConnectionState == ConnectionState.Connected ||
+                        _scbConnectionState == ConnectionState.Connected) &&
+                       !_isDeviceDisconnecting &&
+                       !_isHomePositionMoving;
             }
 
         }
@@ -1637,8 +1897,12 @@ namespace VertiportNexus.ViewModels.Main
         /// <summary>
         /// 현재 [Pan] / [Tilt] 제어 속도
         /// 
-        /// [ADS1000] [Pan] / [Tilt] 연속 이동 시 사용할
+        /// [ADS1000] [Pan] / [Tilt] 이동 시 사용할
         /// 제어 속도를 설정하고 화면에 표시한다.
+        /// 
+        /// Pan / Tilt 이동 중 속도값이 변경된 경우에는
+        /// 현재 이동 중인 축에 속도 갱신 명령을 송신하여
+        /// 장비 실제 이동 속도에도 변경값이 반영되도록 한다.
         /// </summary>
         public double PanTiltSpeedLevel
         {
@@ -1647,8 +1911,18 @@ namespace VertiportNexus.ViewModels.Main
             {
                 if (_ads1000CameraControlService.PanTiltSpeedLevel != value)
                 {
-                    _ads1000CameraControlService.PanTiltSpeedLevel = value;
+                    Console.WriteLine(
+                        "[UI][PTZ] Pan / Tilt Speed Value Changed : "
+                        + _ads1000CameraControlService.PanTiltSpeedLevel.ToString("F0")
+                        + " -> "
+                        + value.ToString("F0"));
+
+                    _ads1000CameraControlService.PanTiltSpeedLevel =
+                        value;
+
                     OnPropertyChanged();
+
+                    ApplyCurrentPanTiltMoveSpeed();
                 }
 
             }
@@ -1663,16 +1937,13 @@ namespace VertiportNexus.ViewModels.Main
             get => _currentZoom;
             private set
             {
-                if (_currentZoom != value)
+                if (Math.Abs(_currentZoom - value) > 0.001)
                 {
-                    _currentZoom = value;
+                    _currentZoom =
+                        value;
 
                     OnPropertyChanged();
 
-                    // [Zoom] 배율 표시값 갱신
-                    //
-                    // [Zoom] 위치값이 변경되면
-                    // 현재 위치값 기준 배율 표시 문자열도 함께 갱신한다.
                     OnPropertyChanged(nameof(CurrentZoomDisplayText));
                 }
 
@@ -1681,25 +1952,41 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
-        /// 현재 [Zoom] 배율 표시 문자열
+        /// 현재 [Zoom] 배율 값
+        /// </summary>
+        public double CurrentZoomRatio
+        {
+            get => _currentZoomRatio;
+            private set
+            {
+                if (Math.Abs(_currentZoomRatio - value) > 0.001)
+                {
+                    _currentZoomRatio =
+                        value;
+
+                    OnPropertyChanged();
+
+                    OnPropertyChanged(nameof(CurrentZoomDisplayText));
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// 현재 [Zoom] 표시 문자열
         /// 
-        /// [ADS1000] Zoom 위치값 [0 ~ 1000]을
-        /// 임시 기준 [1x ~ 66x] 배율로 변환하여 표시한다.
+        /// Zoom 위치값 [0 ~ 1000]과
+        /// 실제 배율값 [x1.0 ~ x66.0]을 함께 표시한다.
         /// </summary>
         public string CurrentZoomDisplayText
         {
             get
             {
-                double zoomRatio =
-                    ConvertZoomPositionToRatio(
-                        CurrentZoom);
-
-                return
-                    CurrentZoom.ToString("F0")
-                    + " (x"
-                    + zoomRatio.ToString("F1")
-                    + ")";
-
+                return CurrentZoom.ToString("F0")
+                       + " (x"
+                       + CurrentZoomRatio.ToString("F1")
+                       + ")";
             }
 
         }
@@ -1725,6 +2012,80 @@ namespace VertiportNexus.ViewModels.Main
         #endregion
 
         #region [Camera Control Input Properties]
+
+        /// <summary>
+        /// [Pan] [Via 0] 선회 모드 선택 여부
+        /// 
+        /// [Pan Absolute] 이동 시
+        /// 현재 위치에서 목표 위치까지
+        /// 단거리 보정 없이 이동하도록 설정한다.
+        /// </summary>
+        public bool IsPanTurnViaZeroMode
+        {
+            get
+            {
+                return _panTurnMode == Ads1000PanTurnMode.ViaZero;
+            }
+            set
+            {
+                if (value &&
+                    _panTurnMode != Ads1000PanTurnMode.ViaZero)
+                {
+                    _panTurnMode =
+                        Ads1000PanTurnMode.ViaZero;
+
+                    // [Camera 상태] Pan 선회 모드 갱신
+                    //
+                    // UI에서 변경한 선회 모드를
+                    // CSE / MQ 명령 처리에서도 동일하게 사용할 수 있도록 저장한다.
+                    _cameraStateProvider
+                        .UpdatePanTurnMode(
+                            _panTurnMode);
+
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(IsPanTurnShortMode));
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [Pan] [Short] 선회 모드 선택 여부
+        /// 
+        /// [Pan Absolute] 이동 시
+        /// 현재 위치에서 목표 위치까지
+        /// 가장 가까운 방향으로 이동하도록 설정한다.
+        /// </summary>
+        public bool IsPanTurnShortMode
+        {
+            get
+            {
+                return _panTurnMode == Ads1000PanTurnMode.Short;
+            }
+            set
+            {
+                if (value &&
+                    _panTurnMode != Ads1000PanTurnMode.Short)
+                {
+                    _panTurnMode =
+                        Ads1000PanTurnMode.Short;
+
+                    // [Camera 상태] Pan 선회 모드 갱신
+                    //
+                    // UI에서 변경한 선회 모드를
+                    // CSE / MQ 명령 처리에서도 동일하게 사용할 수 있도록 저장한다.
+                    _cameraStateProvider
+                        .UpdatePanTurnMode(
+                            _panTurnMode);
+
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(IsPanTurnViaZeroMode));
+                }
+
+            }
+
+        }
 
         /// <summary>
         /// [Pan] Absolute 이동 입력값
@@ -1899,7 +2260,7 @@ namespace VertiportNexus.ViewModels.Main
                 _cameraStateProvider.PtzControlMode;
 
             PanTiltSpeedLevel
-                = 50;
+                = 25;
 
             MqStatusText =
                 "RabbitMQ Ready";
@@ -1938,6 +2299,20 @@ namespace VertiportNexus.ViewModels.Main
 
             FocusPositionValue =
                 0;
+
+            // [Pan] 선회 모드 기본값 설정
+            //
+            // 장비가 불필요하게 먼 방향으로 회전하지 않도록
+            // 기본 선회 모드는 [Short]로 설정한다.
+            _panTurnMode =
+                Ads1000PanTurnMode.Short;
+
+            _cameraStateProvider
+                .UpdatePanTurnMode(
+                    _panTurnMode);
+
+            OnPropertyChanged(nameof(IsPanTurnShortMode));
+            OnPropertyChanged(nameof(IsPanTurnViaZeroMode));
         }
 
         #endregion
@@ -1995,11 +2370,15 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         private async void StartRabbitMqReceive()
         {
-            if (_rabbitMqConnectionState == ConnectionState.Connected ||
+            if (_isCseMqReceiveStarted ||
+                _rabbitMqConnectionState == ConnectionState.Connected ||
                 _rabbitMqConnectionState == ConnectionState.Connecting)
             {
                 ConsoleLogHelper.PrintLine();
-                Console.WriteLine("[CSE][MQ] Start Ignored : Already Started");
+
+                Console.WriteLine(
+                    "[CSE][MQ] Start Ignored : Already Started");
+
                 Console.WriteLine();
 
                 return;
@@ -2007,6 +2386,9 @@ namespace VertiportNexus.ViewModels.Main
 
             try
             {
+                _isCseMqReceiveStarted =
+                    true;
+
                 SetRabbitMqConnectionState(
                     ConnectionState.Connecting);
 
@@ -2021,9 +2403,6 @@ namespace VertiportNexus.ViewModels.Main
                 _cseCommandReceiveService
                     .StartReceive();
 
-                _isCseMqReceiveStarted =
-                    true;
-
                 SetRabbitMqConnectionState(
                     ConnectionState.Connected);
             }
@@ -2036,8 +2415,13 @@ namespace VertiportNexus.ViewModels.Main
                     ConnectionState.Disconnected);
 
                 ConsoleLogHelper.PrintLine();
-                Console.WriteLine("[CSE][MQ] Start Failed");
-                Console.WriteLine(ex.Message);
+
+                Console.WriteLine(
+                    "[CSE][MQ] Start Failed");
+
+                Console.WriteLine(
+                    ex.Message);
+
                 Console.WriteLine();
             }
 
@@ -2061,6 +2445,13 @@ namespace VertiportNexus.ViewModels.Main
 
             try
             {
+                // [카메라 상태] 주기 송신 중지
+                //
+                // RabbitMQ 수신 중지 시,
+                // 실행 중인 [q.status.res] 상태 송신 Loop도 함께 종료한다.
+                _cseCommandHandler
+                    .StopCameraStatusPublishService();
+
                 _mqReceiver
                     .StopReceive();
 
@@ -2121,10 +2512,11 @@ namespace VertiportNexus.ViewModels.Main
                 _isDeviceConnecting =
                     true;
 
-                // [장비 연결] 버튼 활성화 상태 갱신
+                // [장비 연결 / 해제 버튼] 활성화 상태 갱신
                 //
-                // 연결 시도 중에는 중복 연결 요청을 방지하기 위해
-                // [장비 연결] 버튼을 비활성화한다.
+                // 연결 시도 중에는 중복 연결 / 해제 요청을 방지하기 위해
+                // [장비 연결] / [연결 해제] 버튼을 비활성화한다.
+                OnPropertyChanged(nameof(IsDeviceConnectButtonEnabled));
                 OnPropertyChanged(nameof(IsDeviceConnectButtonEnabled));
 
                 // [장비 통신 설정] 입력 가능 상태 갱신
@@ -2162,46 +2554,6 @@ namespace VertiportNexus.ViewModels.Main
                 ApplyDeviceConnectionResult(
                     connectionResult);
 
-                if (_mcbConnectionState == ConnectionState.Connected &&
-                    _scbConnectionState == ConnectionState.Connected)
-                {
-                    // [CSE] [Mock MQ] 통합 명령 수신 테스트
-                    //
-                    // ICD 기준 [IF-GUIS-CSE-001] ~ [IF-GUIS-CSE-012]
-                    // 명령 수신 / 파싱 / 분기 / 응답 송신 흐름을
-                    // 순차 테스트한다.
-                    //
-                    // 테스트 완료 후 실제 운용 시에는 주석 처리한다.
-                    //_ = RunCseMockTestAsync();
-
-                    // [CSE] [PTZ] 장비 연동 테스트
-                    //
-                    // [MCB] / [SCB] 연결 완료 후
-                    // [IF-GUIS-CSE-006] / [IF-GUIS-CSE-007]
-                    // 명령을 순차 테스트한다.
-                    //
-                    // [Continuous]
-                    // [Relative]
-                    // [Absolute]
-                    // [Stop]
-                    //
-                    // 제어 및 상태 조회 흐름을 확인한다.
-                    //
-                    // 테스트 완료 후 실제 운용 시에는 주석 처리한다.
-                    //_ = RunCsePtzDeviceTestAsync();
-
-                    // [Radar] Mock Packet 장비 연동 테스트
-                    //
-                    // [MCB] / [SCB] 연결 완료 후,
-                    // Radar Tracking Request Mock Packet을 처리하여
-                    // Azimuth / Elevation 기반 Pan / Tilt 제어 명령이
-                    // 실제 ADS1000 장비로 송신되는지 확인한다.
-                    //
-                    // 테스트 완료 후 실제 운용 시에는 주석 처리한다.
-                    //_radarMockPacketTestService
-                    //    .RunTrackingRequestTest();
-                }
-
                 // [EO] 영상 연결 처리
                 //
                 // [MCB] / [SCB] 중 하나 이상 연결된 경우에만
@@ -2229,120 +2581,103 @@ namespace VertiportNexus.ViewModels.Main
                         null;
                 }
 
+                if (_mcbConnectionState == ConnectionState.Connected &&
+                    _scbConnectionState == ConnectionState.Connected)
+                {
+                    // [장비 연결 후] Home Position 이동
+                    //
+                    // EO 영상 연결을 먼저 시도한 뒤,
+                    // 화면으로 현재 장비 방향을 확인할 수 있도록
+                    // 짧은 대기 후 Home Position 명령을 자동 송신한다.
+                    await MoveHomePositionAfterDeviceConnectedAsync();
+                }
+
             }
             finally
             {
                 _isDeviceConnecting =
                     false;
 
+                // [장비 연결 / 해제 버튼] 활성화 상태 갱신
+                //
+                // 연결 시도 종료 후
+                // 현재 연결 상태에 따라 [장비 연결] / [연결 해제] 버튼 활성 상태를 갱신한다.
+                OnPropertyChanged(nameof(IsDeviceConnectButtonEnabled));
+
                 // [장비 통신 설정] 입력 가능 상태 갱신
                 //
                 // [MCB] / [SCB] 연결 상태 변경에 따라
                 // IP / Port 입력칸 활성 / 비활성 상태를 갱신한다.
                 OnPropertyChanged(nameof(IsDeviceConnectionSettingEnabled));
-
-                // [장비 연결] 버튼 활성화 상태 갱신
-                //
-                // 연결 시도 종료 후
-                // 현재 연결 상태에 따라 [장비 연결] 버튼 활성 / 비활성 상태를 갱신한다.
-                OnPropertyChanged(nameof(IsDeviceConnectButtonEnabled));
             }
 
         }
 
         /// <summary>
-        /// [CSE] [Mock MQ] 통합 명령 수신 테스트
+        /// [장비 연결 후] Home Position 이동
         /// 
-        /// ICD 기준 [IF-GUIS-CSE-001] ~ [IF-GUIS-CSE-012]
-        /// 명령을 순차적으로 수신한 것처럼 테스트한다.
+        /// [MCB] / [SCB] 장비 연결이 완료되면
+        /// 장비 기준 Home Position 상태에서 운용을 시작할 수 있도록
+        /// Pan Home / Tilt Home 명령을 자동 송신한다.
         /// 
-        /// 장비 연결 없이 [CSE] 수신 / 파싱 / 분기 / 응답 송신 흐름을 확인한다.
+        /// EO 영상 연결 시도 후 Home 이동 과정을 확인할 수 있도록
+        /// 짧은 대기 후 Home Position 이동을 수행한다.
         /// </summary>
-        private async Task RunCseMockTestAsync()
+        private async Task MoveHomePositionAfterDeviceConnectedAsync()
         {
+            // [EO 영상 표시 대기]
+            //
+            // 장비 연결 직후 바로 Home Position 명령을 송신하면
+            // 영상이 표시되기 전에 장비가 이동할 수 있다.
+            //
+            // 사용자가 화면으로 현재 방향과 Home 이동 과정을 확인할 수 있도록
+            // EO 영상 연결 시도 후 짧은 대기 시간을 둔다.
             await Task.Delay(
-                2500);
+                300);
 
-            // [IF-GUIS-CSE-001] 탐지 활성화 요청
-            TestCseDetectEnable();
+            await MoveHomePositionWithControlLockAsync(
+                "[DEVICE] Home Position After Connect");
+        }
 
-            await Task.Delay(
-                500);
+        /// <summary>
+        /// [Home Position] 이동 상태 반영
+        /// 
+        /// Home Position 이동 진행 여부를 저장하고,
+        /// 장비 연결 버튼 및 장비 제어 탭 활성 / 비활성 상태를 갱신한다.
+        /// </summary>
+        /// <param name="isMoving">
+        /// Home Position 이동 진행 여부
+        /// </param>
+        private void SetHomePositionMovingState(
+            bool isMoving)
+        {
+            _isHomePositionMoving =
+                isMoving;
 
-            // [IF-GUIS-CSE-002] 탐지 활성화 취소 요청
-            TestCseDetectDisable();
+            // [장비 연결 버튼] 활성화 상태 갱신
+            //
+            // Home Position 이동 중에는
+            // [장비 연결] 버튼이 비활성화되도록 갱신한다.
+            OnPropertyChanged(nameof(IsDeviceConnectButtonEnabled));
 
-            await Task.Delay(
-                500);
+            // [장비 연결 해제 버튼] 활성화 상태 갱신
+            //
+            // Home Position 이동 중에는
+            // 장비 내부 Home Script 실행 상태를 보호하기 위해
+            // [연결 해제] 버튼이 비활성화되도록 갱신한다.
+            OnPropertyChanged(nameof(IsDeviceDisconnectButtonEnabled));
 
-            // [IF-GUIS-CSE-003] 탐지 요청
-            TestCseDetectOn();
+            // [장비 제어 탭] 활성화 상태 갱신
+            //
+            // Home Position 이동 중에는
+            // 통신 설정 / 운용 제어 / 이동 제어 탭이 비활성화되도록 갱신한다.
+            OnPropertyChanged(nameof(IsDeviceControlTabEnabled));
 
-            await Task.Delay(
-                500);
-
-            // [IF-GUIS-CSE-004] 탐지 정지 요청
-            TestCseDetectOff();
-
-            await Task.Delay(
-                500);
-
-            // [IF-GUIS-CSE-005] 탐지 계속 요청
-            TestCseDetectContinue();
-
-            await Task.Delay(
-                500);
-
-            // [IF-GUIS-CSE-006] PTZ 위치 연속 이동 요청
-            TestCsePtzMoveContinuous();
-
-            await Task.Delay(
-                500);
-
-            // [IF-GUIS-CSE-006] PTZ 상대 위치 이동 요청
-            TestCsePtzMoveRelative();
-
-            await Task.Delay(
-                500);
-
-            // [IF-GUIS-CSE-006] PTZ 절대 위치 이동 요청
-            TestCsePtzMoveAbsolute();
-
-            await Task.Delay(
-                500);
-
-            // [IF-GUIS-CSE-007] PTZ 제어 해제 요청
-            TestCsePtzStop();
-
-            await Task.Delay(
-                500);
-
-            // [IF-GUIS-CSE-008] PTZ 제어 모드 요청
-            TestCsePtzMode();
-
-            await Task.Delay(
-                500);
-
-            // [IF-GUIS-CSE-009] 영상 설정 요청
-            TestCseSetImage();
-
-            await Task.Delay(
-                500);
-
-            // [IF-GUIS-CSE-010] 영상 플립 요청
-            TestCseSetFlip();
-
-            await Task.Delay(
-                500);
-
-            // [IF-GUIS-CSE-011] 설정 조회 요청
-            TestCseGetConfig();
-
-            await Task.Delay(
-                500);
-
-            // [IF-GUIS-CSE-012] PTZ 상태 조회 요청
-            TestCseGetPtzState();
+            // [Pan / Tilt Speed] 설정 가능 상태 갱신
+            //
+            // Home Position 이동 중에는
+            // Pan / Tilt Speed 설정을 변경하지 못하도록 갱신한다.
+            OnPropertyChanged(nameof(IsPanTiltSpeedEnabled));
         }
 
         /// <summary>
@@ -2398,11 +2733,29 @@ namespace VertiportNexus.ViewModels.Main
             // IP / Port 입력칸 활성 / 비활성 상태를 갱신한다.
             OnPropertyChanged(nameof(IsDeviceConnectionSettingEnabled));
 
+            // [장비 제어 탭] 활성화 상태 갱신
+            //
+            // Home Position 이동 여부 및 연결 상태 변경에 따라
+            // 장비 제어 관련 탭 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsDeviceControlTabEnabled));
+
+            // [Pan / Tilt Speed] 설정 가능 상태 갱신
+            //
+            // [MCB] 연결 상태 및 Home Position 이동 상태에 따라
+            // Pan / Tilt Speed 슬라이더 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsPanTiltSpeedEnabled));
+
             // [장비 연결] 버튼 활성화 상태 갱신
             //
             // [MCB] / [SCB] 연결 상태 변경에 따라
             // 중복 연결 요청 가능 여부를 갱신한다.
             OnPropertyChanged(nameof(IsDeviceConnectButtonEnabled));
+
+            // [장비 연결 해제 버튼] 활성화 상태 갱신
+            //
+            // [MCB] / [SCB] 연결 상태 변경에 따라
+            // [연결 해제] 버튼 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsDeviceDisconnectButtonEnabled));
 
             // [Radar UDP 수신 시작] 버튼 활성화 상태 갱신
             //
@@ -2574,6 +2927,18 @@ namespace VertiportNexus.ViewModels.Main
                 _isDeviceDisconnecting =
                     true;
 
+                // [장비 연결 해제 버튼] 활성화 상태 갱신
+                //
+                // 연결 해제 처리 중에는 중복 연결 해제 요청을 방지하기 위해
+                // [연결 해제] 버튼을 비활성화한다.
+                OnPropertyChanged(nameof(IsDeviceDisconnectButtonEnabled));
+
+                // [장비 연결 버튼] 활성화 상태 갱신
+                //
+                // 연결 해제 처리 중에는 중복 연결 요청을 방지하기 위해
+                // [장비 연결] 버튼 상태를 갱신한다.
+                OnPropertyChanged(nameof(IsDeviceConnectButtonEnabled));
+
                 // [Radar UDP] 수신 중지
                 //
                 // [MCB] / [SCB] 장비 연결 해제 시,
@@ -2595,6 +2960,13 @@ namespace VertiportNexus.ViewModels.Main
                 // 실행 중인 MQ 수신을 먼저 중지한다.
                 if (_rabbitMqConnectionState == ConnectionState.Connected)
                 {
+                    // [카메라 상태] 주기 송신 중지
+                    //
+                    // 장비 연결 해제 시,
+                    // 실행 중인 [q.status.res] 상태 송신 Loop를 함께 종료한다.
+                    _cseCommandHandler
+                        .StopCameraStatusPublishService();
+
                     _mqReceiver
                         .StopReceive();
 
@@ -2644,7 +3016,14 @@ namespace VertiportNexus.ViewModels.Main
             }
             finally
             {
-                _isDeviceDisconnecting = false;
+                _isDeviceDisconnecting =
+                    false;
+
+                // [장비 연결 버튼] 활성화 상태 갱신
+                OnPropertyChanged(nameof(IsDeviceConnectButtonEnabled));
+
+                // [장비 연결 해제 버튼] 활성화 상태 갱신
+                OnPropertyChanged(nameof(IsDeviceDisconnectButtonEnabled));
             }
             return Task.CompletedTask;
         }
@@ -2968,35 +3347,62 @@ namespace VertiportNexus.ViewModels.Main
         #region [EO Camera Event Methods]
 
         /// <summary>
-        /// [EO] 영상 [Frame] 수신 처리
+        /// [EO Camera] Frame 수신 처리
         /// 
-        /// [EO] 영상 표시 허용 상태에서만
-        /// [XAML]에 바인딩된 [EOCameraImage]에 반영한다.
+        /// RTSP 수신 서비스에서 전달된 BitmapSource Frame을
+        /// UI Binding 속성에 반영한다.
+        /// 
+        /// 프로그램 종료 중이거나 Frame 데이터가 없는 경우에는
+        /// UI 객체 접근을 수행하지 않는다.
         /// </summary>
         /// <param name="bitmap">
-        /// [EO] 영상 [Frame]
+        /// EO Camera Frame Image
         /// </param>
         private void OnEoCameraFrameReceived(
             BitmapSource bitmap)
         {
-            App.Current.Dispatcher.Invoke(() =>
+            if (_isDisposing)
             {
-                // [EO] 영상 초기화 요청
-                if (bitmap == null)
-                {
-                    EOCameraImage =
-                        null;
+                return;
+            }
 
-                    return;
+            if (bitmap == null)
+            {
+                return;
+            }
+
+            try
+            {
+                // [EO Camera] Frame Freeze 처리
+                //
+                // RTSP 수신 Thread에서 생성된 BitmapSource를
+                // UI Thread Binding 속성에 안전하게 전달하기 위해 Freeze 처리한다.
+                if (bitmap.CanFreeze)
+                {
+                    bitmap.Freeze();
                 }
 
-                // [EO] 영상 표시 차단 상태
-                if (!_isEoVideoDisplayEnabled)
-                {
-                    return;
-                }
-                EOCameraImage = bitmap;
-            });
+                EOCameraImage =
+                    bitmap;
+            }
+            catch (InvalidOperationException ex)
+            {
+                Console.WriteLine(
+                    "[EO CAMERA] Frame Update Skipped : "
+                    + ex.Message);
+            }
+            catch (NullReferenceException ex)
+            {
+                Console.WriteLine(
+                    "[EO CAMERA] Frame Update Skipped : View Disposed / "
+                    + ex.Message);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(
+                    "[EO CAMERA] Frame Update Failed : "
+                    + ex.Message);
+            }
 
         }
 
@@ -3127,17 +3533,154 @@ namespace VertiportNexus.ViewModels.Main
         #region [Camera Continuous Control Methods]
 
         /// <summary>
+        /// [Pan / Tilt] 연속 이동 속도 재적용
+        /// 
+        /// UI에서 Pan / Tilt 연속 이동 중 [Pan / Tilt Speed] 값이 변경된 경우,
+        /// 현재 이동 중인 방향의 명령을 다시 송신하여
+        /// 장비 실제 이동 속도에 변경값을 반영한다.
+        /// 
+        /// ADS1000 장비는 이동 중에도 [JV] 속도 명령을 다시 수신하면
+        /// 현재 이동 속도를 갱신할 수 있으므로,
+        /// 별도 정지 명령 없이 동일 방향의 연속 이동 명령을 재송신한다.
+        /// </summary>
+        private void ApplyCurrentPanTiltContinuousMoveSpeed()
+        {
+            if (!_isUiContinuousMoveStarted)
+            {
+                return;
+            }
+
+            if (_currentPanTiltContinuousMoveDirection == PanTiltContinuousMoveDirection.None)
+            {
+                return;
+            }
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan / Tilt Speed Changed : "
+                + PanTiltSpeedLevel.ToString("F0"));
+
+            switch (_currentPanTiltContinuousMoveDirection)
+            {
+                case PanTiltContinuousMoveDirection.PanLeft:
+                    _ads1000CameraControlService
+                        .PanLeft();
+
+                    break;
+
+                case PanTiltContinuousMoveDirection.PanRight:
+                    _ads1000CameraControlService
+                        .PanRight();
+
+                    break;
+
+                case PanTiltContinuousMoveDirection.TiltUp:
+                    _ads1000CameraControlService
+                        .TiltUp();
+
+                    break;
+
+                case PanTiltContinuousMoveDirection.TiltDown:
+                    _ads1000CameraControlService
+                        .TiltDown();
+
+                    break;
+
+                default:
+                    break;
+            }
+
+        }
+
+        /// <summary>
+        /// [Pan / Tilt] 이동 속도 재적용
+        /// 
+        /// UI에서 Pan / Tilt 이동 중 [Pan / Tilt Speed] 값이 변경된 경우,
+        /// 현재 이동 중인 축에 속도 갱신 명령을 송신하여
+        /// 장비 실제 이동 속도에 변경값을 반영한다.
+        /// 
+        /// Absolute 이동은 [SP=속도;BG;] 형식으로 속도 변경을 반영하고,
+        /// Relative 이동은 기존 [PR] 상대 이동량이 다시 실행되지 않도록
+        /// [SP=속도;] 형식으로만 송신한다.
+        /// </summary>
+        private void ApplyCurrentPanTiltMoveSpeed()
+        {
+            if (_isHomePositionMoving)
+            {
+                Console.WriteLine(
+                    "[UI][PTZ] Pan / Tilt Speed Apply Ignored : Home Position Moving");
+
+                return;
+            }
+
+            if (_currentPanTiltMoveAxis == PanTiltMoveAxis.None ||
+                _currentPanTiltMoveType == PanTiltMoveType.None)
+            {
+                Console.WriteLine(
+                    "[UI][PTZ] Pan / Tilt Speed Apply Ignored : Pan / Tilt Move State None");
+
+                return;
+            }
+
+            bool includeBeginCommand =
+                _currentPanTiltMoveType == PanTiltMoveType.Absolute;
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan / Tilt Speed Apply : "
+                + PanTiltSpeedLevel.ToString("F0")
+                + " / "
+                + _currentPanTiltMoveAxis
+                + " / "
+                + _currentPanTiltMoveType
+                + " / BG="
+                + includeBeginCommand);
+
+            switch (_currentPanTiltMoveAxis)
+            {
+                case PanTiltMoveAxis.Pan:
+                    _ads1000CameraControlService
+                        .UpdatePanMoveSpeed(
+                            includeBeginCommand);
+
+                    break;
+
+                case PanTiltMoveAxis.Tilt:
+                    _ads1000CameraControlService
+                        .UpdateTiltMoveSpeed(
+                            includeBeginCommand);
+
+                    break;
+
+                default:
+                    break;
+            }
+
+        }
+
+        /// <summary>
         /// [Pan] 왼쪽 연속 이동 시작
         /// 
         /// 화면 버튼 [MouseDown] 시
         /// [Pan] 왼쪽 연속 이동 명령을 송신한다.
+        /// 
+        /// 이후 이동 중 [Pan / Tilt Speed] 값이 변경될 경우,
+        /// 동일 방향 명령을 다시 송신할 수 있도록 현재 이동 방향을 저장한다.
         /// </summary>
         public void StartPanLeftMove()
         {
             _isUiContinuousMoveStarted =
                 true;
 
-            _ads1000CameraControlService.PanLeft();
+            _currentPanTiltContinuousMoveDirection =
+                PanTiltContinuousMoveDirection.PanLeft;
+
+            _currentPanTiltMoveAxis =
+                PanTiltMoveAxis.Pan;
+
+            _currentPanTiltMoveType =
+                PanTiltMoveType.Continuous;
+
+            _ads1000CameraControlService
+                .PanLeft();
         }
 
         /// <summary>
@@ -3145,13 +3688,26 @@ namespace VertiportNexus.ViewModels.Main
         /// 
         /// 화면 버튼 [MouseDown] 시
         /// [Pan] 오른쪽 연속 이동 명령을 송신한다.
+        /// 
+        /// 이후 이동 중 [Pan / Tilt Speed] 값이 변경될 경우,
+        /// 동일 방향 명령을 다시 송신할 수 있도록 현재 이동 방향을 저장한다.
         /// </summary>
         public void StartPanRightMove()
         {
             _isUiContinuousMoveStarted =
                 true;
 
-            _ads1000CameraControlService.PanRight();
+            _currentPanTiltContinuousMoveDirection =
+                PanTiltContinuousMoveDirection.PanRight;
+
+            _currentPanTiltMoveAxis =
+                PanTiltMoveAxis.Pan;
+
+            _currentPanTiltMoveType =
+                PanTiltMoveType.Continuous;
+
+            _ads1000CameraControlService
+                .PanRight();
         }
 
         /// <summary>
@@ -3159,13 +3715,26 @@ namespace VertiportNexus.ViewModels.Main
         /// 
         /// 화면 버튼 [MouseDown] 시
         /// [Tilt] 위쪽 연속 이동 명령을 송신한다.
+        /// 
+        /// 이후 이동 중 [Pan / Tilt Speed] 값이 변경될 경우,
+        /// 동일 방향 명령을 다시 송신할 수 있도록 현재 이동 방향을 저장한다.
         /// </summary>
         public void StartTiltUpMove()
         {
             _isUiContinuousMoveStarted =
                 true;
 
-            _ads1000CameraControlService.TiltUp();
+            _currentPanTiltContinuousMoveDirection =
+                PanTiltContinuousMoveDirection.TiltUp;
+
+            _currentPanTiltMoveAxis =
+                PanTiltMoveAxis.Tilt;
+
+            _currentPanTiltMoveType =
+                PanTiltMoveType.Continuous;
+
+            _ads1000CameraControlService
+                .TiltUp();
         }
 
         /// <summary>
@@ -3173,13 +3742,26 @@ namespace VertiportNexus.ViewModels.Main
         /// 
         /// 화면 버튼 [MouseDown] 시
         /// [Tilt] 아래쪽 연속 이동 명령을 송신한다.
+        /// 
+        /// 이후 이동 중 [Pan / Tilt Speed] 값이 변경될 경우,
+        /// 동일 방향 명령을 다시 송신할 수 있도록 현재 이동 방향을 저장한다.
         /// </summary>
         public void StartTiltDownMove()
         {
             _isUiContinuousMoveStarted =
                 true;
 
-            _ads1000CameraControlService.TiltDown();
+            _currentPanTiltContinuousMoveDirection =
+                PanTiltContinuousMoveDirection.TiltDown;
+
+            _currentPanTiltMoveAxis =
+                PanTiltMoveAxis.Tilt;
+
+            _currentPanTiltMoveType =
+                PanTiltMoveType.Continuous;
+
+            _ads1000CameraControlService
+                .TiltDown();
         }
 
         /// <summary>
@@ -3193,7 +3775,17 @@ namespace VertiportNexus.ViewModels.Main
             _isUiContinuousMoveStarted =
                 true;
 
-            _ads1000CameraControlService.ZoomIn();
+            _currentPanTiltContinuousMoveDirection =
+                PanTiltContinuousMoveDirection.None;
+
+            _currentPanTiltMoveAxis =
+                PanTiltMoveAxis.None;
+
+            _currentPanTiltMoveType =
+                PanTiltMoveType.None;
+
+            _ads1000CameraControlService
+                .ZoomIn();
         }
 
         /// <summary>
@@ -3207,7 +3799,17 @@ namespace VertiportNexus.ViewModels.Main
             _isUiContinuousMoveStarted =
                 true;
 
-            _ads1000CameraControlService.ZoomOut();
+            _currentPanTiltContinuousMoveDirection =
+                PanTiltContinuousMoveDirection.None;
+
+            _currentPanTiltMoveAxis =
+                PanTiltMoveAxis.None;
+
+            _currentPanTiltMoveType =
+                PanTiltMoveType.None;
+
+            _ads1000CameraControlService
+                .ZoomOut();
         }
 
         /// <summary>
@@ -3221,7 +3823,17 @@ namespace VertiportNexus.ViewModels.Main
             _isUiContinuousMoveStarted =
                 true;
 
-            _ads1000CameraControlService.FocusNear();
+            _currentPanTiltContinuousMoveDirection =
+                PanTiltContinuousMoveDirection.None;
+
+            _currentPanTiltMoveAxis =
+                PanTiltMoveAxis.None;
+
+            _currentPanTiltMoveType =
+                PanTiltMoveType.None;
+
+            _ads1000CameraControlService
+                .FocusNear();
         }
 
         /// <summary>
@@ -3235,34 +3847,327 @@ namespace VertiportNexus.ViewModels.Main
             _isUiContinuousMoveStarted =
                 true;
 
-            _ads1000CameraControlService.FocusFar();
+            _currentPanTiltContinuousMoveDirection =
+                PanTiltContinuousMoveDirection.None;
+
+            _currentPanTiltMoveAxis =
+                PanTiltMoveAxis.None;
+
+            _currentPanTiltMoveType =
+                PanTiltMoveType.None;
+
+            _ads1000CameraControlService
+                .FocusFar();
         }
 
         /// <summary>
-        /// [UI] 연속 이동 정지
+        /// [UI] 장비 이동 정지
         /// 
         /// 화면 버튼을 통해 시작된
-        /// [Pan] / [Tilt] / [Zoom] / [Focus] 연속 이동인 경우에만
-        /// [MouseUp] / [MouseLeave] 정지 명령을 송신한다.
+        /// [Pan] / [Tilt] / [Zoom] / [Focus] 연속 이동뿐만 아니라,
+        /// [Pan] / [Tilt] Absolute / Relative 위치 이동 중에도
+        /// 정지 명령을 송신한다.
         /// 
-        /// [RabbitMQ] / [CSE] 연속 이동 명령은
-        /// [IF-GUIS-CSE-007] Stop 명령으로만 정지한다.
+        /// STOP 명령은 장비 이동 상태를 강제로 정지시키는 용도이므로,
+        /// UI 내부 이동 상태값만 기준으로 차단하지 않고
+        /// 장비가 연결된 상태라면 정지 명령을 송신한다.
         /// </summary>
         public void StopContinuousMove()
         {
-            if (!_isUiContinuousMoveStarted)
+            if (_mcbConnectionState != ConnectionState.Connected &&
+                _scbConnectionState != ConnectionState.Connected)
             {
                 Console.WriteLine(
-                    "[UI][CMD] Stop Ignored : UI Continuous Move Not Started");
+                    "[UI][CMD] Stop Ignored : Device Not Connected");
+
                 ConsoleLogHelper.PrintLine();
 
                 return;
             }
 
+            Console.WriteLine(
+                "[UI][CMD] Stop Move Request");
+
             _isUiContinuousMoveStarted =
                 false;
 
-            _ads1000CameraControlService.StopMove();
+            _currentPanTiltContinuousMoveDirection =
+                PanTiltContinuousMoveDirection.None;
+
+            _currentPanTiltMoveAxis =
+                PanTiltMoveAxis.None;
+
+            _currentPanTiltMoveType =
+                PanTiltMoveType.None;
+
+            _ads1000CameraControlService
+                .StopMove();
+
+            ConsoleLogHelper.PrintLine();
+
+            OnPropertyChanged(nameof(IsPanTiltSpeedEnabled));
+        }
+
+        #endregion
+
+        #region [Camera Home / Zero Control Methods]
+
+        /// <summary>
+        /// [Home Position] 이동
+        /// 
+        /// 사용자가 [HOME POSITION] 버튼을 누른 경우,
+        /// 장비 기준 Home Position으로 이동한다.
+        /// 
+        /// Home Position 이동 중에는
+        /// 다른 운용 제어 / 이동 제어 명령이 중복 송신되지 않도록
+        /// 장비 제어 영역을 비활성화한다.
+        /// </summary>
+        private async Task MoveHomePositionAsync()
+        {
+            await MoveHomePositionWithControlLockAsync(
+                "[UI][PTZ] Home Position");
+        }
+
+        /// <summary>
+        /// [Home Position] 이동 공통 처리
+        /// 
+        /// Home Position 이동 시작 시
+        /// 장비 연결 / 해제 버튼 및 운용 제어 / 이동 제어 영역을 비활성화하고,
+        /// 문서 기준 [Pan Home] / [Tilt Home] 명령을 송신한다.
+        /// 
+        /// Home Position 완료 응답을 별도로 판단하지 않고,
+        /// 현재 Pan / Tilt 상태값이 [0] 부근으로 수렴했는지 확인하여
+        /// Home Position 이동 완료 여부를 판단한다.
+        /// </summary>
+        /// <param name="logPrefix">
+        /// 로그 출력 구분 문자열
+        /// </param>
+        private async Task MoveHomePositionWithControlLockAsync(
+            string logPrefix)
+        {
+            if (_isHomePositionMoving)
+            {
+                ConsoleLogHelper.PrintLine();
+
+                Console.WriteLine(
+                    logPrefix
+                    + " Ignored : Home Position Moving");
+
+                Console.WriteLine();
+
+                return;
+            }
+
+            if (_mcbConnectionState != ConnectionState.Connected ||
+                _scbConnectionState != ConnectionState.Connected)
+            {
+                ConsoleLogHelper.PrintLine();
+
+                Console.WriteLine(
+                    logPrefix
+                    + " Skipped : Device Not Fully Connected");
+
+                Console.WriteLine();
+
+                return;
+            }
+
+            try
+            {
+                ConsoleLogHelper.PrintLine();
+
+                Console.WriteLine(
+                    logPrefix
+                    + " Move Start");
+
+                // [Pan / Tilt] 이동 상태 초기화
+                //
+                // Home Position은 장비 내부 Script로 동작하므로,
+                // Absolute / Relative / Continuous 이동 중 속도 갱신 대상으로 보지 않는다.
+                _currentPanTiltContinuousMoveDirection =
+                    PanTiltContinuousMoveDirection.None;
+
+                _currentPanTiltMoveAxis =
+                    PanTiltMoveAxis.None;
+
+                _currentPanTiltMoveType =
+                    PanTiltMoveType.None;
+
+                SetHomePositionMovingState(
+                    true);
+
+                // [Home Position] 이동
+                //
+                // 문서 기준 [Pan Home] / [Tilt Home] 명령인
+                // [XQ##START;]를 순차 송신한다.
+                _ads1000CameraControlService
+                    .MoveHomePosition();
+
+                bool isHomePositionCompleted =
+                    await WaitHomePositionCompletedAsync();
+
+                if (isHomePositionCompleted)
+                {
+                    // [Pan] 누적 상태값 초기화
+                    //
+                    // Home Position 이동이 완료되면
+                    // 장비 기준 Pan 위치가 [0]으로 복귀한 상태이므로,
+                    // 소프트웨어에서 관리하는 Pan 누적 위치값도 함께 초기화한다.
+                    ResetPanAccumulatedStatus();
+
+                    Console.WriteLine(
+                        logPrefix
+                        + " Move Complete");
+                }
+                else
+                {
+                    Console.WriteLine(
+                        logPrefix
+                        + " Move Timeout");
+                }
+
+            }
+            finally
+            {
+                // [Pan / Tilt] 이동 상태 초기화
+                //
+                // Home Position 종료 후에는
+                // 이전 이동 상태 기준으로 속도 갱신 명령이 송신되지 않도록 초기화한다.
+                _currentPanTiltContinuousMoveDirection =
+                    PanTiltContinuousMoveDirection.None;
+
+                _currentPanTiltMoveAxis =
+                    PanTiltMoveAxis.None;
+
+                _currentPanTiltMoveType =
+                    PanTiltMoveType.None;
+
+                SetHomePositionMovingState(
+                    false);
+
+                ConsoleLogHelper.PrintLine();
+            }
+
+        }
+
+        /// <summary>
+        /// [Pan] 현재 위치 [0] 설정
+        /// 
+        /// 장비 기준 현재 [Pan] 위치를 [0]으로 재설정하고,
+        /// 소프트웨어에서 관리하는 Pan 누적 위치값도 함께 초기화한다.
+        /// </summary>
+        private void SetPanZero()
+        {
+            _ads1000CameraControlService
+                .SetPanZero();
+
+            // [Pan] 누적 상태값 초기화
+            //
+            // Pan Zero 명령은 현재 장비 Pan 위치를 [0]으로 재설정하므로,
+            // 이후 Absolute Pan 제어가 이전 누적 회전값을 기준으로 계산되지 않도록
+            // 내부 누적 위치값도 함께 초기화한다.
+            ResetPanAccumulatedStatus();
+        }
+
+        /// <summary>
+        /// [Home Position] 이동 완료 대기
+        /// 
+        /// Home Position 명령 송신 후
+        /// 현재 Pan / Tilt 상태값이 [0] 부근으로 수렴했는지 확인한다.
+        /// 
+        /// 명확한 완료 응답 Packet을 사용하지 않으므로,
+        /// 상태값 기준으로 일정 횟수 연속 만족 시 완료로 판단한다.
+        /// </summary>
+        /// <returns>
+        /// Home Position 완료 여부
+        /// </returns>
+        private async Task<bool> WaitHomePositionCompletedAsync()
+        {
+            const int MIN_WAIT_MILLISECONDS =
+                1500;
+
+            const int CHECK_INTERVAL_MILLISECONDS =
+                200;
+
+            const int TIMEOUT_MILLISECONDS =
+                20000;
+
+            const int REQUIRED_STABLE_COUNT =
+                3;
+
+            const double PAN_TOLERANCE_DEGREES =
+                0.2;
+
+            const double TILT_TOLERANCE_DEGREES =
+                0.2;
+
+            // [Home Position] 최소 대기
+            //
+            // Home Position 명령 송신 직후에는
+            // 장비 상태값이 아직 이동 전 위치로 들어올 수 있으므로
+            // 안정 상태 판단 전 최소 대기 시간을 둔다.
+            await Task.Delay(
+                MIN_WAIT_MILLISECONDS);
+
+            int stableCount =
+                0;
+
+            int elapsedMilliseconds =
+                MIN_WAIT_MILLISECONDS;
+
+            while (elapsedMilliseconds < TIMEOUT_MILLISECONDS)
+            {
+                if (_mcbConnectionState != ConnectionState.Connected ||
+                    _scbConnectionState != ConnectionState.Connected)
+                {
+                    Console.WriteLine(
+                        "[DEVICE] Home Position Wait Canceled : Device Disconnected");
+
+                    return false;
+                }
+
+                double currentPan =
+                    NormalizePanStatus(
+                        CurrentPan);
+
+                double currentTilt =
+                    NormalizeTiltStatus(
+                        CurrentTilt);
+
+                bool isPanHome =
+                    Math.Abs(currentPan) <= PAN_TOLERANCE_DEGREES;
+
+                bool isTiltHome =
+                    Math.Abs(currentTilt) <= TILT_TOLERANCE_DEGREES;
+
+                if (isPanHome &&
+                    isTiltHome)
+                {
+                    stableCount++;
+
+                    if (stableCount >= REQUIRED_STABLE_COUNT)
+                    {
+                        Console.WriteLine(
+                            "[DEVICE] Home Position Stable Count : "
+                            + stableCount);
+
+                        return true;
+                    }
+
+                }
+                else
+                {
+                    stableCount =
+                        0;
+                }
+
+                await Task.Delay(
+                    CHECK_INTERVAL_MILLISECONDS);
+
+                elapsedMilliseconds +=
+                    CHECK_INTERVAL_MILLISECONDS;
+            }
+            return false;
         }
 
         #endregion
@@ -3272,39 +4177,210 @@ namespace VertiportNexus.ViewModels.Main
         /// <summary>
         /// [Pan] 절대 위치 이동
         /// 
-        /// 입력된 [Pan Absolute] 값을 기준으로
-        /// [ADS1000] 장비에 절대 위치 이동 명령을 송신한다.
+        /// 입력된 [Pan Absolute] 목표값을
+        /// 최종 ICD 기준 [0 ~ 360] 범위로 보정한 후,
+        /// 현재 [Pan] 위치와 선택된 선회 모드를 기준으로 이동 각도를 계산한다.
+        /// 
+        /// 화면 표시용 [Pan] 값은 [0 ~ 360] 범위로 정규화되지만,
+        /// 장비의 실제 Pan 위치는 한 바퀴 이상 누적될 수 있으므로
+        /// 장비 송신용 목표값은 내부 누적 위치값을 기준으로 계산한다.
+        /// 
+        /// 단, 현재 표시 위치와 목표 표시 위치가 이미 동일한 경우에는
+        /// 장비에 불필요한 [PA] 명령을 송신하지 않는다.
+        /// 
+        /// [360] 입력은 [0]과 표시 위치는 같지만,
+        /// 사용자가 한 바퀴 이동을 의도한 값으로 보고 별도로 처리한다.
         /// </summary>
         private void MovePanAbsolute()
         {
+            const double PAN_POSITION_EPSILON =
+                0.001;
+
             if (!PanAbsoluteValue.HasValue)
             {
-                Console.WriteLine("[UI][PTZ] Pan Absolute Failed : Value is empty");
+                Console.WriteLine(
+                    "[UI][PTZ] Pan Absolute Failed : Value is empty");
+
                 return;
             }
 
+            double currentPanCommandAngle =
+                GetCurrentPanCommandAngle();
+
+            double currentPan =
+                NormalizePanStatus(
+                    currentPanCommandAngle);
+
+            double targetPan =
+                Clamp(
+                    PanAbsoluteValue.Value,
+                    0,
+                    360);
+
+            bool isFullTurnTarget =
+                Math.Abs(targetPan - 360.0) <= PAN_POSITION_EPSILON;
+
+            double panMoveAngle;
+
+            if (isFullTurnTarget)
+            {
+                panMoveAngle =
+                    360.0 - currentPan;
+            }
+            else
+            {
+                panMoveAngle =
+                    CalculatePanMoveAngle(
+                        currentPan,
+                        targetPan,
+                        _panTurnMode);
+            }
+
+            // [Pan Absolute] 동일 위치 명령 차단
+            //
+            // 현재 표시용 [Pan] 위치와 목표 [Pan] 위치가 이미 동일한 경우,
+            // 장비에 불필요한 [PA] 명령을 송신하지 않는다.
+            //
+            // 단, [360] 입력은 표시 위치상 [0]과 같더라도
+            // 사용자가 한 바퀴 이동을 의도한 값으로 보므로
+            // 동일 위치 차단 대상에서 제외한다.
+            if (!isFullTurnTarget &&
+                Math.Abs(panMoveAngle) <= PAN_POSITION_EPSILON)
+            {
+                Console.WriteLine(
+                    "[UI][PTZ] Pan Absolute Ignored : Already Target Position");
+
+                Console.WriteLine(
+                    "[UI][PTZ] Pan Absolute Current : "
+                    + currentPan.ToString("F4"));
+
+                Console.WriteLine(
+                    "[UI][PTZ] Pan Absolute Target : "
+                    + targetPan.ToString("F4"));
+
+                return;
+            }
+
+            double panCommandTarget =
+                currentPanCommandAngle + panMoveAngle;
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Absolute Input : "
+                + PanAbsoluteValue.Value.ToString("F4"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Absolute Mode : "
+                + _panTurnMode);
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Absolute Current : "
+                + currentPan.ToString("F4"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Absolute Accumulated Current : "
+                + currentPanCommandAngle.ToString("F4"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Absolute Target : "
+                + targetPan.ToString("F4"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Absolute Move Angle : "
+                + panMoveAngle.ToString("F4"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Absolute Command Target : "
+                + panCommandTarget.ToString("F4"));
+
+            _currentPanTiltMoveAxis =
+                PanTiltMoveAxis.Pan;
+
+            _currentPanTiltMoveType =
+                PanTiltMoveType.Absolute;
+
             _ads1000CameraControlService
                 .MovePanAbsolute(
-                    PanAbsoluteValue.Value);
+                    panCommandTarget);
         }
 
         /// <summary>
         /// [Tilt] 절대 위치 이동
         /// 
-        /// 입력된 [Tilt Absolute] 값을 기준으로
+        /// 입력된 [Tilt Absolute] 값을
+        /// 장비 물리 제한 기준 [-90 ~ 90] 범위로 보정한 후,
         /// [ADS1000] 장비에 절대 위치 이동 명령을 송신한다.
+        /// 
+        /// 현재 [Tilt] 상태값과 목표 위치를 로그로 출력하여,
+        /// 실제 장비 응답값과 비교할 수 있도록 한다.
         /// </summary>
         private void MoveTiltAbsolute()
         {
             if (!TiltAbsoluteValue.HasValue)
             {
-                Console.WriteLine("[UI][PTZ] Tilt Absolute Failed : Value is empty");
+                Console.WriteLine(
+                    "[UI][PTZ] Tilt Absolute Failed : Value is empty");
+
                 return;
             }
 
+            double currentTilt =
+                NormalizeTiltStatus(
+                    CurrentTilt);
+
+            double targetTilt =
+                Clamp(
+                    TiltAbsoluteValue.Value,
+                    -90,
+                    90);
+
+            double tiltMoveAngle =
+                targetTilt - currentTilt;
+
+            // [Tilt Absolute] 동일 위치 명령 차단
+            //
+            // 현재 [Tilt] 위치와 목표 [Tilt] 위치가 이미 동일한 경우,
+            // 장비에 불필요한 [PA] 명령을 송신하지 않는다.
+            if (Math.Abs(tiltMoveAngle) <= 0.001)
+            {
+                Console.WriteLine(
+                    "[UI][PTZ] Tilt Absolute Ignored : Already Target Position");
+
+                Console.WriteLine(
+                    "[UI][PTZ] Tilt Absolute Current : "
+                    + currentTilt.ToString("F4"));
+
+                Console.WriteLine(
+                    "[UI][PTZ] Tilt Absolute Target : "
+                    + targetTilt.ToString("F4"));
+
+                return;
+            }
+
+            Console.WriteLine(
+                "[UI][PTZ] Tilt Absolute Input : "
+                + TiltAbsoluteValue.Value.ToString("F4"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Tilt Absolute Current : "
+                + currentTilt.ToString("F4"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Tilt Absolute Target : "
+                + targetTilt.ToString("F4"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Tilt Absolute Move Angle : "
+                + tiltMoveAngle.ToString("F4"));
+
+            _currentPanTiltMoveAxis =
+                PanTiltMoveAxis.Tilt;
+
+            _currentPanTiltMoveType =
+                PanTiltMoveType.Absolute;
+
             _ads1000CameraControlService
                 .MoveTiltAbsolute(
-                    TiltAbsoluteValue.Value);
+                    targetTilt);
         }
 
         #endregion
@@ -3315,38 +4391,156 @@ namespace VertiportNexus.ViewModels.Main
         /// [Pan] 상대 위치 이동
         /// 
         /// 입력된 [Pan Relative] 값을 기준으로
-        /// [ADS1000] 장비에 상대 위치 이동 명령을 송신한다.
+        /// 현재 [Pan] 누적 위치에서 상대 이동량을 더한
+        /// 최종 목표 위치를 계산한 후,
+        /// [ADS1000] 장비에는 절대 위치 이동 명령으로 송신한다.
+        /// 
+        /// 장비의 [PR] 상대 이동 명령은 이동 중 속도 변경 시
+        /// [SP] 단독 갱신이 즉시 반영되지 않고,
+        /// [BG] 재송신 시 상대 이동량이 재실행될 수 있으므로,
+        /// UI 상대 이동은 내부적으로 [PA] 절대 이동으로 변환하여 처리한다.
         /// </summary>
         private void MovePanRelative()
         {
             if (!PanRelativeValue.HasValue)
             {
-                Console.WriteLine("[UI][PTZ] Pan Relative Failed : Value is empty");
+                Console.WriteLine(
+                    "[UI][PTZ] Pan Relative Failed : Value is empty");
+
                 return;
             }
 
+            double currentPanCommandAngle =
+                GetCurrentPanCommandAngle();
+
+            double currentPan =
+                NormalizePanStatus(
+                    currentPanCommandAngle);
+
+            double movePan =
+                PanRelativeValue.Value;
+
+            double panCommandTarget =
+                currentPanCommandAngle + movePan;
+
+            double expectedPan =
+                NormalizePanStatus(
+                    currentPan + movePan);
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Relative Input : "
+                + movePan.ToString("F4"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Relative Current : "
+                + currentPan.ToString("F4"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Relative Accumulated Current : "
+                + currentPanCommandAngle.ToString("F4"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Relative Move Angle : "
+                + movePan.ToString("F4"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Relative Expected Display : "
+                + expectedPan.ToString("F4"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Relative Command Target : "
+                + panCommandTarget.ToString("F4"));
+
+            _currentPanTiltMoveAxis =
+                PanTiltMoveAxis.Pan;
+
+            // [Pan Relative] 속도 변경 처리 기준
+            //
+            // UI 동작은 Relative이지만,
+            // 장비에는 [PA] 절대 위치 이동 명령으로 송신하므로
+            // 이동 중 속도 변경도 Absolute 방식인 [SP=속도;BG;]를 사용한다.
+            _currentPanTiltMoveType =
+                PanTiltMoveType.Absolute;
+
             _ads1000CameraControlService
-                .MovePanRelative(
-                    PanRelativeValue.Value);
+                .MovePanAbsolute(
+                    panCommandTarget);
         }
 
         /// <summary>
         /// [Tilt] 상대 위치 이동
         /// 
         /// 입력된 [Tilt Relative] 값을 기준으로
-        /// [ADS1000] 장비에 상대 위치 이동 명령을 송신한다.
+        /// 현재 [Tilt] 위치에서 상대 이동량을 더한
+        /// 최종 목표 위치를 계산한 후,
+        /// [ADS1000] 장비에는 절대 위치 이동 명령으로 송신한다.
+        /// 
+        /// 장비의 [PR] 상대 이동 명령은 이동 중 속도 변경 시
+        /// [SP] 단독 갱신이 즉시 반영되지 않고,
+        /// [BG] 재송신 시 상대 이동량이 재실행될 수 있으므로,
+        /// UI 상대 이동은 내부적으로 [PA] 절대 이동으로 변환하여 처리한다.
         /// </summary>
         private void MoveTiltRelative()
         {
             if (!TiltRelativeValue.HasValue)
             {
-                Console.WriteLine("[UI][PTZ] Tilt Relative Failed : Value is empty");
+                Console.WriteLine(
+                    "[UI][PTZ] Tilt Relative Failed : Value is empty");
+
                 return;
             }
 
+            double currentTilt =
+                NormalizeTiltStatus(
+                    CurrentTilt);
+
+            double moveTilt =
+                TiltRelativeValue.Value;
+
+            double targetTilt =
+                Clamp(
+                    currentTilt + moveTilt,
+                    -90,
+                    90);
+
+            double expectedTilt =
+                NormalizeTiltStatus(
+                    targetTilt);
+
+            Console.WriteLine(
+                "[UI][PTZ] Tilt Relative Input : "
+                + moveTilt.ToString("F4"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Tilt Relative Current : "
+                + currentTilt.ToString("F4"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Tilt Relative Move Angle : "
+                + moveTilt.ToString("F4"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Tilt Relative Expected Display : "
+                + expectedTilt.ToString("F4"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Tilt Relative Command Target : "
+                + targetTilt.ToString("F4"));
+
+            _currentPanTiltMoveAxis =
+                PanTiltMoveAxis.Tilt;
+
+            // [Tilt Relative] 속도 변경 처리 기준
+            //
+            // UI 동작은 Relative이지만,
+            // 장비에는 [PA] 절대 위치 이동 명령으로 송신하므로
+            // 이동 중 속도 변경도 Absolute 방식인 [SP=속도;BG;]를 사용한다.
+            _currentPanTiltMoveType =
+                PanTiltMoveType.Absolute;
+
             _ads1000CameraControlService
-                .MoveTiltRelative(
-                    TiltRelativeValue.Value);
+                .MoveTiltAbsolute(
+                    targetTilt);
         }
 
         #endregion
@@ -3498,6 +4692,56 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
+        /// [Zoom] 위치값을 배율로 변환
+        /// 
+        /// ADS1000 장비 상태값 [0 ~ 1000]을
+        /// 화면 표시용 [Zoom] 배율값 [x1.0 ~ x66.0]으로 변환한다.
+        /// 
+        /// 변환 기준:
+        /// [0]    = [1.0x]
+        /// [1000] = [66.0x]
+        /// 
+        /// 화면 표시 기준으로 소수점 첫째 자리까지 반올림한다.
+        /// </summary>
+        /// <param name="zoomPosition">
+        /// ADS1000 Zoom 위치값
+        /// </param>
+        /// <returns>
+        /// Zoom 배율
+        /// </returns>
+        private double ConvertZoomPositionToRatio(
+            double zoomPosition)
+        {
+            const double MIN_ZOOM_POSITION =
+                0.0;
+
+            const double MAX_ZOOM_POSITION =
+                1000.0;
+
+            const double MIN_ZOOM_RATIO =
+                1.0;
+
+            const double MAX_ZOOM_RATIO =
+                66.0;
+
+            double clampedZoomPosition =
+                Clamp(
+                    zoomPosition,
+                    MIN_ZOOM_POSITION,
+                    MAX_ZOOM_POSITION);
+
+            double zoomRatio =
+                MIN_ZOOM_RATIO
+                + (clampedZoomPosition - MIN_ZOOM_POSITION)
+                / (MAX_ZOOM_POSITION - MIN_ZOOM_POSITION)
+                * (MAX_ZOOM_RATIO - MIN_ZOOM_RATIO);
+
+            return Math.Round(
+                zoomRatio,
+                1);
+        }
+
+        /// <summary>
         /// [Focus] 지정 위치 이동
         /// 
         /// 입력된 [Focus Position] 값을
@@ -3559,12 +4803,22 @@ namespace VertiportNexus.ViewModels.Main
 
             if (parsedPacket.HasPanValue)
             {
+                // [Pan] 누적 상태값 갱신
+                //
+                // 화면 표시용 [Pan] 값은 [0 ~ 360] 범위로 정규화하지만,
+                // 장비 제어용 [Pan] 값은 한 바퀴 이상 회전한 위치를 유지해야 하므로
+                // 상태 Packet 수신 시 누적 위치값을 별도로 갱신한다.
+                UpdatePanAccumulatedStatus(
+                    parsedPacket.PanValue);
+
+                // [Pan] 상태값 갱신
+                //
+                // Pan은 최종 ICD 기준 [0 ~ 360] 범위로 표시한다.
+                // 장비 Encoder 오차로 인해 [0] / [360] 또는 정수 위치 근처
+                // 미세 오차가 발생하면 화면 표시 및 상태 응답 기준에서는 보정한다.
                 CurrentPan =
-                    NormalizePosition(
-                        Clamp(
-                            parsedPacket.PanValue,
-                            -180,
-                            180));
+                    NormalizePanStatus(
+                        parsedPacket.PanValue);
 
                 updatedPan =
                     CurrentPan;
@@ -3572,12 +4826,14 @@ namespace VertiportNexus.ViewModels.Main
 
             if (parsedPacket.HasTiltValue)
             {
+                // [Tilt] 상태값 갱신
+                //
+                // Tilt는 장비 물리 제한 기준 [-90 ~ 90] 범위로 표시한다.
+                // 장비 Encoder 오차로 인해 [0] 또는 정수 위치 근처
+                // 미세 오차가 발생하면 화면 표시 및 상태 응답 기준에서는 보정한다.
                 CurrentTilt =
-                    NormalizePosition(
-                        Clamp(
-                            parsedPacket.TiltValue,
-                            -90,
-                            90));
+                    NormalizeTiltStatus(
+                        parsedPacket.TiltValue);
 
                 updatedTilt =
                     CurrentTilt;
@@ -3585,11 +4841,23 @@ namespace VertiportNexus.ViewModels.Main
 
             if (parsedPacket.HasZoomValue)
             {
+                // [Zoom] 상태값 갱신
+                //
+                // Zoom Position은 장비 제어 기준 [0 ~ 1000] 범위로 표시한다.
+                // 화면의 현재 상태 표시에서는 Position 값과 함께
+                // 실제 배율 기준 [x1.0 ~ x66.0] 값을 소수점 첫째 자리까지 표시한다.
+                //
+                // 장비 응답값이 범위를 벗어나거나 정수 위치 근처
+                // 미세 오차가 발생하면 화면 표시 및 상태 응답 기준에서는 보정한다.
                 CurrentZoom =
-                    Clamp(
+                    NormalizeRangePosition(
                         parsedPacket.ZoomValue,
                         0,
                         1000);
+
+                CurrentZoomRatio =
+                    ConvertZoomPositionToRatio(
+                        CurrentZoom);
 
                 updatedZoom =
                     CurrentZoom;
@@ -3597,8 +4865,13 @@ namespace VertiportNexus.ViewModels.Main
 
             if (parsedPacket.HasFocusValue)
             {
+                // [Focus] 상태값 갱신
+                //
+                // Focus Position은 장비 제어 기준 [0 ~ 1000] 범위로 표시한다.
+                // 장비 응답값이 범위를 벗어나거나 정수 위치 근처
+                // 미세 오차가 발생하면 화면 표시 및 상태 응답 기준에서는 보정한다.
                 CurrentFocus =
-                    Clamp(
+                    NormalizeRangePosition(
                         parsedPacket.FocusValue,
                         0,
                         1000);
@@ -3620,63 +4893,398 @@ namespace VertiportNexus.ViewModels.Main
 
         #endregion
 
+        #region [CSE Receive Event Methods]
+
+        /// <summary>
+        /// [CSE] 명령 수신 처리
+        /// 
+        /// [MQ] 수신부에서 [JSON] 파싱이 완료된 명령을 전달받아,
+        /// [CseCommandHandler]를 통해 실제 카메라 제어 명령으로 처리한다.
+        /// </summary>
+        /// <param name="message">
+        /// [CSE] 명령 메시지
+        /// </param>
+        private void OnCseCommandReceived(
+            CseCommandMessage message)
+        {
+            _cseCommandHandler.HandleCommand(
+                message);
+        }
+
+        #endregion
+
         #region [Utility Methods]
 
         /// <summary>
-        /// [ADS1000] Zoom 위치값을 배율로 변환
+        /// [Pan] 누적 상태값 갱신
         /// 
-        /// [Zoom] 위치값 [0 ~ 1000]을
-        /// 장비 스펙 기준으로 [1x ~ 66x] 배율로 변환한다.
+        /// 장비 상태 Packet에서 수신한 [Pan] 원본 각도값을 기준으로
+        /// 장비 제어용 누적 위치값을 갱신한다.
         /// 
-        /// 실제 장비 최대 배율 확인 후
-        /// [MAX_ZOOM_RATIO] 값은 조정 가능하다.
+        /// 화면 표시용 [Pan] 값은 [0 ~ 360] 범위로 정규화하지만,
+        /// 장비 상태 Packet의 [Pan] 원본값은 한 바퀴 이상 회전한
+        /// 누적 각도 정보를 포함할 수 있으므로 정규화하지 않고 보관한다.
         /// </summary>
-        /// <param name="zoomPosition">
-        /// ADS1000 Zoom 위치값
+        /// <param name="panStatus">
+        /// 장비에서 수신한 Pan 원본 각도값
         /// </param>
-        /// <returns>
-        /// Zoom 배율
-        /// </returns>
-        private double ConvertZoomPositionToRatio(
-            double zoomPosition)
+        private void UpdatePanAccumulatedStatus(
+            double panStatus)
         {
-            const double MIN_ZOOM_RATIO =
-                1.0;
+            _currentPanAccumulated =
+                panStatus;
 
-            const double MAX_ZOOM_RATIO =
-                66.0;
+            _lastPanDisplayStatus =
+                NormalizePanStatus(
+                    panStatus);
 
-            double clampedZoomPosition =
-                Clamp(
-                    zoomPosition,
-                    0,
-                    1000);
-
-            return
-                MIN_ZOOM_RATIO
-                + (clampedZoomPosition / 1000.0)
-                * (MAX_ZOOM_RATIO - MIN_ZOOM_RATIO);
+            _hasPanAccumulatedStatus =
+                true;
         }
 
         /// <summary>
-        /// [PTZ] 위치값 보정
-        ///
-        /// ADS1000 Encoder 특성상
-        /// 0 부근에서 미세 오차가 발생할 수 있으므로,
-        /// 허용 오차 범위 내 값은 0으로 보정한다.
+        /// [Pan] 제어 기준 위치값 조회
+        /// 
+        /// Pan 누적 상태값이 초기화된 경우에는
+        /// 장비 제어용 누적 위치값을 반환하고,
+        /// 아직 상태값을 수신하지 못한 경우에는
+        /// 화면 표시용 현재 Pan 값을 반환한다.
         /// </summary>
+        /// <returns>
+        /// Pan 제어 기준 위치값
+        /// </returns>
+        private double GetCurrentPanCommandAngle()
+        {
+            if (_hasPanAccumulatedStatus)
+            {
+                return _currentPanAccumulated;
+            }
+
+            return CurrentPan;
+        }
+
+        /// <summary>
+        /// [Pan] 누적 상태값 초기화
+        /// 
+        /// Home Position 또는 Pan Zero 수행 후
+        /// 장비 Pan 기준 위치가 [0]으로 재설정되는 경우,
+        /// 소프트웨어에서 관리하는 누적 위치값도 함께 초기화한다.
+        /// </summary>
+        private void ResetPanAccumulatedStatus()
+        {
+            _currentPanAccumulated =
+                0.0;
+
+            _lastPanDisplayStatus =
+                0.0;
+
+            _hasPanAccumulatedStatus =
+                true;
+        }
+
+        /// <summary>
+        /// [Pan] 이동 각도 계산
+        /// 
+        /// 현재 [Pan] 위치와 목표 [Pan] 위치를 기준으로
+        /// 선택된 선회 모드에 따라 장비로 송신할 이동 각도를 계산한다.
+        /// 
+        /// [Short] 모드는 가장 가까운 방향의 이동 각도를 계산하고,
+        /// [Via 0] 모드는 단거리 보정 없이 목표 위치와 현재 위치의 차이를 사용한다.
+        /// </summary>
+        /// <param name="currentPan">
+        /// 현재 Pan 위치 [0 ~ 360]
+        /// </param>
+        /// <param name="targetPan">
+        /// 목표 Pan 위치 [0 ~ 360]
+        /// </param>
+        /// <param name="panTurnMode">
+        /// Pan 선회 모드
+        /// </param>
+        /// <returns>
+        /// 장비로 송신할 Pan 이동 각도
+        /// </returns>
+        private double CalculatePanMoveAngle(
+            double currentPan,
+            double targetPan,
+            Ads1000PanTurnMode panTurnMode)
+        {
+            double normalizedCurrentPan =
+                NormalizePanStatus(
+                    currentPan);
+
+            double normalizedTargetPan =
+                NormalizePanStatus(
+                    targetPan);
+
+            if (panTurnMode == Ads1000PanTurnMode.Short)
+            {
+                return CalculateShortestPanDelta(
+                    normalizedCurrentPan,
+                    normalizedTargetPan);
+            }
+
+            return CalculateViaZeroPanDelta(
+                normalizedCurrentPan,
+                normalizedTargetPan);
+        }
+
+        /// <summary>
+        /// [Pan] 최단 이동 각도 계산
+        /// 
+        /// 현재 [Pan] 위치에서 목표 [Pan] 위치까지
+        /// 가장 가까운 방향의 이동 각도를 계산한다.
+        /// 
+        /// 결과값은 [-180 ~ 180] 범위로 반환하며,
+        /// [0 → 350] 이동처럼 360도 경계를 넘어가는 경우에도
+        /// 장비가 먼 방향으로 회전하지 않도록 처리한다.
+        /// </summary>
+        /// <param name="currentPan">
+        /// 현재 Pan 위치 [0 ~ 360]
+        /// </param>
+        /// <param name="targetPan">
+        /// 목표 Pan 위치 [0 ~ 360]
+        /// </param>
+        /// <returns>
+        /// 최단 이동 각도
+        /// </returns>
+        private double CalculateShortestPanDelta(
+            double currentPan,
+            double targetPan)
+        {
+            const double FULL_ROTATION_DEGREES =
+                360.0;
+
+            const double HALF_ROTATION_DEGREES =
+                180.0;
+
+            double delta =
+                (targetPan
+                 - currentPan
+                 + HALF_ROTATION_DEGREES
+                 + FULL_ROTATION_DEGREES)
+                % FULL_ROTATION_DEGREES
+                - HALF_ROTATION_DEGREES;
+
+            return NormalizeZeroAngle(
+                delta);
+        }
+
+        /// <summary>
+        /// [Pan] [Via 0] 이동 각도 계산
+        /// 
+        /// 현재 [Pan] 위치에서 목표 [Pan] 위치까지
+        /// 단거리 보정 없이 이동 각도를 계산한다.
+        /// 
+        /// 예)
+        /// 현재 [0] / 목표 [350]인 경우
+        /// [Short] 모드는 [-10]으로 계산하지만,
+        /// [Via 0] 모드는 [350]으로 계산한다.
+        /// </summary>
+        /// <param name="currentPan">
+        /// 현재 Pan 위치 [0 ~ 360]
+        /// </param>
+        /// <param name="targetPan">
+        /// 목표 Pan 위치 [0 ~ 360]
+        /// </param>
+        /// <returns>
+        /// Via 0 기준 이동 각도
+        /// </returns>
+        private double CalculateViaZeroPanDelta(
+            double currentPan,
+            double targetPan)
+        {
+            double delta =
+                targetPan - currentPan;
+
+            return NormalizeZeroAngle(
+                delta);
+        }
+
+        /// <summary>
+        /// [각도] 미세 오차 보정
+        /// 
+        /// 장비 Encoder 오차 또는 계산 과정에서 발생한
+        /// [0] 근처 미세값을 [0]으로 보정한다.
+        /// </summary>
+        /// <param name="angle">
+        /// 원본 각도
+        /// </param>
+        /// <returns>
+        /// 미세 오차가 보정된 각도
+        /// </returns>
+        private double NormalizeZeroAngle(
+            double angle)
+        {
+            const double ZERO_EPSILON =
+                0.001;
+
+            if (Math.Abs(angle) <= ZERO_EPSILON)
+            {
+                return 0.0;
+            }
+            return angle;
+        }
+
+        /// <summary>
+        /// [Pan] 상태값 범위 정규화
+        /// 
+        /// ADS1000 상태 Packet에서 수신한 Pan 값을
+        /// 최종 ICD 기준 [0 ~ 360] 범위로 변환한다.
+        /// 
+        /// Pan 값이 360도를 초과하면 0도부터 다시 시작하고,
+        /// 0도 미만이면 360도 기준으로 순환 처리한다.
+        /// 
+        /// 장비 Encoder 오차로 인해
+        /// [0] 근처 또는 [360] 근처의 미세 오차가 발생하는 경우,
+        /// 화면 표시 및 상태 응답 기준에서는 [0]으로 보정한다.
+        /// </summary>
+        /// <param name="pan">
+        /// Pan 원본 상태값
+        /// </param>
+        /// <returns>
+        /// [0 ~ 360] 범위로 정규화된 Pan 상태값
+        /// </returns>
+        private double NormalizePanStatus(
+            double pan)
+        {
+            const double FULL_ROTATION_DEGREES =
+                360.0;
+
+            const double ZERO_EPSILON =
+                0.001;
+
+            double normalizedPan =
+                pan % FULL_ROTATION_DEGREES;
+
+            if (normalizedPan < 0)
+            {
+                normalizedPan +=
+                    FULL_ROTATION_DEGREES;
+            }
+
+            if (Math.Abs(normalizedPan) <= ZERO_EPSILON ||
+                Math.Abs(normalizedPan - FULL_ROTATION_DEGREES) <= ZERO_EPSILON)
+            {
+                return 0.0;
+            }
+            return NormalizePosition(
+                normalizedPan);
+        }
+
+        /// <summary>
+        /// [Tilt] 상태값 범위 정규화
+        /// 
+        /// ADS1000 상태 Packet에서 수신한 Tilt 값을
+        /// 장비 물리 제한 기준 [-90 ~ 90] 범위로 보정한다.
+        /// 
+        /// 장비 Encoder 오차로 인해
+        /// [0] 근처의 미세 오차가 발생하는 경우,
+        /// 화면 표시 및 상태 응답 기준에서는 [0]으로 보정한다.
+        /// </summary>
+        /// <param name="tilt">
+        /// Tilt 원본 상태값
+        /// </param>
+        /// <returns>
+        /// [-90 ~ 90] 범위로 정규화된 Tilt 상태값
+        /// </returns>
+        private double NormalizeTiltStatus(
+            double tilt)
+        {
+            const double MIN_TILT_DEGREES =
+                -90.0;
+
+            const double MAX_TILT_DEGREES =
+                90.0;
+
+            const double ZERO_EPSILON =
+                0.001;
+
+            double normalizedTilt =
+                Clamp(
+                    tilt,
+                    MIN_TILT_DEGREES,
+                    MAX_TILT_DEGREES);
+
+            if (Math.Abs(normalizedTilt) <= ZERO_EPSILON)
+            {
+                return 0.0;
+            }
+            return NormalizePosition(
+                normalizedTilt);
+        }
+
+        /// <summary>
+        /// [범위 위치 상태값] 미세 오차 보정
+        /// 
+        /// 장비 상태 Packet에서 수신한 위치값을
+        /// 지정한 최소 / 최대 범위로 보정한다.
+        /// 
+        /// 장비 Encoder 또는 위치 응답에서 발생하는
+        /// [0] 근처 또는 정수 위치 근처의 미세 오차는
+        /// 화면 표시 및 상태 응답 기준에서 보정한다.
+        /// </summary>
+        /// <param name="value">
+        /// 원본 위치값
+        /// </param>
+        /// <param name="min">
+        /// 최소 위치값
+        /// </param>
+        /// <param name="max">
+        /// 최대 위치값
+        /// </param>
+        /// <returns>
+        /// 범위 및 미세 오차가 보정된 위치값
+        /// </returns>
+        private double NormalizeRangePosition(
+            double value,
+            double min,
+            double max)
+        {
+            double clampedValue =
+                Clamp(
+                    value,
+                    min,
+                    max);
+
+            return NormalizePosition(
+                clampedValue);
+        }
+
+        /// <summary>
+        /// [위치 상태값] 미세 오차 보정
+        /// 
+        /// 장비 Encoder 또는 위치 응답에서 발생하는
+        /// [0] 근처 또는 정수 위치 근처의 미세 오차를
+        /// 화면 표시 및 상태 응답 기준에서 보정한다.
+        /// </summary>
+        /// <param name="value">
+        /// 원본 위치값
+        /// </param>
+        /// <returns>
+        /// 미세 오차가 보정된 위치값
+        /// </returns>
         private double NormalizePosition(
             double value)
         {
-            const double POSITION_TOLERANCE =
-                0.01;
+            const double ZERO_EPSILON =
+                0.001;
 
-            if (Math.Abs(value) <=
-                POSITION_TOLERANCE)
+            const double INTEGER_EPSILON =
+                0.001;
+
+            if (Math.Abs(value) <= ZERO_EPSILON)
             {
-                return 0;
+                return 0.0;
             }
 
+            double roundedValue =
+                Math.Round(
+                    value);
+
+            if (Math.Abs(value - roundedValue) <= INTEGER_EPSILON)
+            {
+                return roundedValue;
+            }
             return value;
         }
 
@@ -3714,563 +5322,7 @@ namespace VertiportNexus.ViewModels.Main
 
         #endregion
 
-        #region [CSE Receive Event Methods]
-
-        /// <summary>
-        /// [CSE] 명령 수신 처리
-        /// 
-        /// [MQ] 수신부에서 [JSON] 파싱이 완료된 명령을 전달받아,
-        /// [CseCommandHandler]를 통해 실제 카메라 제어 명령으로 처리한다.
-        /// </summary>
-        /// <param name="message">
-        /// [CSE] 명령 메시지
-        /// </param>
-        private void OnCseCommandReceived(
-            CseCommandMessage message)
-        {
-            _cseCommandHandler.HandleCommand(
-                message);
-        }
-
-        #endregion
-
-        #region [CSE Mock Test Methods]
-
-        /// <summary>
-        /// [CSE] [Detect Enable] 명령 수신 테스트
-        /// 
-        /// ICD 기준 [IF-GUIS-CSE-001] 요청을
-        /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
-        /// </summary>
-        private void TestCseDetectEnable()
-        {
-            string json =
-                @"{
-            ""interface_id"": ""IF-GUIS-CSE-001"",
-            ""msg_type"": ""detect_enable"",
-            ""msg_id"": ""CMD-0001"",
-            ""timestamp"": ""2026-06-22T10:00:00"",
-            ""reply_to"": ""q.command.res"",
-            ""payload"": {
-                ""track_id"": 1,
-                ""latitude"": 36.350411,
-                ""longitude"": 127.384548,
-                ""altitude"": 120.5
-            }
-
-        }";
-
-            _mockMqReceiver.InjectMessage(
-                json);
-        }
-
-        /// <summary>
-        /// [CSE] [Detect Disable] 명령 수신 테스트
-        /// 
-        /// ICD 기준 [IF-GUIS-CSE-002] 요청을
-        /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
-        /// </summary>
-        private void TestCseDetectDisable()
-        {
-            string json =
-                @"{
-            ""interface_id"": ""IF-GUIS-CSE-002"",
-            ""msg_type"": ""detect_disable"",
-            ""msg_id"": ""CMD-0002"",
-            ""timestamp"": ""2026-06-22T10:00:01"",
-            ""reply_to"": ""q.command.res"",
-            ""payload"": {
-            }
-
-        }";
-
-            _mockMqReceiver.InjectMessage(
-                json);
-        }
-
-        /// <summary>
-        /// [CSE] [Detect On] 명령 수신 테스트
-        /// 
-        /// ICD 기준 [IF-GUIS-CSE-003] 요청을
-        /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
-        /// </summary>
-        private void TestCseDetectOn()
-        {
-            string json =
-                @"{
-            ""interface_id"": ""IF-GUIS-CSE-003"",
-            ""msg_type"": ""detect_on"",
-            ""msg_id"": ""CMD-0003"",
-            ""timestamp"": ""2026-06-22T10:00:02"",
-            ""reply_to"": ""q.command.res"",
-            ""payload"": {
-                ""frame_id"": 1001,
-                ""x1"": 120.5,
-                ""y1"": 240.0,
-                ""x2"": 300.5,
-                ""y2"": 420.0,
-                ""class_id"": 1,
-                ""confidence"": 0.92
-            }
-
-        }";
-
-            _mockMqReceiver.InjectMessage(
-                json);
-        }
-
-        /// <summary>
-        /// [CSE] [Detect Off] 명령 수신 테스트
-        /// 
-        /// ICD 기준 [IF-GUIS-CSE-004] 요청을
-        /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
-        /// </summary>
-        private void TestCseDetectOff()
-        {
-            string json =
-                @"{
-            ""interface_id"": ""IF-GUIS-CSE-004"",
-            ""msg_type"": ""detect_off"",
-            ""msg_id"": ""CMD-0004"",
-            ""timestamp"": ""2026-06-22T10:00:03"",
-            ""reply_to"": ""q.command.res"",
-            ""payload"": {
-            }
-
-        }";
-
-            _mockMqReceiver.InjectMessage(
-                json);
-        }
-
-        /// <summary>
-        /// [CSE] [Detect Continue] 명령 수신 테스트
-        /// 
-        /// ICD 기준 [IF-GUIS-CSE-005] 요청을
-        /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
-        /// </summary>
-        private void TestCseDetectContinue()
-        {
-            string json =
-                @"{
-            ""interface_id"": ""IF-GUIS-CSE-005"",
-            ""msg_type"": ""detect_cont"",
-            ""msg_id"": ""CMD-0005"",
-            ""timestamp"": ""2026-06-22T10:00:04"",
-            ""reply_to"": ""q.command.res"",
-            ""payload"": {
-                ""frame_id"": 1002,
-                ""x1"": 125.0,
-                ""y1"": 245.0,
-                ""x2"": 305.0,
-                ""y2"": 425.0,
-                ""class_id"": 1,
-                ""confidence"": 0.94
-            }
-
-        }";
-
-            _mockMqReceiver.InjectMessage(
-                json);
-        }
-
-        /// <summary>
-        /// [CSE] [PTZ Move Continuous] 명령 수신 테스트
-        /// 
-        /// ICD 기준 [IF-GUIS-CSE-006] 위치 연속 이동 요청을
-        /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
-        /// </summary>
-        private void TestCsePtzMoveContinuous()
-        {
-            string json =
-                @"{
-            ""interface_id"": ""IF-GUIS-CSE-006"",
-            ""msg_type"": ""ptz_move"",
-            ""msg_id"": ""CMD-0006-CONT"",
-            ""timestamp"": ""2026-06-22T10:00:06"",
-            ""reply_to"": ""q.command.res"",
-            ""payload"": {
-                ""mode"": ""continuous"",
-                ""pan"": 1.0
-            }
-
-        }";
-
-            _mockMqReceiver.InjectMessage(
-                json);
-        }
-
-        /// <summary>
-        /// [CSE] [PTZ Move Relative] 명령 수신 테스트
-        /// 
-        /// ICD 기준 [IF-GUIS-CSE-006] 상대 위치 이동 요청을
-        /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
-        /// </summary>
-        private void TestCsePtzMoveRelative()
-        {
-            string json =
-                @"{
-            ""interface_id"": ""IF-GUIS-CSE-006"",
-            ""msg_type"": ""ptz_move"",
-            ""msg_id"": ""CMD-0006-REL"",
-            ""timestamp"": ""2026-06-22T10:00:07"",
-            ""reply_to"": ""q.command.res"",
-            ""payload"": {
-                ""mode"": ""relative"",
-                ""pan"": 10.0,
-                ""tilt"": -5.0
-            }
-
-        }";
-
-            _mockMqReceiver.InjectMessage(
-                json);
-        }
-
-        /// <summary>
-        /// [CSE] [PTZ Move Absolute] 명령 수신 테스트
-        /// 
-        /// ICD 기준 [IF-GUIS-CSE-006] 절대 위치 이동 요청을
-        /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
-        /// </summary>
-        private void TestCsePtzMoveAbsolute()
-        {
-            string json =
-                @"{
-            ""interface_id"": ""IF-GUIS-CSE-006"",
-            ""msg_type"": ""ptz_move"",
-            ""msg_id"": ""CMD-0006-ABS"",
-            ""timestamp"": ""2026-06-22T10:00:08"",
-            ""reply_to"": ""q.command.res"",
-            ""payload"": {
-                ""mode"": ""absolute"",
-                ""pan"": 120.0,
-                ""tilt"": 15.0,
-                ""zoom"": 0.0
-            }
-
-        }";
-
-            _mockMqReceiver.InjectMessage(
-                json);
-        }
-
-        /// <summary>
-        /// [CSE] [PTZ Stop] 명령 수신 테스트
-        /// 
-        /// ICD 기준 [IF-GUIS-CSE-007] 요청을
-        /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
-        /// </summary>
-        private void TestCsePtzStop()
-        {
-            string json =
-                @"{
-            ""interface_id"": ""IF-GUIS-CSE-007"",
-            ""msg_type"": ""ptz_stop"",
-            ""msg_id"": ""CMD-0007"",
-            ""timestamp"": ""2026-06-22T10:00:07"",
-            ""reply_to"": ""q.command.res"",
-            ""payload"": {
-            }
-
-        }";
-
-            _mockMqReceiver.InjectMessage(
-                json);
-        }
-
-        /// <summary>
-        /// [CSE] [PTZ Mode] 명령 수신 테스트
-        /// 
-        /// ICD 기준 [IF-GUIS-CSE-008] 요청을
-        /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
-        /// </summary>
-        private void TestCsePtzMode()
-        {
-            string json =
-                @"{
-            ""interface_id"": ""IF-GUIS-CSE-008"",
-            ""msg_type"": ""ptz_mode"",
-            ""msg_id"": ""CMD-0008"",
-            ""timestamp"": ""2026-06-22T10:00:08"",
-            ""reply_to"": ""q.command.res"",
-            ""payload"": {
-                ""mode"": ""AUTO""
-            }
-
-        }";
-
-            _mockMqReceiver.InjectMessage(
-                json);
-        }
-
-        /// <summary>
-        /// [CSE] [Set Image] 명령 수신 테스트
-        /// 
-        /// ICD 기준 [IF-GUIS-CSE-009] 요청을
-        /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
-        /// </summary>
-        private void TestCseSetImage()
-        {
-            string json =
-                @"{
-            ""interface_id"": ""IF-GUIS-CSE-009"",
-            ""msg_type"": ""set_image"",
-            ""msg_id"": ""CMD-0009"",
-            ""timestamp"": ""2026-06-22T10:00:09"",
-            ""reply_to"": ""q.command.res"",
-            ""payload"": {
-                ""brightness"": 60,
-                ""contrast"": 55,
-                ""focus_mode"": ""AUTO""
-            }
-
-        }";
-
-            _mockMqReceiver.InjectMessage(
-                json);
-        }
-
-        /// <summary>
-        /// [CSE] [Set Flip] 명령 수신 테스트
-        /// 
-        /// ICD 기준 [IF-GUIS-CSE-010] 요청을
-        /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
-        /// </summary>
-        private void TestCseSetFlip()
-        {
-            string json =
-                @"{
-            ""interface_id"": ""IF-GUIS-CSE-010"",
-            ""msg_type"": ""set_flip"",
-            ""msg_id"": ""CMD-0010"",
-            ""timestamp"": ""2026-06-22T10:00:10"",
-            ""reply_to"": ""q.command.res"",
-            ""payload"": {
-                ""flip"": true
-            }
-
-        }";
-
-            _mockMqReceiver.InjectMessage(
-                json);
-        }
-
-        /// <summary>
-        /// [CSE] [Get Config] 명령 수신 테스트
-        /// 
-        /// ICD 기준 [IF-GUIS-CSE-011] 요청을
-        /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
-        /// </summary>
-        private void TestCseGetConfig()
-        {
-            string json =
-                @"{
-            ""interface_id"": ""IF-GUIS-CSE-011"",
-            ""msg_type"": ""get_conf"",
-            ""msg_id"": ""CMD-0011"",
-            ""timestamp"": ""2026-06-22T10:00:11"",
-            ""reply_to"": ""q.status.res"",
-            ""payload"": {
-            }
-
-        }";
-
-            _mockMqReceiver.InjectMessage(
-                json);
-        }
-
-        /// <summary>
-        /// [CSE] [Get PTZ State] 명령 수신 테스트
-        /// 
-        /// ICD 기준 [IF-GUIS-CSE-012] 요청을
-        /// [Mock MQ]를 통해 수신한 것처럼 테스트한다.
-        /// </summary>
-        private void TestCseGetPtzState()
-        {
-            string json =
-                @"{
-            ""interface_id"": ""IF-GUIS-CSE-012"",
-            ""msg_type"": ""get_state"",
-            ""msg_id"": ""CMD-0012"",
-            ""timestamp"": ""2026-06-22T10:00:12"",
-            ""reply_to"": ""q.status.res"",
-            ""payload"": {
-            }
-
-        }";
-
-            _mockMqReceiver.InjectMessage(
-                json);
-        }
-
-        #endregion
-
-        #region [CSE Device Test Methods]
-
-        /// <summary>
-        /// [CSE] [Mock MQ] [PTZ] 장비 동작 테스트
-        /// 
-        /// ICD 기준 [IF-GUIS-CSE-006] / [IF-GUIS-CSE-007]
-        /// 명령을 장비 연결 상태에서 순차 테스트한다.
-        /// 
-        /// 각 명령 사이에 충분한 대기 시간을 두어
-        /// 장비 이동 / 정지 / 상태 조회 흐름을 확인한다.
-        /// </summary>
-        private async Task RunCsePtzDeviceTestAsync()
-        {
-            await Task.Delay(
-                2500);
-
-            // [IF-GUIS-CSE-006] PTZ 위치 연속 이동 요청
-            //
-            // [continuous] 모드로 [Pan] 오른쪽 이동 명령을 송신한다.
-            TestCsePtzMoveContinuous();
-
-            await Task.Delay(
-                3000);
-
-            // [IF-GUIS-CSE-007] PTZ 제어 해제 요청
-            //
-            // 연속 이동 중인 [Pan] 제어를 정지한다.
-            TestCsePtzStop();
-
-            await Task.Delay(
-                3000);
-
-            // [IF-GUIS-CSE-006] PTZ 상대 위치 이동 요청
-            //
-            // 현재 위치 기준으로 [Pan] / [Tilt] 상대 이동 명령을 송신한다.
-            TestCsePtzMoveRelative();
-
-            await Task.Delay(
-                5000);
-
-            // [IF-GUIS-CSE-006] PTZ 절대 위치 이동 요청
-            //
-            // 지정된 [Pan] / [Tilt] / [Zoom] 위치로 이동 명령을 송신한다.
-            TestCsePtzMoveAbsolute();
-
-            await Task.Delay(
-                7000);
-
-            // [IF-GUIS-CSE-012] PTZ 상태 조회 요청
-            //
-            // 장비 이동 후 현재 [PTZ] 상태 응답을 확인한다.
-            TestCseGetPtzState();
-        }
-
-        #endregion
-
-        #region [Debug Pan / Tilt Test Methods]
-
-        /// <summary>
-        /// [ADS1000] Pan Absolute 이동 테스트
-        /// </summary>
-        private void TestPanAbsolute()
-        {
-            _ads1000CameraControlService
-                .MovePanAbsolute(
-                    -30);
-        }
-
-        /// <summary>
-        /// [ADS1000] Pan Relative 이동 테스트
-        /// </summary>
-        private void TestPanRelative()
-        {
-            _ads1000CameraControlService
-                .MovePanRelative(
-                    -10);
-        }
-
-        /// <summary>
-        /// [ADS1000] Pan Zero 설정 테스트
-        /// </summary>
-        private void TestPanSetZero()
-        {
-            _ads1000CameraControlService
-                .SetPanZero();
-        }
-
-        /// <summary>
-        /// [ADS1000] Tilt Absolute 이동 테스트
-        /// 
-        /// [Tilt] 축을 지정 각도로 이동시키는
-        /// 위치 제어 테스트이다.
-        /// </summary>
-        private void TestTiltAbsolute()
-        {
-            _ads1000CameraControlService
-                .MoveTiltAbsolute(
-                    -10);
-        }
-
-        /// <summary>
-        /// [ADS1000] Tilt Relative 이동 테스트
-        /// 
-        /// 현재 [Tilt] 위치 기준으로
-        /// 지정 각도만큼 상대 이동하는지 확인한다.
-        /// </summary>
-        private void TestTiltRelative()
-        {
-            _ads1000CameraControlService
-                .MoveTiltRelative(
-                    -5);
-        }
-
-        /// <summary>
-        /// [ADS1000] Tilt Zero 설정 테스트
-        /// 
-        /// 현재 [Tilt] 위치를 [0] 기준점으로
-        /// 재정의하는지 확인한다.
-        /// </summary>
-        private void TestTiltSetZero()
-        {
-            _ads1000CameraControlService
-                .SetTiltZero();
-        }
-
-        #endregion
-
-        #region [Debug Zoom / Focus Test Methods]
-
-        /// <summary>
-        /// [ADS1000] Zoom 위치 이동 테스트
-        /// 
-        /// [Zoom] 값을 [300] 위치로 이동시키는지 확인한다.
-        /// </summary>
-        private void TestZoomPosition()
-        {
-            _ads1000CameraControlService
-                .MoveZoomPosition(
-                    300);
-        }
-
-        /// <summary>
-        /// [ADS1000] Focus 위치 이동 테스트
-        /// 
-        /// [Focus] 값을 [500] 위치로 이동시키는지 확인한다.
-        /// </summary>
-        private void TestFocusPosition()
-        {
-            _ads1000CameraControlService
-                .MoveFocusPosition(
-                    500);
-        }
-
-        #endregion
-
-        #region [Debug Home Position Test Methods]
-
-        /// <summary>
-        /// [ADS1000] Home Position 이동 테스트
-        /// </summary>
-        private void TestHomePosition()
-        {
-            _ads1000CameraControlService
-                .MoveHomePosition();
-        }
+        #region [Dispose Methods]
 
         #endregion
 

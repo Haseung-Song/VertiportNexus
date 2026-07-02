@@ -10,7 +10,8 @@ namespace VertiportNexus.Services.Communication.MQ
     /// <summary>
     /// [RabbitMQ] 메시지 수신 서비스
     /// 
-    /// [q.command.req] Queue에서 [JSON] 메시지를 수신한다.
+    /// [q.command.req] / [q.status.req] Queue에서
+    /// [JSON] 메시지를 수신한다.
     /// </summary>
     internal class RabbitMqReceiver : IMqReceiver
     {
@@ -51,9 +52,14 @@ namespace VertiportNexus.Services.Communication.MQ
         private IModel _channel;
 
         /// <summary>
-        /// [RabbitMQ] Consumer 식별값
+        /// [RabbitMQ] Command Request Consumer 식별값
         /// </summary>
-        private string _consumerTag;
+        private string _commandRequestConsumerTag;
+
+        /// <summary>
+        /// [RabbitMQ] Status Request Consumer 식별값
+        /// </summary>
+        private string _statusRequestConsumerTag;
 
         #endregion
 
@@ -94,11 +100,17 @@ namespace VertiportNexus.Services.Communication.MQ
             _connectionFactory =
                 new ConnectionFactory
                 {
-                    HostName = hostName,
-                    Port = port,
+                    HostName =
+                        hostName,
 
-                    UserName = "vertiport_GS",
-                    Password = "rmffhqjf1!",
+                    Port =
+                        port,
+
+                    UserName =
+                        "vertiport_GS",
+
+                    Password =
+                        "rmffhqjf1!",
 
                     RequestedConnectionTimeout =
                         TimeSpan.FromSeconds(
@@ -112,6 +124,7 @@ namespace VertiportNexus.Services.Communication.MQ
                         TimeSpan.FromSeconds(
                             RABBITMQ_CONNECTION_TIMEOUT_SECONDS)
                 };
+
         }
 
         #endregion
@@ -138,8 +151,23 @@ namespace VertiportNexus.Services.Communication.MQ
                 _channel =
                     _connection.CreateModel();
 
+                // [Command Request] Queue 선언
+                //
+                // [IF-GUIS-CSE-001] ~ [IF-GUIS-CSE-004] 명령은
+                // [q.command.req] Queue로 수신한다.
                 _channel.QueueDeclare(
                     queue: CseMqQueue.CommandRequest,
+                    durable: true,
+                    exclusive: false,
+                    autoDelete: false,
+                    arguments: null);
+
+                // [Status Request] Queue 선언
+                //
+                // [IF-GUIS-CSE-005] 카메라 상태 조회 요청은
+                // [q.status.req] Queue로 수신한다.
+                _channel.QueueDeclare(
+                    queue: CseMqQueue.StatusRequest,
                     durable: true,
                     exclusive: false,
                     autoDelete: false,
@@ -152,16 +180,26 @@ namespace VertiportNexus.Services.Communication.MQ
                 consumer.Received +=
                     OnMessageReceived;
 
-                _consumerTag =
+                // [Command Request] Queue 수신 시작
+                _commandRequestConsumerTag =
                     _channel.BasicConsume(
                         queue: CseMqQueue.CommandRequest,
                         autoAck: true,
                         consumer: consumer);
 
+                // [Status Request] Queue 수신 시작
+                _statusRequestConsumerTag =
+                    _channel.BasicConsume(
+                        queue: CseMqQueue.StatusRequest,
+                        autoAck: true,
+                        consumer: consumer);
+
+                ConsoleLogHelper.PrintLine();
                 Console.WriteLine("[RabbitMQ][RECV] Receive Start");
                 Console.WriteLine("[RabbitMQ][RECV] Host : " + _connectionFactory.HostName);
                 Console.WriteLine("[RabbitMQ][RECV] Port : " + _connectionFactory.Port);
                 Console.WriteLine("[RabbitMQ][RECV] Queue : " + CseMqQueue.CommandRequest);
+                Console.WriteLine("[RabbitMQ][RECV] Queue : " + CseMqQueue.StatusRequest);
                 ConsoleLogHelper.PrintLine();
             }
             catch (Exception ex)
@@ -188,10 +226,20 @@ namespace VertiportNexus.Services.Communication.MQ
             {
                 if (_channel != null &&
                     _channel.IsOpen &&
-                    !string.IsNullOrWhiteSpace(_consumerTag))
+                    !string.IsNullOrWhiteSpace(
+                        _commandRequestConsumerTag))
                 {
                     _channel.BasicCancel(
-                        _consumerTag);
+                        _commandRequestConsumerTag);
+                }
+
+                if (_channel != null &&
+                    _channel.IsOpen &&
+                    !string.IsNullOrWhiteSpace(
+                        _statusRequestConsumerTag))
+                {
+                    _channel.BasicCancel(
+                        _statusRequestConsumerTag);
                 }
 
                 if (_channel != null &&
@@ -212,8 +260,10 @@ namespace VertiportNexus.Services.Communication.MQ
             }
             catch (Exception ex)
             {
+                ConsoleLogHelper.PrintLine();
                 Console.WriteLine("[RabbitMQ][RECV] Receive Stop Failed");
                 Console.WriteLine("[RabbitMQ][RECV] Error : " + ex.Message);
+                ConsoleLogHelper.PrintLine();
             }
             finally
             {
@@ -233,19 +283,22 @@ namespace VertiportNexus.Services.Communication.MQ
             object sender,
             BasicDeliverEventArgs eventArgs)
         {
+            string queueName =
+                eventArgs.RoutingKey;
+
             string message =
                 Encoding.UTF8.GetString(
                     eventArgs.Body.ToArray());
 
             ConsoleLogHelper.PrintLine();
             Console.WriteLine("[RabbitMQ][RECV] Message Received");
-            Console.WriteLine("[RabbitMQ][RECV] Queue : " + CseMqQueue.CommandRequest);
+            Console.WriteLine("[RabbitMQ][RECV] Queue : " + queueName);
             Console.WriteLine("[RabbitMQ][RECV] JSON");
             Console.WriteLine(message);
             ConsoleLogHelper.PrintLine();
 
             MessageReceived?.Invoke(
-                CseMqQueue.CommandRequest,
+                queueName,
                 message);
         }
 
@@ -267,7 +320,10 @@ namespace VertiportNexus.Services.Communication.MQ
             _connection =
                 null;
 
-            _consumerTag =
+            _commandRequestConsumerTag =
+                null;
+
+            _statusRequestConsumerTag =
                 null;
         }
         #endregion

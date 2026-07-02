@@ -1,7 +1,9 @@
 ﻿using System;
 using VertiportNexus.Common;
+using VertiportNexus.Models.ADS1000;
 using VertiportNexus.Models.Camera;
 using VertiportNexus.Services.ADS1000;
+using VertiportNexus.Services.Camera;
 
 namespace VertiportNexus.Services.Command
 {
@@ -114,20 +116,43 @@ namespace VertiportNexus.Services.Command
         /// </summary>
         private readonly Ads1000CameraControlService _ads1000CameraControlService;
 
+        /// <summary>
+        /// [Camera] 상태 저장 서비스
+        /// 
+        /// 현재 [PTZ] 제어 모드가 [AUTO] / [MANUAL] 중
+        /// 어떤 상태인지 확인하기 위해 사용한다.
+        /// </summary>
+        private readonly CameraStateProvider _cameraStateProvider;
+
         #endregion
 
         #region [Constructor]
 
         /// <summary>
         /// [CameraCommandService] 생성자
+        /// 
+        /// [Camera] 명령 처리에 필요한
+        /// ADS1000 장비 제어 서비스와 카메라 상태 저장 서비스를 주입받는다.
         /// </summary>
+        /// <param name="ads1000CameraControlService">
+        /// [ADS1000] 카메라 제어 서비스
+        /// </param>
+        /// <param name="cameraStateProvider">
+        /// [Camera] 상태 저장 서비스
+        /// </param>
         public CameraCommandService(
-            Ads1000CameraControlService ads1000CameraControlService)
+            Ads1000CameraControlService ads1000CameraControlService,
+            CameraStateProvider cameraStateProvider)
         {
             _ads1000CameraControlService =
                 ads1000CameraControlService
                 ?? throw new ArgumentNullException(
                     nameof(ads1000CameraControlService));
+
+            _cameraStateProvider =
+                cameraStateProvider
+                ?? throw new ArgumentNullException(
+                    nameof(cameraStateProvider));
         }
 
         #endregion
@@ -329,7 +354,7 @@ namespace VertiportNexus.Services.Command
         /// <summary>
         /// [continuous] [command] 이동 처리
         /// 
-        /// 최신 [IF-GUIS-CSE-006]의 [command] 허용값을 기준으로
+        /// 최종 ICD [IF-GUIS-CSE-004]의 [command] 허용값을 기준으로
         /// Pan / Tilt 연속 이동 또는 정지 명령을 수행한다.
         /// </summary>
         /// <param name="command">
@@ -342,6 +367,20 @@ namespace VertiportNexus.Services.Command
                 command
                     .Trim()
                     .ToLower();
+
+            if (IsAutoMode() &&
+                IsPanTiltDirectionCommand(
+                    normalizedCommand))
+            {
+                Console.WriteLine(
+                    "[CAMERA][CMD] Continuous Pan/Tilt Ignored : PTZ Mode is AUTO");
+
+                Console.WriteLine(
+                    "[CAMERA][CMD] Command : "
+                    + normalizedCommand);
+
+                return;
+            }
 
             switch (normalizedCommand)
             {
@@ -421,6 +460,14 @@ namespace VertiportNexus.Services.Command
                 return false;
             }
 
+            if (IsAutoMode())
+            {
+                Console.WriteLine(
+                    "[CAMERA][CMD] Continuous Pan Ignored : PTZ Mode is AUTO");
+
+                return true;
+            }
+
             if (command.Pan.Value > 0)
             {
                 _ads1000CameraControlService.PanRight();
@@ -443,6 +490,14 @@ namespace VertiportNexus.Services.Command
                 command.Tilt.Value == 0)
             {
                 return false;
+            }
+
+            if (IsAutoMode())
+            {
+                Console.WriteLine(
+                    "[CAMERA][CMD] Continuous Tilt Ignored : PTZ Mode is AUTO");
+
+                return true;
             }
 
             if (command.Tilt.Value > 0)
@@ -569,6 +624,9 @@ namespace VertiportNexus.Services.Command
         /// 
         /// [Pan] / [Tilt]는 각도 기반 절대 위치 이동,
         /// [Zoom] / [Focus]는 위치값 기반 이동으로 처리한다.
+        /// 
+        /// [AUTO] 모드에서는 Pan / Tilt 수동 제어를 무시하고,
+        /// Zoom 제어는 [AUTO] / [MANUAL] 관계없이 허용한다.
         /// </summary>
         private void HandleAbsoluteMove(
             CameraCommand command)
@@ -578,20 +636,100 @@ namespace VertiportNexus.Services.Command
 
             if (command.Pan.HasValue)
             {
-                _ads1000CameraControlService.MovePanAbsolute(
-                    command.Pan.Value);
+                if (IsAutoMode())
+                {
+                    Console.WriteLine(
+                        "[CAMERA][CMD] Absolute Pan Ignored : PTZ Mode is AUTO");
+                }
+                else
+                {
+                    if (!_cameraStateProvider.CurrentPan.HasValue)
+                    {
+                        Console.WriteLine(
+                            "[CAMERA][PTZ] Absolute Pan Failed : Current Pan is empty");
 
-                isHandled =
-                    true;
+                        return;
+                    }
+
+                    double currentPan =
+                        NormalizePanStatus(
+                            _cameraStateProvider.CurrentPan.Value);
+
+                    double targetPan =
+                        Clamp(
+                            command.Pan.Value,
+                            0,
+                            360);
+
+                    double panMoveAngle =
+                        CalculatePanMoveAngle(
+                            currentPan,
+                            targetPan,
+                            _cameraStateProvider.PanTurnMode);
+
+                    double panCommandTarget =
+                        currentPan + panMoveAngle;
+
+                    Console.WriteLine(
+                        "[CAMERA][PTZ] Absolute Pan Input : "
+                        + command.Pan.Value);
+
+                    Console.WriteLine(
+                        "[CAMERA][PTZ] Absolute Pan Mode : "
+                        + _cameraStateProvider.PanTurnMode);
+
+                    Console.WriteLine(
+                        "[CAMERA][PTZ] Absolute Pan Current : "
+                        + currentPan.ToString("F4"));
+
+                    Console.WriteLine(
+                        "[CAMERA][PTZ] Absolute Pan Target : "
+                        + targetPan.ToString("F4"));
+
+                    Console.WriteLine(
+                        "[CAMERA][PTZ] Absolute Pan Move Angle : "
+                        + panMoveAngle.ToString("F4"));
+
+                    Console.WriteLine(
+                        "[CAMERA][PTZ] Absolute Pan Command Target : "
+                        + panCommandTarget.ToString("F4"));
+
+                    _ads1000CameraControlService
+                        .MovePanAbsolute(
+                            panCommandTarget);
+
+                    isHandled =
+                        true;
+                }
+
             }
 
             if (command.Tilt.HasValue)
             {
-                _ads1000CameraControlService.MoveTiltAbsolute(
-                    command.Tilt.Value);
+                if (IsAutoMode())
+                {
+                    Console.WriteLine(
+                        "[CAMERA][CMD] Absolute Tilt Ignored : PTZ Mode is AUTO");
+                }
+                else
+                {
+                    double tilt =
+                        Clamp(
+                            command.Tilt.Value,
+                            -90,
+                            90);
 
-                isHandled =
-                    true;
+                    Console.WriteLine("[CAMERA][PTZ] Absolute Tilt Input : " + command.Tilt.Value);
+                    Console.WriteLine("[CAMERA][PTZ] Absolute Tilt Target : " + tilt);
+
+                    _ads1000CameraControlService
+                        .MoveTiltAbsolute(
+                            tilt);
+
+                    isHandled =
+                        true;
+                }
+
             }
 
             // [Zoom] 위치값 직접 제어
@@ -666,6 +804,8 @@ namespace VertiportNexus.Services.Command
         /// [relative] 상대 이동 명령 처리
         /// 
         /// 현재 위치 기준으로 [Pan] / [Tilt] 상대 이동을 처리한다.
+        /// 
+        /// [AUTO] 모드에서는 Pan / Tilt 수동 제어를 무시한다.
         /// </summary>
         private void HandleRelativeMove(
             CameraCommand command)
@@ -675,20 +815,44 @@ namespace VertiportNexus.Services.Command
 
             if (command.Pan.HasValue)
             {
-                _ads1000CameraControlService.MovePanRelative(
-                    command.Pan.Value);
+                if (IsAutoMode())
+                {
+                    Console.WriteLine(
+                        "[CAMERA][CMD] Relative Pan Ignored : PTZ Mode is AUTO");
 
-                isHandled =
-                    true;
+                    isHandled =
+                        true;
+                }
+                else
+                {
+                    _ads1000CameraControlService.MovePanRelative(
+                        command.Pan.Value);
+
+                    isHandled =
+                        true;
+                }
+
             }
 
             if (command.Tilt.HasValue)
             {
-                _ads1000CameraControlService.MoveTiltRelative(
-                    command.Tilt.Value);
+                if (IsAutoMode())
+                {
+                    Console.WriteLine(
+                        "[CAMERA][CMD] Relative Tilt Ignored : PTZ Mode is AUTO");
 
-                isHandled =
-                    true;
+                    isHandled =
+                        true;
+                }
+                else
+                {
+                    _ads1000CameraControlService.MoveTiltRelative(
+                        command.Tilt.Value);
+
+                    isHandled =
+                        true;
+                }
+
             }
 
             if (command.Zoom.HasValue ||
@@ -781,6 +945,223 @@ namespace VertiportNexus.Services.Command
         #endregion
 
         #region [Utility Methods]
+
+        /// <summary>
+        /// [PTZ] AUTO 모드 여부 확인
+        /// 
+        /// AUTO 모드에서는 GUI / MQ 기반 Pan / Tilt 수동 제어를 수행하지 않는다.
+        /// </summary>
+        /// <returns>
+        /// AUTO 모드 여부
+        /// </returns>
+        private bool IsAutoMode()
+        {
+            return string.Equals(
+                _cameraStateProvider.PtzControlMode,
+                "AUTO",
+                StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// [Pan] 이동 각도 계산
+        /// 
+        /// 현재 [Pan] 위치와 목표 [Pan] 위치를 기준으로
+        /// 선택된 선회 모드에 따라 장비로 송신할 이동 각도를 계산한다.
+        /// 
+        /// [Short] 모드는 가장 가까운 방향의 이동 각도를 계산하고,
+        /// [Via 0] 모드는 단거리 보정 없이 목표 위치와 현재 위치의 차이를 사용한다.
+        /// </summary>
+        /// <param name="currentPan">
+        /// 현재 Pan 위치 [0 ~ 360]
+        /// </param>
+        /// <param name="targetPan">
+        /// 목표 Pan 위치 [0 ~ 360]
+        /// </param>
+        /// <param name="panTurnMode">
+        /// Pan 선회 모드
+        /// </param>
+        /// <returns>
+        /// Pan 이동 각도
+        /// </returns>
+        private double CalculatePanMoveAngle(
+            double currentPan,
+            double targetPan,
+            Ads1000PanTurnMode panTurnMode)
+        {
+            double normalizedCurrentPan =
+                NormalizePanStatus(
+                    currentPan);
+
+            double normalizedTargetPan =
+                NormalizePanStatus(
+                    targetPan);
+
+            if (panTurnMode == Ads1000PanTurnMode.Short)
+            {
+                return CalculateShortestPanDelta(
+                    normalizedCurrentPan,
+                    normalizedTargetPan);
+            }
+
+            return CalculateViaZeroPanDelta(
+                normalizedCurrentPan,
+                normalizedTargetPan);
+        }
+
+        /// <summary>
+        /// [Pan] 최단 이동 각도 계산
+        /// 
+        /// 현재 [Pan] 위치에서 목표 [Pan] 위치까지
+        /// 가장 가까운 방향의 이동 각도를 계산한다.
+        /// 
+        /// 결과값은 [-180 ~ 180] 범위로 반환한다.
+        /// </summary>
+        /// <param name="currentPan">
+        /// 현재 Pan 위치 [0 ~ 360]
+        /// </param>
+        /// <param name="targetPan">
+        /// 목표 Pan 위치 [0 ~ 360]
+        /// </param>
+        /// <returns>
+        /// 최단 이동 각도
+        /// </returns>
+        private double CalculateShortestPanDelta(
+            double currentPan,
+            double targetPan)
+        {
+            const double FULL_ROTATION_DEGREES =
+                360.0;
+
+            const double HALF_ROTATION_DEGREES =
+                180.0;
+
+            double delta =
+                (targetPan
+                 - currentPan
+                 + HALF_ROTATION_DEGREES
+                 + FULL_ROTATION_DEGREES)
+                % FULL_ROTATION_DEGREES
+                - HALF_ROTATION_DEGREES;
+
+            return NormalizeZeroAngle(
+                delta);
+        }
+
+        /// <summary>
+        /// [Pan] [Via 0] 이동 각도 계산
+        /// 
+        /// 현재 [Pan] 위치에서 목표 [Pan] 위치까지
+        /// 단거리 보정 없이 이동 각도를 계산한다.
+        /// </summary>
+        /// <param name="currentPan">
+        /// 현재 Pan 위치 [0 ~ 360]
+        /// </param>
+        /// <param name="targetPan">
+        /// 목표 Pan 위치 [0 ~ 360]
+        /// </param>
+        /// <returns>
+        /// Via 0 기준 이동 각도
+        /// </returns>
+        private double CalculateViaZeroPanDelta(
+            double currentPan,
+            double targetPan)
+        {
+            double delta =
+                targetPan - currentPan;
+
+            return NormalizeZeroAngle(
+                delta);
+        }
+
+        /// <summary>
+        /// [Pan] 상태값 범위 정규화
+        /// 
+        /// Pan 값을 [0 ~ 360] 범위로 변환한다.
+        /// 
+        /// 장비 Encoder 오차로 인해
+        /// [0] 근처 또는 [360] 근처의 미세 오차가 발생하는 경우,
+        /// [0]으로 보정한다.
+        /// </summary>
+        /// <param name="pan">
+        /// Pan 원본 값
+        /// </param>
+        /// <returns>
+        /// [0 ~ 360] 범위로 정규화된 Pan 값
+        /// </returns>
+        private double NormalizePanStatus(
+            double pan)
+        {
+            const double FULL_ROTATION_DEGREES =
+                360.0;
+
+            const double ZERO_EPSILON =
+                0.001;
+
+            double normalizedPan =
+                pan % FULL_ROTATION_DEGREES;
+
+            if (normalizedPan < 0)
+            {
+                normalizedPan +=
+                    FULL_ROTATION_DEGREES;
+            }
+
+            if (Math.Abs(normalizedPan) <= ZERO_EPSILON ||
+                Math.Abs(normalizedPan - FULL_ROTATION_DEGREES) <= ZERO_EPSILON)
+            {
+                return 0.0;
+            }
+
+            return normalizedPan;
+        }
+
+        /// <summary>
+        /// [각도] 미세 오차 보정
+        /// 
+        /// 장비 Encoder 오차 또는 계산 과정에서 발생한
+        /// [0] 근처 미세값을 [0]으로 보정한다.
+        /// </summary>
+        /// <param name="angle">
+        /// 원본 각도
+        /// </param>
+        /// <returns>
+        /// 미세 오차가 보정된 각도
+        /// </returns>
+        private double NormalizeZeroAngle(
+            double angle)
+        {
+            const double ZERO_EPSILON =
+                0.001;
+
+            if (Math.Abs(angle) <= ZERO_EPSILON)
+            {
+                return 0.0;
+            }
+
+            return angle;
+        }
+
+        /// <summary>
+        /// [Pan / Tilt] 방향 명령 여부 확인
+        /// </summary>
+        /// <param name="command">
+        /// PTZ 이동 명령
+        /// </param>
+        /// <returns>
+        /// Pan / Tilt 방향 명령 여부
+        /// </returns>
+        private bool IsPanTiltDirectionCommand(
+            string command)
+        {
+            return command == PTZ_COMMAND_LEFT ||
+                   command == PTZ_COMMAND_RIGHT ||
+                   command == PTZ_COMMAND_UP ||
+                   command == PTZ_COMMAND_DOWN ||
+                   command == PTZ_COMMAND_LEFT_UP ||
+                   command == PTZ_COMMAND_RIGHT_UP ||
+                   command == PTZ_COMMAND_LEFT_DOWN ||
+                   command == PTZ_COMMAND_RIGHT_DOWN;
+        }
 
         /// <summary>
         /// 입력값을 지정 범위 안으로 제한

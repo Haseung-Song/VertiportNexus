@@ -273,6 +273,52 @@ namespace VertiportNexus.Services.ADS1000
         }
 
         /// <summary>
+        /// [Pan] 이동 중 속도 갱신
+        /// 
+        /// 현재 설정된 [Pan / Tilt Speed] 값을 기준으로
+        /// [Pan] 축 위치 이동 중 속도 갱신 명령을 송신한다.
+        /// </summary>
+        /// <param name="includeBeginCommand">
+        /// [BG] 명령 포함 여부
+        /// </param>
+        public void UpdatePanMoveSpeed(
+            bool includeBeginCommand)
+        {
+            byte[] packet =
+                _mcbPacketBuilder
+                    .BuildPanMoveSpeedPacket(
+                        PanTiltSpeedLevel,
+                        includeBeginCommand);
+
+            _mcbTcpClientService
+                .Send(
+                    packet);
+        }
+
+        /// <summary>
+        /// [Tilt] 이동 중 속도 갱신
+        /// 
+        /// 현재 설정된 [Pan / Tilt Speed] 값을 기준으로
+        /// [Tilt] 축 위치 이동 중 속도 갱신 명령을 송신한다.
+        /// </summary>
+        /// <param name="includeBeginCommand">
+        /// [BG] 명령 포함 여부
+        /// </param>
+        public void UpdateTiltMoveSpeed(
+            bool includeBeginCommand)
+        {
+            byte[] packet =
+                _mcbPacketBuilder
+                    .BuildTiltMoveSpeedPacket(
+                        PanTiltSpeedLevel,
+                        includeBeginCommand);
+
+            _mcbTcpClientService
+                .Send(
+                    packet);
+        }
+
+        /// <summary>
         /// [Pan] 현재 위치를 [0]으로 설정
         /// </summary>
         public void SetPanZero()
@@ -293,18 +339,51 @@ namespace VertiportNexus.Services.ADS1000
         }
 
         /// <summary>
-        /// [Home] 위치 이동
+        /// [Pan] Home Position 이동
         /// 
-        /// 현재 설정된 [PT Speed] 값을 함께 적용하여
-        /// [Pan] / [Tilt]를 원점 [0도] 위치로 이동한다.
+        /// 문서 기준 [Pan Home] 명령을 송신하여
+        /// 장비 기준 Pan Home 위치로 이동한다.
+        /// 
+        /// [Home]은 현재 위치를 [0]으로 재설정하는 [Set0]가 아니라,
+        /// 장비 기준 Home 위치로 이동하는 기능이다.
+        /// </summary>
+        public void MovePanHome()
+        {
+            SendMcbPacket(
+                _mcbPacketBuilder.BuildPanHomePacket(),
+                "Pan Home");
+        }
+
+        /// <summary>
+        /// [Tilt] Home Position 이동
+        /// 
+        /// 문서 기준 [Tilt Home] 명령을 송신하여
+        /// 장비 기준 Tilt Home 위치로 이동한다.
+        /// 
+        /// [Home]은 현재 위치를 [0]으로 재설정하는 [Set0]가 아니라,
+        /// 장비 기준 Home 위치로 이동하는 기능이다.
+        /// </summary>
+        public void MoveTiltHome()
+        {
+            SendMcbPacket(
+                _mcbPacketBuilder.BuildTiltHomePacket(),
+                "Tilt Home");
+        }
+
+        /// <summary>
+        /// [Home Position] 이동
+        /// 
+        /// 문서 기준 [Pan Home] / [Tilt Home] 명령을 순차 송신하여
+        /// 장비 기준 Home Position으로 이동한다.
+        /// 
+        /// 기존 [Pan Absolute 0] / [Tilt Absolute 0] 이동 방식은
+        /// 장비 누적 회전 상태에 따라 불필요하게 여러 바퀴 회전할 수 있으므로 사용하지 않는다.
         /// </summary>
         public void MoveHomePosition()
         {
-            MovePanAbsolute(
-                0);
+            MovePanHome();
 
-            MoveTiltAbsolute(
-                0);
+            MoveTiltHome();
         }
 
         #endregion

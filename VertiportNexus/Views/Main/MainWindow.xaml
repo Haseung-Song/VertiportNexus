@@ -334,6 +334,7 @@
                             Margin="0,0,0,5"
                             Content="연결 해제"
                             Style="{StaticResource DisconnectButtonStyle}"
+                            IsEnabled="{Binding IsDeviceDisconnectButtonEnabled}"
                             Command="{Binding StopTcpReceiveCommand}"/>
 
                     <!-- 장비 연결 -->
@@ -386,7 +387,7 @@
                                     BorderBrush="#95A5B0"
                                     BorderThickness="1"
                                     CornerRadius="5"
-                                    Padding="4">
+                                    Padding="5">
 
                                 <Grid>
 
@@ -396,7 +397,7 @@
                                     </Grid.RowDefinitions>
 
                                     <!-- [PAN / TILT] 공통 속도 제목 / 현재값 -->
-                                    <Grid Grid.Row="0" Margin="0,0,0,3">
+                                    <Grid Grid.Row="0" Margin="0,0,0,5">
 
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
@@ -420,8 +421,8 @@
                                     <!-- [PAN / TILT] 공통 속도 조절 -->
                                     <Slider Grid.Row="1"
                                             Minimum="0"
-                                            Maximum="100"
-                                            TickFrequency="10"
+                                            Maximum="50"
+                                            TickFrequency="5"
                                             SmallChange="5"
                                             LargeChange="10"
                                             TickPlacement="BottomRight"
@@ -429,8 +430,8 @@
                                             Value="{Binding PanTiltSpeedLevel,
                                                             Mode=TwoWay,
                                                             UpdateSourceTrigger=PropertyChanged}"
-                                            IsEnabled="{Binding IsDeviceControlEnabled}"
-                                            Height="26"/>
+                                            IsEnabled="{Binding IsPanTiltSpeedEnabled}"
+                                            Height="30"/>
 
                                 </Grid>
 
@@ -450,7 +451,8 @@
                                         Background="#5F666D"
                                         BorderBrush="#95A5B0"
                                         Foreground="White"
-                                        ItemContainerStyle="{StaticResource RightPanelTabItemStyle}">
+                                        ItemContainerStyle="{StaticResource RightPanelTabItemStyle}"
+                                        IsEnabled="{Binding IsDeviceControlTabEnabled}">
 
                                 <!--
                                     [통신 설정] Tab
@@ -991,7 +993,7 @@
                                                                 Style="{StaticResource PanTiltDirectionButtonStyle}"
                                                                 PreviewMouseDown="TiltUp_MouseDown"
                                                                 PreviewMouseUp="MoveStop_MouseUp"
-                                                                MouseLeave="MoveStop_MouseUp"/>
+                                                                MouseLeave="MoveStop_MouseLeave"/>
 
                                                         <!-- [Pan 왼쪽] 연속 이동 -->
                                                         <Button Grid.Row="1"
@@ -1001,7 +1003,7 @@
                                                                 Style="{StaticResource PanTiltDirectionButtonStyle}"
                                                                 PreviewMouseDown="PanLeft_MouseDown"
                                                                 PreviewMouseUp="MoveStop_MouseUp"
-                                                                MouseLeave="MoveStop_MouseUp"/>
+                                                                MouseLeave="MoveStop_MouseLeave"/>
 
                                                         <!-- [PAN / TILT 정지] 버튼 영역 -->
                                                         <Border Grid.Row="1"
@@ -1027,7 +1029,7 @@
                                                                 Style="{StaticResource PanTiltDirectionButtonStyle}"
                                                                 PreviewMouseDown="PanRight_MouseDown"
                                                                 PreviewMouseUp="MoveStop_MouseUp"
-                                                                MouseLeave="MoveStop_MouseUp"/>
+                                                                MouseLeave="MoveStop_MouseLeave"/>
 
                                                         <!-- [Tilt 아래쪽] 연속 이동 -->
                                                         <Button Grid.Row="2"
@@ -1037,7 +1039,7 @@
                                                                 Style="{StaticResource PanTiltDirectionButtonStyle}"
                                                                 PreviewMouseDown="TiltDown_MouseDown"
                                                                 PreviewMouseUp="MoveStop_MouseUp"
-                                                                MouseLeave="MoveStop_MouseUp"/>
+                                                                MouseLeave="MoveStop_MouseLeave"/>
 
                                                     </Grid>
 
@@ -1076,7 +1078,7 @@
                                                                 Style="{StaticResource EoControlButtonStyle}"
                                                                 PreviewMouseDown="ZoomIn_MouseDown"
                                                                 PreviewMouseUp="MoveStop_MouseUp"
-                                                                MouseLeave="MoveStop_MouseUp"/>
+                                                                MouseLeave="MoveStop_MouseLeave"/>
 
                                                         <!-- [Zoom Wide] 연속 이동 -->
                                                         <Button Content="ZOOM -"
@@ -1087,7 +1089,7 @@
                                                                 Style="{StaticResource EoControlButtonStyle}"
                                                                 PreviewMouseDown="ZoomOut_MouseDown"
                                                                 PreviewMouseUp="MoveStop_MouseUp"
-                                                                MouseLeave="MoveStop_MouseUp"/>
+                                                                MouseLeave="MoveStop_MouseLeave"/>
 
                                                     </StackPanel>
 
@@ -1105,7 +1107,7 @@
                                                                 Style="{StaticResource EoControlButtonStyle}"
                                                                 PreviewMouseDown="FocusFar_MouseDown"
                                                                 PreviewMouseUp="MoveStop_MouseUp"
-                                                                MouseLeave="MoveStop_MouseUp"/>
+                                                                MouseLeave="MoveStop_MouseLeave"/>
 
                                                         <!-- [Focus Near] 연속 이동 -->
                                                         <Button Content="FOCUS -"
@@ -1116,7 +1118,7 @@
                                                                 Style="{StaticResource EoControlButtonStyle}"
                                                                 PreviewMouseDown="FocusNear_MouseDown"
                                                                 PreviewMouseUp="MoveStop_MouseUp"
-                                                                MouseLeave="MoveStop_MouseUp"/>
+                                                                MouseLeave="MoveStop_MouseLeave"/>
 
                                                     </StackPanel>
 
@@ -1158,8 +1160,63 @@
 
                                         <StackPanel Margin="5">
 
+                                            <!-- [Pan] 선회 모드 영역 -->
+                                            <Border Background="#5C666D"
+                                                    BorderBrush="#95A5B0"
+                                                    BorderThickness="1"
+                                                    CornerRadius="5"
+                                                    Padding="8"
+                                                    Margin="0,3,0,7">
+
+                                                <StackPanel>
+
+                                                    <!-- [Pan] 선회 모드 제목 -->
+                                                    <TextBlock Text="PAN TURN MODE"
+                                                               HorizontalAlignment="Center"
+                                                               Foreground="White"
+                                                               FontSize="12"
+                                                               FontWeight="Bold"
+                                                               Margin="0,0,0,10"/>
+
+                                                    <!-- [Pan] 선회 모드 선택 -->
+                                                    <StackPanel Orientation="Horizontal"
+                                                                HorizontalAlignment="Center">
+
+                                                        <!--
+                                                            [SHORT]
+                                                            현재 Pan 위치에서 목표 Pan 위치까지
+                                                            가장 가까운 방향으로 이동한다.
+                                                        -->
+                                                        <RadioButton Content="SHORT"
+                                                                     GroupName="PanTurnMode"
+                                                                     IsChecked="{Binding IsPanTurnShortMode, Mode=TwoWay}"
+                                                                     IsEnabled="{Binding IsDeviceControlEnabled}"
+                                                                     Foreground="White"
+                                                                     FontSize="12"
+                                                                     FontWeight="Bold"
+                                                                     Margin="0,0,20,0"/>
+
+                                                        <!--
+                                                            [VIA 0]
+                                                            현재 Pan 위치에서 목표 Pan 위치까지
+                                                            단거리 보정 없이 이동한다.
+                                                        -->
+                                                        <RadioButton Content="VIA 0"
+                                                                     GroupName="PanTurnMode"
+                                                                     IsChecked="{Binding IsPanTurnViaZeroMode, Mode=TwoWay}"
+                                                                     IsEnabled="{Binding IsDeviceControlEnabled}"
+                                                                     Foreground="White"
+                                                                     FontSize="12"
+                                                                     FontWeight="Bold"/>
+
+                                                    </StackPanel>
+
+                                                </StackPanel>
+
+                                            </Border>
+
                                             <!-- [Absolute] 위치 이동 영역 -->
-                                            <Border Margin="0,0,0,0"
+                                            <Border Margin="0,0,0,7"
                                                     Background="#5F666D"
                                                     BorderBrush="#95A5B0"
                                                     BorderThickness="1.5"
@@ -1183,7 +1240,7 @@
                                                     <!-- [Pan Absolute] 목표 각도 입력 -->
                                                     <TextBox Text="{Binding PanAbsoluteValue, 
                                                                             UpdateSourceTrigger=LostFocus}"
-                                                                            PreviewTextInput="DecimalNumberOnly_PreviewTextInput"
+                                                                            PreviewTextInput="PanDecimalNumberOnly_PreviewTextInput"
                                                                             LostFocus="PanAngle_LostFocus"
                                                                             IsEnabled="{Binding IsDeviceControlEnabled}"
                                                                             Height="24"
@@ -1227,7 +1284,7 @@
                                             </Border>
 
                                             <!-- [Relative] 위치 이동 영역 -->
-                                            <Border Margin="0,5,0,0"
+                                            <Border Margin="0,0,0,7"
                                                     Background="#5F666D"
                                                     BorderBrush="#95A5B0"
                                                     BorderThickness="1.5"
@@ -1293,7 +1350,7 @@
                                             </Border>
 
                                             <!-- [Home / Zero] 제어 영역 -->
-                                            <Border Margin="0,5,0,0"
+                                            <Border Margin="0,0,0,7"
                                                     Background="#5F666D"
                                                     BorderBrush="#95A5B0"
                                                     BorderThickness="1.5"
@@ -1349,7 +1406,7 @@
                                             </Border>
 
                                             <!-- [Zoom] 위치 제어 영역 -->
-                                            <Border Margin="0,5,0,0"
+                                            <Border Margin="0,0,0,7"
                                                     Background="#5F666D"
                                                     BorderBrush="#95A5B0"
                                                     BorderThickness="1.5"
@@ -1418,7 +1475,7 @@
                                             </Border>
 
                                             <!-- [Focus] 위치 제어 영역 -->
-                                            <Border Margin="0,5,0,0"
+                                            <Border Margin="0,0,0,7"
                                                     Background="#5F666D"
                                                     BorderBrush="#95A5B0"
                                                     BorderThickness="1.5"
@@ -1462,7 +1519,7 @@
                                             </Border>
 
                                             <!-- [입력값 초기화 영역] -->
-                                            <Border Margin="0,10,0,5"
+                                            <Border Margin="0,0,0,5"
                                                     Background="#6A7178"
                                                     BorderBrush="#95A5B0"
                                                     BorderThickness="1"
@@ -1640,11 +1697,14 @@
                 Padding="10"
                 Margin="0,10,0,0"
                 Background="#2B3038">
+
             <TextBlock Text="CSE Middleware Test UI - Console log enabled"
                        Foreground="#B8C7D9"
                        FontSize="14"/>
+
         </Border>
 
     </Grid>
 
 </Window>
+    

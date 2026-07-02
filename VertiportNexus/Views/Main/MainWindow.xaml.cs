@@ -141,9 +141,77 @@ namespace VertiportNexus.Views.Main
             _viewModel.StopContinuousMove();
         }
 
+        /// <summary>
+        /// [이동 정지] MouseLeave 처리
+        /// 
+        /// 연속 이동 버튼을 누른 상태에서
+        /// 마우스가 버튼 영역 밖으로 벗어난 경우에만
+        /// 이동 정지 명령을 실행한다.
+        /// 
+        /// 단순 Hover / MouseLeave 상황에서는
+        /// STOP 명령이 실행되지 않도록 한다.
+        /// </summary>
+        private void MoveStop_MouseLeave(
+            object sender,
+            MouseEventArgs e)
+        {
+            if (e.LeftButton != MouseButtonState.Pressed)
+            {
+                return;
+            }
+
+            if (DataContext is MainViewModel viewModel)
+            {
+                viewModel
+                    .StopContinuousMove();
+            }
+        }
+
         #endregion
 
         #region [TextBox Input Event Methods]
+
+        /// <summary>
+        /// [Pan] 각도 입력 제한
+        /// 
+        /// [Pan Absolute] 입력값은 최종 ICD 기준
+        /// [0 ~ 360] 범위의 양수 각도값이므로,
+        /// 숫자와 소수점 넷째 자리까지만 허용한다.
+        /// 
+        /// 입력 중에는 최대 범위 제한을 적용하지 않고,
+        /// 범위 보정은 [LostFocus] 시점에 처리한다.
+        /// </summary>
+        private void PanDecimalNumberOnly_PreviewTextInput(
+            object sender,
+            TextCompositionEventArgs e)
+        {
+            if (!(sender is TextBox textBox))
+            {
+                e.Handled =
+                    true;
+
+                return;
+            }
+
+            string newText =
+                CreatePreviewText(
+                    textBox,
+                    e.Text);
+
+            if (string.IsNullOrWhiteSpace(
+                newText))
+            {
+                e.Handled =
+                    false;
+
+                return;
+            }
+
+            e.Handled =
+                !Regex.IsMatch(
+                    newText,
+                    @"^\d*\.?\d{0,4}$");
+        }
 
         /// <summary>
         /// [소수점 숫자] 입력 제한
@@ -323,7 +391,7 @@ namespace VertiportNexus.Views.Main
         /// [Pan] 각도 입력 범위 보정
         /// 
         /// [Pan Absolute] 입력값이
-        /// [-180 ~ 180] 범위를 벗어난 경우
+        /// 최종 ICD 기준 [0 ~ 360] 범위를 벗어난 경우
         /// 최소 / 최대값으로 보정한다.
         /// </summary>
         private void PanAngle_LostFocus(
@@ -332,8 +400,8 @@ namespace VertiportNexus.Views.Main
         {
             ClampDecimalTextBoxValue(
                 sender,
-                -180,
-                180);
+                0,
+                360);
         }
 
         /// <summary>

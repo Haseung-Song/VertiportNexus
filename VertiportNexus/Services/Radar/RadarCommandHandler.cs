@@ -42,6 +42,10 @@ namespace VertiportNexus.Services.Radar
 
         /// <summary>
         /// [RadarCommandHandler] 생성자
+        /// 
+        /// [Radar] Packet 처리에 필요한
+        /// Packet Parser, Packet Builder,
+        /// Radar 상태 저장 서비스, Radar 추적 제어 서비스를 주입받는다.
         /// </summary>
         /// <param name="radarPacketParser">
         /// [Radar] Packet Parser
@@ -52,7 +56,10 @@ namespace VertiportNexus.Services.Radar
         /// <param name="radarStateProvider">
         /// [Radar] 상태 저장 서비스
         /// </param>
-        internal RadarCommandHandler(
+        /// <param name="radarTrackingControlService">
+        /// [Radar] 추적 제어 서비스
+        /// </param>
+        public RadarCommandHandler(
             RadarPacketParser radarPacketParser,
             RadarPacketBuilder radarPacketBuilder,
             RadarStateProvider radarStateProvider,
@@ -168,7 +175,8 @@ namespace VertiportNexus.Services.Radar
         /// [IF-CSR-CSE-001] 추적 요청 처리
         /// 
         /// Radar에서 전달된 표적 방위각 / 고각 / 거리 정보를 파싱하고,
-        /// 추적 요청 결과 응답 Packet을 생성한다.
+        /// Radar 우선 제어 상태를 활성화한 뒤,
+        /// ADS1000 Pan / Tilt 제어 및 추적 요청 결과 응답 Packet을 생성한다.
         /// </summary>
         /// <param name="radarPacket">
         /// Radar Packet
@@ -204,13 +212,18 @@ namespace VertiportNexus.Services.Radar
                 .UpdateTrackingRequest(
                     requestPayload);
 
-            // =====================================================
+            // [Radar Tracking] 활성 상태 갱신
+            //
+            // Radar Tracking Request가 수신되면,
+            // GUI BBOX 기반 제어보다 Radar 지향 제어를 우선하기 위해
+            // Radar Tracking 상태를 활성화한다.
+            _radarStateProvider
+                .StartRadarTracking();
+
             // [Radar] Tracking 제어 수행
             //
-            // Radar에서 전달한
-            // Azimuth / Elevation 값을
+            // Radar에서 전달한 Azimuth / Elevation 값을
             // ADS1000 Pan / Tilt 제어로 변환한다.
-            // =====================================================
             _radarTrackingControlService
                 .HandleTrackingRequest(
                     requestPayload);
@@ -238,6 +251,9 @@ namespace VertiportNexus.Services.Radar
         /// 
         /// Radar에서 전달된 BIST 요청 정보를 파싱하고,
         /// BIST 결과 응답 Packet을 생성한다.
+        /// 
+        /// 현재 최종 ICD 기준 삭제 예정 항목이므로,
+        /// 추후 Radar ICD 정리 단계에서 제거한다.
         /// </summary>
         /// <param name="radarPacket">
         /// Radar Packet
@@ -301,6 +317,15 @@ namespace VertiportNexus.Services.Radar
         /// 현재 단계에서는 추적 요청 수신 성공 기준으로
         /// 성공 응답을 생성한다.
         /// </summary>
+        /// <param name="requestPayload">
+        /// Radar 추적 요청 Payload
+        /// </param>
+        /// <param name="result">
+        /// 처리 결과
+        /// </param>
+        /// <returns>
+        /// Radar 추적 응답 Payload
+        /// </returns>
         private RadarTrackingResponsePayload CreateTrackingResponsePayload(
             RadarTrackingRequestPayload requestPayload,
             byte result)
@@ -336,7 +361,19 @@ namespace VertiportNexus.Services.Radar
         /// 
         /// 현재 단계에서는 BIST 요청 수신 성공 기준으로
         /// 기본 정상 응답을 생성한다.
+        /// 
+        /// 현재 최종 ICD 기준 삭제 예정 항목이므로,
+        /// 추후 Radar ICD 정리 단계에서 제거한다.
         /// </summary>
+        /// <param name="requestPayload">
+        /// Radar BIST 요청 Payload
+        /// </param>
+        /// <param name="result">
+        /// 처리 결과
+        /// </param>
+        /// <returns>
+        /// Radar BIST 응답 Payload
+        /// </returns>
         private RadarBistResponsePayload CreateBistResponsePayload(
             RadarBistRequestPayload requestPayload,
             byte result)
@@ -389,6 +426,9 @@ namespace VertiportNexus.Services.Radar
         /// <summary>
         /// Packet Header 로그 출력
         /// </summary>
+        /// <param name="radarPacket">
+        /// Radar Packet
+        /// </param>
         private void PrintPacketHeaderLog(
             RadarPacket radarPacket)
         {
@@ -432,6 +472,9 @@ namespace VertiportNexus.Services.Radar
         /// <summary>
         /// 추적 요청 로그 출력
         /// </summary>
+        /// <param name="payload">
+        /// Radar 추적 요청 Payload
+        /// </param>
         private void PrintTrackingRequestLog(
             RadarTrackingRequestPayload payload)
         {
@@ -492,7 +535,13 @@ namespace VertiportNexus.Services.Radar
 
         /// <summary>
         /// BIST 요청 로그 출력
+        /// 
+        /// 현재 최종 ICD 기준 삭제 예정 항목이므로,
+        /// 추후 Radar ICD 정리 단계에서 제거한다.
         /// </summary>
+        /// <param name="payload">
+        /// Radar BIST 요청 Payload
+        /// </param>
         private void PrintBistRequestLog(
             RadarBistRequestPayload payload)
         {

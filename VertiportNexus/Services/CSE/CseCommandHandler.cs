@@ -1,9 +1,13 @@
 ﻿using System;
+using System.Threading;
+using System.Threading.Tasks;
 using VertiportNexus.Common;
 using VertiportNexus.Models.Camera;
+using VertiportNexus.Models.CSE;
 using VertiportNexus.Models.Vertiport;
 using VertiportNexus.Services.Camera;
 using VertiportNexus.Services.Command;
+using VertiportNexus.Services.Radar;
 
 namespace VertiportNexus.Services.Vertiport
 {
@@ -18,12 +22,6 @@ namespace VertiportNexus.Services.Vertiport
         #region [Constants]
 
         /// <summary>
-        /// [CSE] 상태 응답 시간 문자열 형식
-        /// </summary>
-        private const string STATE_TIMESTAMP_FORMAT =
-            "yyyy-MM-ddTHH:mm:ss";
-
-        /// <summary>
         /// [PTZ] 자동 제어 모드
         /// </summary>
         private const string PTZ_MODE_AUTO =
@@ -34,6 +32,24 @@ namespace VertiportNexus.Services.Vertiport
         /// </summary>
         private const string PTZ_MODE_MANUAL =
             "manual";
+
+        /// <summary>
+        /// [카메라 상태] 기본 송신 주기 [Hz]
+        /// </summary>
+        private const int DEFAULT_STATUS_PUBLISH_FREQUENCY =
+            10;
+
+        /// <summary>
+        /// [카메라 상태] 최소 송신 주기 [Hz]
+        /// </summary>
+        private const int MIN_STATUS_PUBLISH_FREQUENCY =
+            1;
+
+        /// <summary>
+        /// [카메라 상태] 최대 송신 주기 [Hz]
+        /// </summary>
+        private const int MAX_STATUS_PUBLISH_FREQUENCY =
+            30;
 
         #endregion
 
@@ -64,6 +80,27 @@ namespace VertiportNexus.Services.Vertiport
         /// </summary>
         private readonly TrackingControlService _trackingControlService;
 
+        /// <summary>
+        /// [Radar] 상태 저장 서비스
+        /// </summary>
+        private readonly RadarStateProvider _radarStateProvider;
+
+        /// <summary>
+        /// [카메라 상태] 주기 송신 취소 객체
+        /// </summary>
+        private CancellationTokenSource _statusPublishCancellationTokenSource;
+
+        /// <summary>
+        /// [카메라 상태] 주기 송신 작업
+        /// </summary>
+        private Task _statusPublishTask;
+
+        /// <summary>
+        /// [카메라 상태] 주기 송신 동시 접근 제어 객체
+        /// </summary>
+        private readonly object _statusPublishLock =
+            new object();
+
         #endregion
 
         #region [Constructor]
@@ -73,7 +110,8 @@ namespace VertiportNexus.Services.Vertiport
         /// 
         /// [CSE] 명령 처리에 필요한
         /// 카메라 제어 서비스, 응답 송신 서비스,
-        /// 카메라 상태 저장 서비스, 탐지 상태 저장 서비스를 주입받는다.
+        /// 카메라 상태 저장 서비스, 탐지 상태 저장 서비스,
+        /// 추적 제어 서비스, Radar 상태 저장 서비스를 주입받는다.
         /// </summary>
         /// <param name="cameraCommandService">
         /// [Camera] 명령 처리 서비스
@@ -90,12 +128,16 @@ namespace VertiportNexus.Services.Vertiport
         /// <param name="trackingControlService">
         /// [Tracking] 자동 추적 제어 서비스
         /// </param>
+        /// <param name="radarStateProvider">
+        /// [Radar] 상태 저장 서비스
+        /// </param>
         public CseCommandHandler(
             CameraCommandService cameraCommandService,
             CseCommandResponseService responseService,
             CameraStateProvider cameraStateProvider,
             DetectionStateProvider detectionStateProvider,
-            TrackingControlService trackingControlService)
+            TrackingControlService trackingControlService,
+            RadarStateProvider radarStateProvider)
         {
             _cameraCommandService =
                 cameraCommandService
@@ -121,6 +163,11 @@ namespace VertiportNexus.Services.Vertiport
                 trackingControlService
                 ?? throw new ArgumentNullException(
                     nameof(trackingControlService));
+
+            _radarStateProvider =
+                radarStateProvider
+                ?? throw new ArgumentNullException(
+                    nameof(radarStateProvider));
         }
 
         #endregion
@@ -130,6 +177,9 @@ namespace VertiportNexus.Services.Vertiport
         /// <summary>
         /// [CSE] 명령 처리
         /// </summary>
+        /// <param name="message">
+        /// [CSE] 명령 메시지
+        /// </param>
         public void HandleCommand(
             CseCommandMessage message)
         {
@@ -156,6 +206,17 @@ namespace VertiportNexus.Services.Vertiport
             PrintCommandEndLog();
         }
 
+        /// <summary>
+        /// [카메라 상태] 주기 송신 중지
+        /// 
+        /// RabbitMQ 수신 중지 또는 장비 연결 해제 시,
+        /// 실행 중인 [q.status.res] 주기 송신 Loop를 정리한다.
+        /// </summary>
+        public void StopCameraStatusPublishService()
+        {
+            StopCameraStatusPublish();
+        }
+
         #endregion
 
         #region [Command Route Methods]
@@ -163,67 +224,45 @@ namespace VertiportNexus.Services.Vertiport
         /// <summary>
         /// [CSE] 명령 [InterfaceId] 기준 처리
         /// 
-        /// ICD 문서의 [IF-GUIS-CSE-001] ~ [IF-GUIS-CSE-012]
+        /// 최종 ICD 기준 [IF-GUIS-CSE-001] ~ [IF-GUIS-CSE-005]
         /// 인터페이스 식별자를 기준으로 명령을 분기한다.
         /// </summary>
+        /// <param name="message">
+        /// [CSE] 명령 메시지
+        /// </param>
         private void HandleCommandByInterfaceId(
             CseCommandMessage message)
         {
             switch (message.InterfaceId)
             {
-                case CseInterfaceId.DetectEnable:
-                    HandleDetectEnable(message);
-                    break;
-
-                case CseInterfaceId.DetectDisable:
-                    HandleDetectDisable(message);
-                    break;
-
                 case CseInterfaceId.DetectOn:
-                    HandleDetectOn(message);
+                    HandleDetectOn(
+                        message);
                     break;
 
                 case CseInterfaceId.DetectOff:
-                    HandleDetectOff(message);
+                    HandleDetectOff(
+                        message);
                     break;
 
-                case CseInterfaceId.DetectContinue:
-                    HandleDetectContinue(message);
+                case CseInterfaceId.DetectConf:
+                    HandleDetectConf(
+                        message);
                     break;
 
                 case CseInterfaceId.PtzMove:
-                    HandlePtzMove(message);
+                    HandlePtzMove(
+                        message);
                     break;
 
-                case CseInterfaceId.PtzStop:
-                    HandlePtzStop(message);
-                    break;
-
-                case CseInterfaceId.PtzMode:
-                    HandlePtzMode(message);
-                    break;
-
-                case CseInterfaceId.SetImage:
-                    HandleSetImage(message);
-                    break;
-
-                case CseInterfaceId.SetFlip:
-                    HandleSetFlip(message);
-                    break;
-
-                case CseInterfaceId.GetConfig:
-                    HandleGetConfig(message);
-                    break;
-
-                case CseInterfaceId.GetPtzState:
-                    HandleGetState(message);
+                case CseInterfaceId.GetState:
+                    HandleGetState(
+                        message);
                     break;
 
                 default:
-                    SendUnsupportedCommandError(
-                        message,
-                        "UNSUPPORTED_INTERFACE_ID",
-                        "Unsupported InterfaceId : " + message.InterfaceId);
+                    HandleCommandByMsgType(
+                        message);
                     break;
             }
 
@@ -232,60 +271,40 @@ namespace VertiportNexus.Services.Vertiport
         /// <summary>
         /// [CSE] 명령 [MsgType] 기준 처리
         /// 
-        /// 기존 개발용 [Mock] JSON 테스트와
-        /// 임시 메시지 구조를 유지하기 위한 보조 분기이다.
+        /// [interface_id]가 누락되었거나 일치하지 않는 경우에도
+        /// 최종 ICD의 [msg_type] 기준으로 가능한 명령을 처리한다.
         /// </summary>
+        /// <param name="message">
+        /// [CSE] 명령 메시지
+        /// </param>
         private void HandleCommandByMsgType(
             CseCommandMessage message)
         {
             switch (message.MsgType)
             {
-                case CseCommandType.DetectEnable:
-                    HandleDetectEnable(message);
-                    break;
-
-                case CseCommandType.DetectDisable:
-                    HandleDetectDisable(message);
-                    break;
-
                 case CseCommandType.DetectOn:
-                    HandleDetectOn(message);
+                    HandleDetectOn(
+                        message);
                     break;
 
                 case CseCommandType.DetectOff:
-                    HandleDetectOff(message);
+                    HandleDetectOff(
+                        message);
                     break;
 
-                case CseCommandType.DetectContinue:
-                    HandleDetectContinue(message);
+                case CseCommandType.DetectConf:
+                    HandleDetectConf(
+                        message);
                     break;
 
                 case CseCommandType.PtzMove:
-                    HandlePtzMove(message);
-                    break;
-
-                case CseCommandType.PtzStop:
-                    HandlePtzStop(message);
-                    break;
-
-                case CseCommandType.PtzMode:
-                    HandlePtzMode(message);
-                    break;
-
-                case CseCommandType.SetImage:
-                    HandleSetImage(message);
-                    break;
-
-                case CseCommandType.SetFlip:
-                    HandleSetFlip(message);
-                    break;
-
-                case CseCommandType.GetConfig:
-                    HandleGetConfig(message);
+                    HandlePtzMove(
+                        message);
                     break;
 
                 case CseCommandType.GetState:
-                    HandleGetState(message);
+                    HandleGetState(
+                        message);
                     break;
 
                 default:
@@ -303,85 +322,10 @@ namespace VertiportNexus.Services.Vertiport
         #region [Detect Command Methods]
 
         /// <summary>
-        /// [탐지 활성화] 명령 처리
+        /// [탐지 요청] 처리
         /// 
-        /// ICD 기준 [IF-GUIS-CSE-001] 요청을 처리한다.
-        /// 
-        /// 탐지 기능을 활성화하고,
-        /// 요청 [Payload]에 포함된 항적 ID와 위치 정보를 로그로 출력한다.
-        /// 
-        /// 실제 AI Detector 제어 연동 전 단계에서는
-        /// 내부 탐지 상태값만 갱신하고 정상 수신 응답을 반환한다.
-        /// </summary>
-        /// <param name="message">
-        /// [CSE] 명령 메시지
-        /// </param>
-        private void HandleDetectEnable(
-            CseCommandMessage message)
-        {
-            PrintCommandLog(
-                message,
-                "Detect Enable");
-
-            if (message.Payload != null)
-            {
-                Console.WriteLine("[CSE][CMD] TrackId : " + message.Payload.TrackId);
-                Console.WriteLine("[CSE][CMD] Latitude : " + message.Payload.Latitude);
-                Console.WriteLine("[CSE][CMD] Longitude : " + message.Payload.Longitude);
-                Console.WriteLine("[CSE][CMD] Altitude : " + message.Payload.Altitude);
-            }
-
-            _detectionStateProvider
-                .UpdateDetectEnabled(
-                    true);
-
-            _detectionStateProvider
-                .UpdateTrackId(
-                    message.Payload?.TrackId?.ToString());
-
-            SendAcceptedResponse(
-                message,
-                "Detect Enable");
-        }
-
-        /// <summary>
-        /// [탐지 활성화 취소] 명령 처리
-        /// 
-        /// ICD 기준 [IF-GUIS-CSE-002] 요청을 처리한다.
-        /// 
-        /// 탐지 기능을 비활성화하고,
-        /// 진행 중인 탐지 상태와 마지막 탐지 객체 정보를 초기화한다.
-        /// </summary>
-        /// <param name="message">
-        /// [CSE] 명령 메시지
-        /// </param>
-        private void HandleDetectDisable(
-            CseCommandMessage message)
-        {
-            PrintCommandLog(
-                message,
-                "Detect Disable");
-
-            _detectionStateProvider
-                .UpdateDetectEnabled(
-                    false);
-
-            _trackingControlService
-                .StopTracking();
-
-            SendAcceptedResponse(
-                message,
-                "Detect Disable");
-        }
-
-        /// <summary>
-        /// [탐지] 명령 처리
-        /// 
-        /// ICD 기준 [IF-GUIS-CSE-003] 요청을 처리한다.
-        /// 
-        /// 탐지 동작 상태를 활성화하고,
-        /// 요청 [Payload]에 포함된 탐지 객체 [Bounding Box] 정보를
-        /// 마지막 탐지 객체 상태값으로 저장한다.
+        /// 최종 ICD [IF-GUIS-CSE-001] 기준
+        /// 탐지 시작 요청과 최초 객체 화면 좌표를 처리한다.
         /// </summary>
         /// <param name="message">
         /// [CSE] 명령 메시지
@@ -396,14 +340,21 @@ namespace VertiportNexus.Services.Vertiport
             PrintDetectBoxPayload(
                 message.Payload);
 
+            DetectionBoundingBox boundingBox =
+                CreateBoundingBox(
+                    message.Payload);
+
+            // [탐지 시작] 상태 갱신
+            //
+            // [detect_on]은 탐지 시작 요청이므로
+            // 탐지 상태를 [LOCK ON]으로 전환하고,
+            // 함께 전달된 최초 객체 화면 좌표를 마지막 탐지 객체 정보로 저장한다.
             _detectionStateProvider
-                .UpdateDetectActive(
-                    true);
+                .StartDetection();
 
             _detectionStateProvider
                 .UpdateBoundingBox(
-                    CreateBoundingBox(
-                        message.Payload));
+                    boundingBox);
 
             SendAcceptedResponse(
                 message,
@@ -411,12 +362,10 @@ namespace VertiportNexus.Services.Vertiport
         }
 
         /// <summary>
-        /// [탐지 해제] 명령 처리
+        /// [탐지 해제] 처리
         /// 
-        /// ICD 기준 [IF-GUIS-CSE-004] 요청을 처리한다.
-        /// 
-        /// 탐지 동작 상태를 비활성화하고,
-        /// 탐지 계속 수행 상태를 중지 상태로 갱신한다.
+        /// 최종 ICD [IF-GUIS-CSE-002] 기준
+        /// 탐지 / 추적 상태를 해제한다.
         /// </summary>
         /// <param name="message">
         /// [CSE] 명령 메시지
@@ -428,12 +377,28 @@ namespace VertiportNexus.Services.Vertiport
                 message,
                 "Detect Off");
 
+            // [탐지 해제] 상태 갱신
+            //
+            // [detect_off]는 현재 탐지 / 추적 상태를 종료하는 요청이므로
+            // 탐지 상태를 [LOCK OFF]로 전환하고,
+            // 마지막 객체 화면 좌표를 초기화한다.
             _detectionStateProvider
-                .UpdateDetectActive(
-                    false);
+                .StopDetection();
 
+            // [Tracking] 자동 추적 중지
+            //
+            // GUI Detect Off 수신 시,
+            // GUI BBOX 기반 자동 추적 제어를 중지한다.
             _trackingControlService
                 .StopTracking();
+
+            // [Radar Tracking] 상태 해제
+            //
+            // GUI Detect Off 수신 시,
+            // 탐지 / 추적 상태가 종료되므로
+            // Radar 우선 제어 상태도 함께 해제한다.
+            _radarStateProvider
+                .StopRadarTracking();
 
             SendAcceptedResponse(
                 message,
@@ -441,72 +406,79 @@ namespace VertiportNexus.Services.Vertiport
         }
 
         /// <summary>
-        /// [탐지 계속] 명령 처리
+        /// [탐지 결과 연속 갱신] 처리
         /// 
-        /// ICD 기준 [IF-GUIS-CSE-005] 요청을 처리한다.
-        /// 
-        /// 탐지 계속 수행 상태를 활성화하고,
-        /// 요청 [Payload]에 포함된 최신 탐지 객체 [Bounding Box] 정보를
-        /// 마지막 탐지 객체 상태값으로 갱신한다.
-        /// 
-        /// [PTZ 제어 모드]가 [AUTO]인 경우에는
-        /// 해당 [Bounding Box] 기준으로 자동 추적 제어를 수행한다.
-        /// 
-        /// [MANUAL] 상태에서는 운용자 수동 제어를 우선하므로
-        /// 탐지 정보는 상태값으로만 저장하고 자동 추적 제어는 수행하지 않는다.
+        /// 최종 ICD [IF-GUIS-CSE-003] 기준
+        /// 탐지 중 약 [30Hz]로 수신되는 객체 화면 좌표를 처리한다.
         /// </summary>
         /// <param name="message">
         /// [CSE] 명령 메시지
         /// </param>
-        private void HandleDetectContinue(
+        private void HandleDetectConf(
             CseCommandMessage message)
         {
             PrintCommandLog(
                 message,
-                "Detect Continue");
+                "Detect Confirm");
 
             PrintDetectBoxPayload(
                 message.Payload);
+
+            if (!_detectionStateProvider.IsDetectEnabled)
+            {
+                Console.WriteLine(
+                    "[CSE][DETECT] Detect Conf Ignored : LOCK OFF");
+
+                return;
+            }
 
             DetectionBoundingBox boundingBox =
                 CreateBoundingBox(
                     message.Payload);
 
-            ConsoleLogHelper.PrintLine();
-
-            Console.WriteLine(
-                "[DETECTION][STATE] Bounding Box Update Start");
-
-            _detectionStateProvider
-                .UpdateDetectContinue(
-                    true);
-
+            // [탐지 결과 연속 갱신]
+            //
+            // [detect_conf]는 탐지 중 약 [30Hz]로 수신되므로
+            // Queue에 누적하지 않고 마지막 객체 화면 좌표만 덮어쓴다.
             _detectionStateProvider
                 .UpdateBoundingBox(
                     boundingBox);
 
-            ConsoleLogHelper.PrintLine();
+            // [Radar 우선 제어]
+            //
+            // Radar Tracking이 활성화된 상태에서는
+            // GUI BBOX 기반 Pan / Tilt 제어를 수행하지 않는다.
+            //
+            // 이 경우 GUI BBOX는 최신값 저장만 수행하고,
+            // 실제 PT 제어는 Radar에서 수신한 Azimuth / Elevation 기준으로 처리한다.
+            if (_radarStateProvider.IsRadarTrackingActive)
+            {
+                Console.WriteLine(
+                    "[TRACKING][BBOX] Skip : Radar Tracking Active");
 
-            Console.WriteLine(
-                "[TRACKING][AUTO] Tracking Check");
+                SendAcceptedResponse(
+                    message,
+                    "Detect Confirm");
+
+                return;
+            }
 
             // [AUTO Tracking] 추적 계산
             //
-            // [PTZ 제어 모드]가 [AUTO]인 경우에만
-            // 탐지 객체 [Bounding Box] 기준으로 자동 추적 계산을 수행한다.
-            //
-            // 모드 문자열 비교는 대소문자를 구분하지 않는다.
+            // PTZ 제어 모드가 [AUTO]인 경우에만
+            // 탐지 객체 Bounding Box 기준으로 자동 추적 계산을 수행한다.
             //
             // [MANUAL] 상태에서는 운용자 수동 제어를 우선하므로
-            // 자동 추적 계산은 수행하지 않는다.
+            // 탐지 정보는 저장만 하고 자동 추적 제어는 수행하지 않는다.
             if (string.Equals(
                 _cameraStateProvider.PtzControlMode,
-                "AUTO",
+                PTZ_MODE_AUTO,
                 StringComparison.OrdinalIgnoreCase))
             {
-                _trackingControlService.ProcessTracking(
-                    boundingBox,
-                    _cameraStateProvider.CurrentZoom ?? 0);
+                _trackingControlService
+                    .ProcessTracking(
+                        boundingBox,
+                        _cameraStateProvider.CurrentZoomRatio ?? 1.0);
             }
             else
             {
@@ -517,7 +489,7 @@ namespace VertiportNexus.Services.Vertiport
 
             SendAcceptedResponse(
                 message,
-                "Detect Continue");
+                "Detect Confirm");
         }
 
         #endregion
@@ -527,8 +499,12 @@ namespace VertiportNexus.Services.Vertiport
         /// <summary>
         /// [PTZ] 이동 명령 처리
         /// 
-        /// ICD 기준 [IF-GUIS-CSE-006] 요청을 처리한다.
+        /// 최종 ICD [IF-GUIS-CSE-004] 기준
+        /// [Pan] / [Tilt] / [Zoom] 수동 제어 명령을 처리한다.
         /// </summary>
+        /// <param name="message">
+        /// [CSE] 명령 메시지
+        /// </param>
         private void HandlePtzMove(
             CseCommandMessage message)
         {
@@ -545,16 +521,10 @@ namespace VertiportNexus.Services.Vertiport
                 return;
             }
 
-
             // [PTZ 제어 모드] 처리
             //
-            // 최신 [IF-GUIS-CSE-006]에서는
-            // 기존 [IF-GUIS-CSE-008]의 [AUTO] / [MANUAL] 모드 설정이
-            // [ptz_move]의 [mode] 값으로 통합된다.
-            //
-            // [mode] 값이 [auto] 또는 [manual]인 경우에는
-            // 장비 이동 명령을 생성하지 않고,
-            // 내부 [PTZ 제어 모드] 상태값만 갱신한다.
+            // 최종 ICD에서는 [mode] 값 기준으로
+            // [manual] 모드 전환 또는 PTZ 제어 명령을 처리한다.
             if (TryHandlePtzControlMode(
                 message,
                 payload))
@@ -597,8 +567,9 @@ namespace VertiportNexus.Services.Vertiport
                         message.MsgId
                 };
 
-            _cameraCommandService.HandleCommand(
-                cameraCommand);
+            _cameraCommandService
+                .HandleCommand(
+                    cameraCommand);
 
             SendAcceptedResponse(
                 message,
@@ -608,9 +579,8 @@ namespace VertiportNexus.Services.Vertiport
         /// <summary>
         /// [PTZ 제어 모드] 통합 명령 처리
         /// 
-        /// 최신 [IF-GUIS-CSE-006] 기준
-        /// 기존 [IF-GUIS-CSE-008]의 [AUTO] / [MANUAL] 모드 설정을
-        /// [ptz_move] 명령 안에서 처리한다.
+        /// [ptz_move] 명령의 [mode] 값이
+        /// [manual] 또는 [auto]인 경우 내부 [PTZ 제어 모드]를 갱신한다.
         /// </summary>
         /// <param name="message">
         /// [CSE] 명령 메시지
@@ -674,237 +644,205 @@ namespace VertiportNexus.Services.Vertiport
             return true;
         }
 
-        /// <summary>
-        /// [PTZ] 정지 명령 처리
-        /// 
-        /// ICD 기준 [IF-GUIS-CSE-007] 요청을 처리한다.
-        /// </summary>
-        private void HandlePtzStop(
-            CseCommandMessage message)
-        {
-            PrintCommandLog(
-                message,
-                "PTZ Stop");
-
-            CameraCommand cameraCommand =
-                new CameraCommand
-                {
-                    CommandType =
-                        CameraCommandType.PtzStop,
-
-                    SourceMsgId =
-                        message.MsgId
-                };
-
-            _cameraCommandService.HandleCommand(
-                cameraCommand);
-
-            SendAcceptedResponse(
-                message,
-                "PTZ Stop");
-        }
-
-        /// <summary>
-        /// [PTZ 제어 모드] 명령 처리
-        /// 
-        /// ICD 기준 [IF-GUIS-CSE-008] 요청을 처리한다.
-        /// 
-        /// 최신 ICD에서는 [IF-GUIS-CSE-006] [ptz_move]의
-        /// [mode] 값 [auto] / [manual]로 통합될 예정이므로,
-        /// 본 메서드는 기존 ICD 호환용으로만 유지한다.
-        /// </summary>
-        private void HandlePtzMode(
-            CseCommandMessage message)
-        {
-            CseCommandPayload payload =
-                message.Payload;
-
-            if (payload == null)
-            {
-                SendCommandError(
-                    message,
-                    "INVALID_PAYLOAD",
-                    "PTZ Mode Failed : Payload is null");
-
-                return;
-            }
-
-            if (string.IsNullOrWhiteSpace(
-                payload.Mode))
-            {
-                SendCommandError(
-                    message,
-                    "INVALID_MODE",
-                    "PTZ Mode Failed : Mode is empty");
-
-                return;
-            }
-
-            string mode =
-                payload.Mode.Trim().ToUpper();
-
-            if (mode != "AUTO" &&
-                mode != "MANUAL")
-            {
-                SendCommandError(
-                    message,
-                    "INVALID_MODE",
-                    "PTZ Mode Failed : Unsupported Mode : " + payload.Mode);
-
-                return;
-            }
-
-            PrintCommandLog(
-                message,
-                "PTZ Mode");
-
-            Console.WriteLine("[CSE][CMD] Mode : " + mode);
-
-            _cameraStateProvider.UpdatePtzControlMode(mode);
-
-            if (mode == "MANUAL")
-            {
-                _trackingControlService
-                    .StopTracking();
-            }
-
-            _responseService.SendCommandResponse(
-                message,
-                "PTZ Mode Command Accepted : " + mode);
-        }
-
-        #endregion
-
-        #region [Image Command Methods]
-
-        /// <summary>
-        /// [영상 설정] 명령 처리
-        /// 
-        /// ICD 기준 [IF-GUIS-CSE-009] 요청을 처리한다.
-        /// </summary>
-        private void HandleSetImage(
-            CseCommandMessage message)
-        {
-            PrintCommandLog(
-                message,
-                "Set Image");
-
-            if (message.Payload != null)
-            {
-                Console.WriteLine("[CSE][CMD] Brightness : " + message.Payload.Brightness);
-                Console.WriteLine("[CSE][CMD] Contrast : " + message.Payload.Contrast);
-                Console.WriteLine("[CSE][CMD] FocusMode : " + message.Payload.FocusMode);
-            }
-
-            SendAcceptedResponse(
-                message,
-                "Set Image");
-        }
-
-        /// <summary>
-        /// [영상 플립] 명령 처리
-        /// 
-        /// ICD 기준 [IF-GUIS-CSE-010] 요청을 처리한다.
-        /// </summary>
-        private void HandleSetFlip(
-            CseCommandMessage message)
-        {
-            PrintCommandLog(
-                message,
-                "Set Flip");
-
-            if (message.Payload != null)
-            {
-                Console.WriteLine("[CSE][CMD] Flip : " + message.Payload.Flip);
-            }
-
-            SendAcceptedResponse(
-                message,
-                "Set Flip");
-        }
-
         #endregion
 
         #region [Status Command Methods]
 
         /// <summary>
-        /// [카메라 상태 - 설정 조회] 명령 처리
+        /// [카메라 상태 조회] 요청 처리
         /// 
-        /// ICD 기준 [IF-GUIS-CSE-011] 요청을 처리한다.
+        /// 최종 ICD [IF-GUIS-CSE-005] 기준
+        /// [q.status.req] Queue로 수신된 상태 송신 주기 요청을 처리한다.
         /// </summary>
-        private void HandleGetConfig(
-            CseCommandMessage message)
-        {
-            PrintCommandLog(
-                message,
-                "Get Config");
-
-            CseCommandResponsePayload payload =
-                new CseCommandResponsePayload
-                {
-                    Brightness =
-                        null,
-
-                    Contrast =
-                        null,
-
-                    FocusMode =
-                        "AUTO",
-
-                    Flip =
-                        false,
-
-                    DetectEnabled =
-                        false
-                };
-
-            _responseService.SendStatusResponse(
-                message,
-                payload);
-        }
-
-        /// <summary>
-        /// [카메라 상태 - PTZ 조회] 명령 처리
-        /// 
-        /// ICD 기준 [IF-GUIS-CSE-012] 요청을 처리한다.
-        /// </summary>
+        /// <param name="message">
+        /// [CSE] 명령 메시지
+        /// </param>
         private void HandleGetState(
             CseCommandMessage message)
         {
             PrintCommandLog(
                 message,
-                "Get PTZ State");
+                "Get Camera State");
 
-            CseCommandResponsePayload payload =
-                new CseCommandResponsePayload
-                {
-                    Connected =
-                        _cameraStateProvider.IsConnected,
+            if (message.Payload == null)
+            {
+                SendCommandError(
+                    message,
+                    "INVALID_PAYLOAD",
+                    "Get Camera State Failed : Payload is null");
 
-                    Ptz =
-                        new CsePtzStatePayload
+                return;
+            }
+
+            int frequency = message.Payload.Frequency ?? 10;
+
+            Console.WriteLine("[CSE][STATUS] Request Frequency : " + frequency);
+
+            // [카메라 상태 송신 주기 처리]
+            //
+            // [frequency] 값이 [0]이면 상태 송신을 중지하고,
+            // 그 외 값이면 요청된 주기 기준으로 상태 송신을 시작한다.
+            //
+            // 실제 [q.status.res] 주기 송신 Loop는
+            // 다음 단계에서 연결한다.
+            if (frequency == 0)
+            {
+                StopCameraStatusPublish();
+            }
+            else
+            {
+                StartCameraStatusPublish(
+                    frequency);
+            }
+
+        }
+
+        /// <summary>
+        /// [카메라 상태] 주기 송신 시작
+        /// 
+        /// 요청된 주기에 따라 [q.status.res] Queue로
+        /// 카메라 상태를 주기적으로 송신한다.
+        /// </summary>
+        /// <param name="frequency">
+        /// 상태 송신 주기 [Hz]
+        /// </param>
+        private void StartCameraStatusPublish(
+            int frequency)
+        {
+            int publishFrequency =
+                ClampStatusPublishFrequency(
+                    frequency);
+
+            int publishIntervalMs =
+                1000 / publishFrequency;
+
+            lock (_statusPublishLock)
+            {
+                StopCameraStatusPublish();
+
+                _statusPublishCancellationTokenSource =
+                    new CancellationTokenSource();
+
+                CancellationToken cancellationToken =
+                    _statusPublishCancellationTokenSource.Token;
+
+                // [카메라 상태] 주기 송신 Task 시작
+                //
+                // [IF-GUIS-CSE-005] 요청으로 전달된 [frequency] 기준으로
+                // 현재 카메라 상태를 [q.status.res] Queue에 반복 송신한다.
+                _statusPublishTask =
+                    Task.Run(
+                        async () =>
                         {
-                            Pan =
-                                _cameraStateProvider.CurrentPan,
+                            ConsoleLogHelper.PrintLine();
+                            Console.WriteLine("[CSE][STATUS] Publish Start");
+                            Console.WriteLine("[CSE][STATUS] Frequency : " + publishFrequency + "Hz");
+                            Console.WriteLine("[CSE][STATUS] Interval : " + publishIntervalMs + "ms");
+                            ConsoleLogHelper.PrintLine();
 
-                            Tilt =
-                                _cameraStateProvider.CurrentTilt,
+                            while (!cancellationToken.IsCancellationRequested)
+                            {
+                                try
+                                {
+                                    _responseService
+                                        .SendCameraStatusResponse(
+                                            _cameraStateProvider);
+                                }
+                                catch (Exception ex)
+                                {
+                                    ConsoleLogHelper.PrintLine();
+                                    Console.WriteLine("[CSE][STATUS] Publish Failed");
+                                    Console.WriteLine("[CSE][STATUS] Error : " + ex.Message);
+                                    ConsoleLogHelper.PrintLine();
+                                }
 
-                            Zoom =
-                                _cameraStateProvider.CurrentZoom
+                                await Task.Delay(
+                                    publishIntervalMs,
+                                    cancellationToken);
+                            }
                         },
+                        cancellationToken);
 
-                    IsFlipped =
-                        false,
+            }
 
-                    UpdatedTime =
-                        _cameraStateProvider.LastUpdatedTime?.ToString(
-                            STATE_TIMESTAMP_FORMAT)
-                };
+        }
 
-            _responseService.SendStatusResponse(
-                message,
-                payload);
+        /// <summary>
+        /// [카메라 상태] 주기 송신 중지
+        /// 
+        /// 현재 실행 중인 카메라 상태 주기 송신을 중지한다.
+        /// </summary>
+        private void StopCameraStatusPublish()
+        {
+            lock (_statusPublishLock)
+            {
+                if (_statusPublishCancellationTokenSource == null)
+                {
+                    return;
+                }
+
+                try
+                {
+                    _statusPublishCancellationTokenSource
+                        .Cancel();
+
+                    ConsoleLogHelper.PrintLine();
+                    Console.WriteLine("[CSE][STATUS] Publish Stop");
+                    ConsoleLogHelper.PrintLine();
+                }
+                catch (Exception ex)
+                {
+                    ConsoleLogHelper.PrintLine();
+                    Console.WriteLine("[CSE][STATUS] Publish Stop Failed");
+                    Console.WriteLine("[CSE][STATUS] Error : " + ex.Message);
+                    ConsoleLogHelper.PrintLine();
+                }
+                finally
+                {
+                    _statusPublishCancellationTokenSource
+                        .Dispose();
+
+                    _statusPublishCancellationTokenSource =
+                        null;
+
+                    _statusPublishTask =
+                        null;
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [카메라 상태] 송신 주기 보정
+        /// 
+        /// [IF-GUIS-CSE-005] 요청에서 수신한 [frequency] 값을
+        /// 허용 범위 내 값으로 보정한다.
+        /// </summary>
+        /// <param name="frequency">
+        /// 요청 송신 주기 [Hz]
+        /// </param>
+        /// <returns>
+        /// 보정된 송신 주기 [Hz]
+        /// </returns>
+        private int ClampStatusPublishFrequency(
+            int frequency)
+        {
+            if (frequency <= 0)
+            {
+                return DEFAULT_STATUS_PUBLISH_FREQUENCY;
+            }
+
+            if (frequency < MIN_STATUS_PUBLISH_FREQUENCY)
+            {
+                return MIN_STATUS_PUBLISH_FREQUENCY;
+            }
+
+            if (frequency > MAX_STATUS_PUBLISH_FREQUENCY)
+            {
+                return MAX_STATUS_PUBLISH_FREQUENCY;
+            }
+            return frequency;
         }
 
         #endregion
@@ -968,6 +906,9 @@ namespace VertiportNexus.Services.Vertiport
         /// <summary>
         /// [CSE] 명령 처리 시작 로그 출력
         /// </summary>
+        /// <param name="message">
+        /// [CSE] 명령 메시지
+        /// </param>
         private void PrintCommandStartLog(
             CseCommandMessage message)
         {
@@ -992,6 +933,12 @@ namespace VertiportNexus.Services.Vertiport
         /// <summary>
         /// [CSE] 명령 기본 로그 출력
         /// </summary>
+        /// <param name="message">
+        /// [CSE] 명령 메시지
+        /// </param>
+        /// <param name="commandName">
+        /// 명령 이름
+        /// </param>
         private void PrintCommandLog(
             CseCommandMessage message,
             string commandName)
@@ -1004,6 +951,9 @@ namespace VertiportNexus.Services.Vertiport
         /// <summary>
         /// 탐지 객체 [Payload] 로그 출력
         /// </summary>
+        /// <param name="payload">
+        /// [CSE] 명령 Payload
+        /// </param>
         private void PrintDetectBoxPayload(
             CseCommandPayload payload)
         {
@@ -1028,18 +978,34 @@ namespace VertiportNexus.Services.Vertiport
         /// <summary>
         /// [Command] 수신 성공 응답 송신
         /// </summary>
+        /// <param name="message">
+        /// [CSE] 명령 메시지
+        /// </param>
+        /// <param name="commandName">
+        /// 명령 이름
+        /// </param>
         private void SendAcceptedResponse(
             CseCommandMessage message,
             string commandName)
         {
-            _responseService.SendCommandResponse(
-                message,
-                commandName + " Command Accepted");
+            _responseService
+                .SendCommandResponse(
+                    message,
+                    commandName + " Command Accepted");
         }
 
         /// <summary>
         /// [Command] 처리 실패 응답 송신
         /// </summary>
+        /// <param name="message">
+        /// [CSE] 명령 메시지
+        /// </param>
+        /// <param name="errorCode">
+        /// 오류 코드
+        /// </param>
+        /// <param name="errorMessage">
+        /// 오류 메시지
+        /// </param>
         private void SendCommandError(
             CseCommandMessage message,
             string errorCode,
@@ -1047,15 +1013,25 @@ namespace VertiportNexus.Services.Vertiport
         {
             Console.WriteLine("[CSE][CMD] " + errorMessage);
 
-            _responseService.SendCommandErrorResponse(
-                message,
-                errorCode,
-                errorMessage);
+            _responseService
+                .SendCommandErrorResponse(
+                    message,
+                    errorCode,
+                    errorMessage);
         }
 
         /// <summary>
         /// 지원하지 않는 [Command] 오류 응답 송신
         /// </summary>
+        /// <param name="message">
+        /// [CSE] 명령 메시지
+        /// </param>
+        /// <param name="errorCode">
+        /// 오류 코드
+        /// </param>
+        /// <param name="errorMessage">
+        /// 오류 메시지
+        /// </param>
         private void SendUnsupportedCommandError(
             CseCommandMessage message,
             string errorCode,
@@ -1063,10 +1039,11 @@ namespace VertiportNexus.Services.Vertiport
         {
             Console.WriteLine("[CSE][CMD] " + errorMessage);
 
-            _responseService.SendCommandErrorResponse(
-                message,
-                errorCode,
-                errorMessage);
+            _responseService
+                .SendCommandErrorResponse(
+                    message,
+                    errorCode,
+                    errorMessage);
         }
         #endregion
     }

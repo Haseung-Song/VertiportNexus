@@ -1,7 +1,10 @@
 ﻿using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using VertiportNexus.Common;
+using VertiportNexus.Models.CSE;
 using VertiportNexus.Models.Vertiport;
+using VertiportNexus.Services.Camera;
 using VertiportNexus.Services.Communication.MQ;
 
 namespace VertiportNexus.Services.Vertiport
@@ -170,6 +173,94 @@ namespace VertiportNexus.Services.Vertiport
             SendResponse(
                 CseMqQueue.StatusResponse,
                 response);
+        }
+
+        /// <summary>
+        /// [카메라 상태] 응답 송신
+        /// 
+        /// 최종 ICD [IF-CSE-GUIS-112] 기준
+        /// 현재 카메라 상태를 [q.status.res] Queue로 송신한다.
+        /// </summary>
+        /// <param name="cameraStateProvider">
+        /// [Camera] 상태 저장 서비스
+        /// </param>
+        public void SendCameraStatusResponse(
+            CameraStateProvider cameraStateProvider)
+        {
+            if (cameraStateProvider == null)
+            {
+                return;
+            }
+
+            object responseMessage =
+                new
+                {
+                    interface_id =
+                        CseInterfaceId.GetStateResponse,
+
+                    msg_type =
+                        CseCommandType.GetStateResponse,
+
+                    msg_id =
+                        Guid.NewGuid().ToString(),
+
+                    timestamp =
+                        DateTime.Now.ToString(
+                            "yyyy-MM-ddTHH:mm:ss"),
+
+                    status =
+                        "success",
+
+                    message =
+                        "OK",
+
+                    payload =
+                        new
+                        {
+                            mode =
+                                cameraStateProvider.PtzControlMode,
+
+                            ptz =
+                                new
+                                {
+                                    pan =
+                                        Math.Round(
+                                            Convert.ToDecimal(
+                                                cameraStateProvider.CurrentPan ?? 0),
+                                            4),
+
+                                    tilt =
+                                        Math.Round(
+                                            Convert.ToDecimal(
+                                                cameraStateProvider.CurrentTilt ?? 0),
+                                            4),
+
+                                    zoom =
+                                        Math.Round(
+                                            Convert.ToDecimal(
+                                                cameraStateProvider.CurrentZoomRatio ?? 1.0),
+                                            1)
+                                }
+
+                        }
+
+                };
+
+            string json =
+                JsonSerializer.Serialize(
+                    responseMessage,
+                    _jsonSerializerOptions);
+
+            ConsoleLogHelper.PrintLine();
+            Console.WriteLine("[CSE][STATUS][SEND] Camera Status Response");
+            Console.WriteLine("[CSE][STATUS][SEND] Queue : " + CseMqQueue.StatusResponse);
+            Console.WriteLine(json);
+            ConsoleLogHelper.PrintLine();
+
+            _mqSender
+                .Send(
+                    CseMqQueue.StatusResponse,
+                    json);
         }
 
         #endregion

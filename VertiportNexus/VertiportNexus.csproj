@@ -154,6 +154,7 @@
     <Compile Include="Models\ADS1000\Ads1000ParsedPacket.cs" />
     <Compile Include="Models\ADS1000\Ads1000SendResult.cs" />
     <Compile Include="Models\ADS1000\Ads1000StatusResult.cs" />
+    <Compile Include="Models\ADS1000\Ads1000PanTurnMode.cs" />
     <Compile Include="Models\Camera\CameraCommand.cs" />
     <Compile Include="Models\Camera\CameraCommandType.cs" />
     <Compile Include="Models\Camera\DetectionBoundingBox.cs" />

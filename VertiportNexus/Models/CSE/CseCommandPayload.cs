@@ -49,6 +49,18 @@ namespace VertiportNexus.Models.Vertiport
         public string Command { get; set; }
 
         /// <summary>
+        /// 상태 전송 주기
+        /// 
+        /// [IF-GUIS-CSE-005] 카메라 상태 조회 요청에서 사용한다.
+        /// 
+        /// 0이면 상태 송신을 중지하고,
+        /// 그 외 값은 해당 주기로 상태 송신을 수행한다.
+        /// 기본값은 [10Hz]로 처리한다.
+        /// </summary>
+        [JsonPropertyName("frequency")]
+        public int? Frequency { get; set; }
+
+        /// <summary>
         /// [Pan] 방위각
         /// </summary>
         [JsonPropertyName("pan")]

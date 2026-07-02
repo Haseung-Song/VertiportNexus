@@ -1,4 +1,5 @@
 ﻿using System;
+using VertiportNexus.Models.ADS1000;
 
 namespace VertiportNexus.Services.Camera
 {
@@ -20,6 +21,27 @@ namespace VertiportNexus.Services.Camera
         /// </summary>
         private const string DEFAULT_PTZ_CONTROL_MODE =
             "MANUAL";
+
+        /// <summary>
+        /// [Zoom] 최소 배율
+        /// </summary>
+        private const double MIN_ZOOM_RATIO =
+            1.0;
+
+        /// <summary>
+        /// [Zoom] 최대 배율
+        /// </summary>
+        private const double MAX_ZOOM_RATIO =
+            66.0;
+
+        /// <summary>
+        /// [Zoom] 최대 Position 값
+        /// 
+        /// [ADS1000] Zoom Position 값은 내부 장비 제어값이고,
+        /// 상태 응답에서는 사용자 표시용 배율값으로 변환해서 사용한다.
+        /// </summary>
+        private const double MAX_ZOOM_POSITION =
+            1000.0;
 
         #endregion
 
@@ -44,6 +66,14 @@ namespace VertiportNexus.Services.Camera
         /// 현재 [Tilt] 값
         /// </summary>
         private double? _currentTilt;
+
+        /// <summary>
+        /// 현재 Zoom 배율
+        /// 
+        /// 장비에서 수신한 Zoom Position 값을
+        /// 사용자 표시용 배율값으로 변환한 값이다.
+        /// </summary>
+        private double? _currentZoomRatio;
 
         /// <summary>
         /// 현재 [Zoom] 값
@@ -73,6 +103,15 @@ namespace VertiportNexus.Services.Camera
         /// 카메라 연결 상태
         /// </summary>
         private bool _isConnected;
+
+        /// <summary>
+        /// 현재 [Pan] 선회 모드
+        /// 
+        /// [Pan Absolute] 이동 시
+        /// [Via 0] / [Short] 이동 방식을 결정한다.
+        /// </summary>
+        private Ads1000PanTurnMode _panTurnMode =
+            Ads1000PanTurnMode.Short;
 
         #endregion
 
@@ -123,6 +162,20 @@ namespace VertiportNexus.Services.Camera
         }
 
         /// <summary>
+        /// 현재 [Zoom] 배율
+        /// </summary>
+        public double? CurrentZoomRatio
+        {
+            get
+            {
+                lock (_syncLock)
+                {
+                    return _currentZoomRatio;
+                }
+            }
+        }
+
+        /// <summary>
         /// 현재 [Zoom] 값
         /// </summary>
         public double? CurrentZoom
@@ -153,6 +206,7 @@ namespace VertiportNexus.Services.Camera
             }
 
         }
+
 
         /// <summary>
         /// 현재 [PTZ] 제어 모드
@@ -202,6 +256,25 @@ namespace VertiportNexus.Services.Camera
 
         }
 
+        /// <summary>
+        /// 현재 [Pan] 선회 모드
+        /// 
+        /// [Pan Absolute] 이동 시
+        /// [Via 0] / [Short] 이동 방식을 반환한다.
+        /// </summary>
+        public Ads1000PanTurnMode PanTurnMode
+        {
+            get
+            {
+                lock (_syncLock)
+                {
+                    return _panTurnMode;
+                }
+
+            }
+
+        }
+
         #endregion
 
         #region [Update Methods]
@@ -240,6 +313,9 @@ namespace VertiportNexus.Services.Camera
 
         /// <summary>
         /// [Zoom] 상태값 갱신
+        /// 
+        /// 장비에서 수신한 Zoom Position 값을 저장하고,
+        /// 상태 응답 / 화면 표시용 Zoom 배율값도 함께 갱신한다.
         /// </summary>
         public void UpdateZoom(
             double zoom)
@@ -248,6 +324,10 @@ namespace VertiportNexus.Services.Camera
             {
                 _currentZoom =
                     zoom;
+
+                _currentZoomRatio =
+                    ConvertZoomPositionToRatio(
+                        zoom);
 
                 UpdateLastUpdatedTime();
             }
@@ -300,6 +380,10 @@ namespace VertiportNexus.Services.Camera
                 {
                     _currentZoom =
                         zoom.Value;
+
+                    _currentZoomRatio =
+                        ConvertZoomPositionToRatio(
+                            zoom.Value);
                 }
 
                 if (focus.HasValue)
@@ -369,9 +453,110 @@ namespace VertiportNexus.Services.Camera
 
         }
 
+        /// <summary>
+        /// [Pan] 선회 모드 갱신
+        /// 
+        /// [Pan Absolute] 이동 시 사용할
+        /// [Via 0] / [Short] 이동 방식을 저장한다.
+        /// </summary>
+        /// <param name="panTurnMode">
+        /// Pan 선회 모드
+        /// </param>
+        public void UpdatePanTurnMode(
+            Ads1000PanTurnMode panTurnMode)
+        {
+            lock (_syncLock)
+            {
+                _panTurnMode =
+                    panTurnMode;
+            }
+
+        }
+
         #endregion
 
         #region [Private Methods]
+
+        /// <summary>
+        /// [Zoom] 위치값을 배율로 변환
+        /// 
+        /// [ADS1000] 장비에서 수신되는 [Zoom] 값은
+        /// [0 ~ 1000] 범위의 내부 위치값이다.
+        /// 
+        /// 상태 응답 [IF-CSE-GUIS-112]에서는
+        /// 장비 내부 위치값이 아니라 실제 배율값을 보내야 하므로,
+        /// 장비 위치값을 [1.0x ~ 66.0x] 배율 기준으로 변환한다.
+        /// </summary>
+        /// <param name="zoomPosition">
+        /// ADS1000 Zoom 위치값
+        /// </param>
+        /// <returns>
+        /// Zoom 배율
+        /// </returns>
+        private double ConvertZoomPositionToRatio(
+            double zoomPosition)
+        {
+            const double MIN_ZOOM_RATIO =
+                1.0;
+
+            const double MAX_ZOOM_RATIO =
+                66.0;
+
+            const double MIN_ZOOM_POSITION =
+                0.0;
+
+            const double MAX_ZOOM_POSITION =
+                1000.0;
+
+            double clampedZoomPosition =
+                Clamp(
+                    zoomPosition,
+                    MIN_ZOOM_POSITION,
+                    MAX_ZOOM_POSITION);
+
+            double zoomRatio =
+                MIN_ZOOM_RATIO
+                + clampedZoomPosition
+                / MAX_ZOOM_POSITION
+                * (MAX_ZOOM_RATIO - MIN_ZOOM_RATIO);
+
+            return zoomRatio;
+        }
+
+        /// <summary>
+        /// [실수] 입력값 범위 보정
+        /// 
+        /// 입력된 값이 지정 범위를 벗어난 경우
+        /// 최소 / 최대값으로 보정한다.
+        /// </summary>
+        /// <param name="value">
+        /// 입력값
+        /// </param>
+        /// <param name="min">
+        /// 최소값
+        /// </param>
+        /// <param name="max">
+        /// 최대값
+        /// </param>
+        /// <returns>
+        /// 범위 보정된 값
+        /// </returns>
+        private double Clamp(
+            double value,
+            double min,
+            double max)
+        {
+            if (value < min)
+            {
+                return min;
+            }
+
+            if (value > max)
+            {
+                return max;
+            }
+            return value;
+        }
 
         /// <summary>
         /// 마지막 상태 갱신 시간 반영
