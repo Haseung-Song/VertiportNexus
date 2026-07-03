@@ -6,31 +6,31 @@ namespace VertiportNexus.Models.Vertiport
     /// [CSE] 명령 응답 메시지 모델
     /// 
     /// [CSE] 명령 처리 결과를
-    /// [q.command.res] / 
-    /// [q.status.res] Queue로 송신하기 위한
+    /// [q.command.res] / [q.status.res] Queue로 송신하기 위한
     /// 응답 메시지 모델이다.
-    /// 
-    /// ICD 기준 응답 메시지의 공통 필드를 정의한다.
     /// </summary>
     public class CseCommandResponse
     {
-        #region [Common Properties]
+        #region [Message Properties]
 
         /// <summary>
         /// 인터페이스 식별자
         /// 
-        /// 요청 메시지의 [interface_id]를 그대로 반환한다.
+        /// 처리한 요청에 대응되는
+        /// [CSE → GUIS] 응답 Interface ID를 반환한다.
         /// </summary>
         [JsonPropertyName("interface_id")]
-        public string InterfaceId { get; set; }
+        public string InterfaceId { get; set; } =
+            string.Empty;
 
         /// <summary>
         /// 응답 메시지 타입
         /// 
-        /// 요청 [msg_type] 뒤에 [_res]를 붙여 사용한다.
+        /// 요청 [msg_type]에 대응되는 응답 타입을 반환한다.
         /// </summary>
         [JsonPropertyName("msg_type")]
-        public string MsgType { get; set; }
+        public string MsgType { get; set; } =
+            string.Empty;
 
         /// <summary>
         /// 요청 메시지 [ID]
@@ -38,35 +38,37 @@ namespace VertiportNexus.Models.Vertiport
         /// 요청 / 응답 매칭에 사용한다.
         /// </summary>
         [JsonPropertyName("req_msg_id")]
-        public string RequestMsgId { get; set; }
+        public string RequestMsgId { get; set; } =
+            string.Empty;
 
         /// <summary>
         /// 응답 메시지 [ID]
         /// </summary>
         [JsonPropertyName("msg_id")]
-        public string MsgId { get; set; }
+        public string MsgId { get; set; } =
+            string.Empty;
 
         /// <summary>
         /// 응답 생성 시간
         /// </summary>
         [JsonPropertyName("timestamp")]
-        public string Timestamp { get; set; }
+        public string Timestamp { get; set; } =
+            string.Empty;
+
+        #endregion
+
+        #region [Result Properties]
 
         /// <summary>
         /// 처리 상태
-        /// 
-        /// ICD 기준 처리 결과를 문자열로 반환한다.
         /// 
         /// 예)
         /// success
         /// error
         /// </summary>
         [JsonPropertyName("status")]
-        public string Status { get; set; }
-
-        #endregion
-
-        #region [Error Properties]
+        public string Status { get; set; } =
+            string.Empty;
 
         /// <summary>
         /// 에러 코드
@@ -75,7 +77,8 @@ namespace VertiportNexus.Models.Vertiport
         /// 오류 원인을 구분하기 위해 사용한다.
         /// </summary>
         [JsonPropertyName("error_code")]
-        public string ErrorCode { get; set; }
+        public string ErrorCode { get; set; } =
+            string.Empty;
 
         /// <summary>
         /// 결과 / 에러 메시지
@@ -83,7 +86,8 @@ namespace VertiportNexus.Models.Vertiport
         /// 성공 또는 실패 사유를 설명한다.
         /// </summary>
         [JsonPropertyName("message")]
-        public string Message { get; set; }
+        public string Message { get; set; } =
+            string.Empty;
 
         #endregion
 
@@ -92,7 +96,7 @@ namespace VertiportNexus.Models.Vertiport
         /// <summary>
         /// 응답 상세 데이터
         /// 
-        /// 상태 조회 / 설정 조회 등
+        /// 상태 조회 등
         /// 추가 응답 데이터가 필요한 경우 사용한다.
         /// </summary>
         [JsonPropertyName("payload")]

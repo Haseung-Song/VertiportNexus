@@ -1,12 +1,14 @@
-﻿
-namespace VertiportNexus.Models.ADS1000
+﻿namespace VertiportNexus.Models.ADS1000
 {
     /// <summary>
     /// [ADS1000] 수신 [Packet] 파싱 결과 모델
+    /// 
+    /// [MCB] / [SCB]에서 수신한 Packet의 Header / Body / Checksum 정보와
+    /// Pan / Tilt / Zoom / Focus 상태값 파싱 결과를 보관한다.
     /// </summary>
     public class Ads1000ParsedPacket
     {
-        #region [Header]
+        #region [Header Properties]
 
         /// <summary>
         /// 첫 번째 [Sync]
@@ -30,12 +32,13 @@ namespace VertiportNexus.Models.ADS1000
 
         #endregion
 
-        #region [Body]
+        #region [Body Properties]
 
         /// <summary>
         /// 수신 [Data]
         /// </summary>
-        public byte[] Data { get; set; }
+        public byte[] Data { get; set; } =
+            new byte[0];
 
         /// <summary>
         /// 수신 [Checksum]
@@ -44,7 +47,7 @@ namespace VertiportNexus.Models.ADS1000
 
         #endregion
 
-        #region [Result]
+        #region [Result Properties]
 
         /// <summary>
         /// [Packet] 유효 여부
@@ -54,16 +57,18 @@ namespace VertiportNexus.Models.ADS1000
         /// <summary>
         /// 파싱 결과 설명
         /// </summary>
-        public string Description { get; set; }
+        public string Description { get; set; } =
+            string.Empty;
 
         /// <summary>
         /// 오류 메시지
         /// </summary>
-        public string ErrorMessage { get; set; }
+        public string ErrorMessage { get; set; } =
+            string.Empty;
 
         #endregion
 
-        #region [Parsed Value]
+        #region [Value Flag Properties]
 
         /// <summary>
         /// [Pan] 값 포함 여부
@@ -84,6 +89,10 @@ namespace VertiportNexus.Models.ADS1000
         /// [Focus] 값 포함 여부
         /// </summary>
         public bool HasFocusValue { get; set; }
+
+        #endregion
+
+        #region [Parsed Value Properties]
 
         /// <summary>
         /// [Pan] 현재 값

@@ -84,7 +84,7 @@ namespace VertiportNexus.Services.Communication.MQ
 
         #endregion
 
-        #region [Connect]
+        #region [Connect Methods]
 
         /// <summary>
         /// [MQ] 연결
@@ -119,7 +119,7 @@ namespace VertiportNexus.Services.Communication.MQ
 
         #endregion
 
-        #region [Send]
+        #region [Send Methods]
 
         /// <summary>
         /// [MQ] 메시지 송신
@@ -153,7 +153,7 @@ namespace VertiportNexus.Services.Communication.MQ
 
         #endregion
 
-        #region [Receive]
+        #region [Receive Methods]
 
         /// <summary>
         /// [MQ] 수신 시작
@@ -203,7 +203,7 @@ namespace VertiportNexus.Services.Communication.MQ
         /// <summary>
         /// [MQ] 수신 메시지 이벤트 전달
         /// 
-        /// 향후 실제 [MQ] 수신부에서 메시지를 받은 뒤 호출한다.
+        /// 향후 실제 [MQ] 수신부를 본 클래스로 통합할 경우 호출한다.
         /// </summary>
         /// <param name="message">
         /// 수신 메시지
@@ -224,7 +224,7 @@ namespace VertiportNexus.Services.Communication.MQ
 
         #endregion
 
-        #region [Disconnect]
+        #region [Disconnect Methods]
 
         /// <summary>
         /// [MQ] 연결 해제 및 리소스 정리

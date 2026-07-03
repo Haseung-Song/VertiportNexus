@@ -17,7 +17,8 @@ namespace VertiportNexus.Services.Communication.MQ
         /// <summary>
         /// [RabbitMQ] 기본 연결 대상 [Host]
         /// </summary>
-        private const string DEFAULT_RABBITMQ_HOST_NAME = "127.0.0.1";
+        private const string DEFAULT_RABBITMQ_HOST_NAME
+            = "127.0.0.1";
 
         /// <summary>
         /// [RabbitMQ] 기본 연결 대상 [Port]
@@ -68,10 +69,17 @@ namespace VertiportNexus.Services.Communication.MQ
             _connectionFactory =
                 new ConnectionFactory
                 {
-                    HostName = hostName,
-                    Port = port,
-                    UserName = "vertiport_GS",
-                    Password = "rmffhqjf1!",
+                    HostName =
+                        hostName,
+
+                    Port =
+                        port,
+
+                    UserName =
+                        "vertiport_GS",
+
+                    Password =
+                        "rmffhqjf1!",
 
                     RequestedConnectionTimeout =
                         TimeSpan.FromSeconds(
@@ -85,6 +93,7 @@ namespace VertiportNexus.Services.Communication.MQ
                         TimeSpan.FromSeconds(
                             RABBITMQ_CONNECTION_TIMEOUT_SECONDS)
                 };
+
         }
 
         #endregion
@@ -191,6 +200,7 @@ namespace VertiportNexus.Services.Communication.MQ
                 Console.WriteLine("[RabbitMQ][SEND] Send Failed : Message is empty");
                 return false;
             }
+
             return true;
         }
         #endregion

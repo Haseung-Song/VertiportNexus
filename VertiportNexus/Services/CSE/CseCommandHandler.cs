@@ -192,18 +192,37 @@ namespace VertiportNexus.Services.Vertiport
             PrintCommandStartLog(
                 message);
 
-            if (!string.IsNullOrWhiteSpace(
-                message.InterfaceId))
+            try
             {
-                HandleCommandByInterfaceId(
-                    message);
+                if (!string.IsNullOrWhiteSpace(
+                    message.InterfaceId))
+                {
+                    HandleCommandByInterfaceId(
+                        message);
+                }
+                else
+                {
+                    HandleCommandByMsgType(
+                        message);
+                }
             }
-            else
+            catch (Exception ex)
             {
-                HandleCommandByMsgType(
-                    message);
+                ConsoleLogHelper.PrintLine();
+                Console.WriteLine("[CSE][CMD] Handle Exception");
+                Console.WriteLine("[CSE][CMD] Error : " + ex.Message);
+                ConsoleLogHelper.PrintLine();
+
+                SendCommandError(
+                    message,
+                    "INTERNAL_ERROR",
+                    "Command Handle Failed : " + ex.Message);
             }
-            PrintCommandEndLog();
+            finally
+            {
+                PrintCommandEndLog();
+            }
+
         }
 
         /// <summary>
@@ -684,7 +703,7 @@ namespace VertiportNexus.Services.Vertiport
             // 그 외 값이면 요청된 주기 기준으로 상태 송신을 시작한다.
             //
             // 실제 [q.status.res] 주기 송신 Loop는
-            // 다음 단계에서 연결한다.
+            // StartCameraStatusPublish()에서 처리한다.
             if (frequency == 0)
             {
                 StopCameraStatusPublish();
@@ -762,7 +781,6 @@ namespace VertiportNexus.Services.Vertiport
                             }
                         },
                         cancellationToken);
-
             }
 
         }

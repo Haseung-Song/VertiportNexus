@@ -8,7 +8,7 @@
     /// </summary>
     internal static class CseCommandType
     {
-        #region [Detection Command Type]
+        #region [Detection Command Types]
 
         /// <summary>
         /// 탐지 요청
@@ -32,17 +32,17 @@
 
         #endregion
 
-        #region [PTZ Command Type]
+        #region [PTZ Command Types]
 
         /// <summary>
-        /// PTZ 수동 제어 요청
+        /// [PTZ] 수동 제어 요청
         /// </summary>
         public const string PtzMove =
             "ptz_move";
 
         #endregion
 
-        #region [Status Command Type]
+        #region [Status Command Types]
 
         /// <summary>
         /// 카메라 상태 조회 요청

@@ -83,7 +83,8 @@ namespace VertiportNexus.Services.ADS1000
         /// </summary>
         public Ads1000McbPacketBuilder()
         {
-            _checksum = new Ads1000Checksum();
+            _checksum =
+                new Ads1000Checksum();
         }
 
         #endregion
@@ -408,14 +409,6 @@ namespace VertiportNexus.Services.ADS1000
                 Convert.ToInt32(
                     Ads1000Constants.MOTOR_ENCODER_RESOLUTION / 360.0 * degreePerSecond);
 
-            //Console.WriteLine(
-            //    "[PT SPEED] DegreePerSecond : " +
-            //    degreePerSecond);
-
-            //Console.WriteLine(
-            //    "[PT SPEED] MotorSpeed : " +
-            //    motorSpeed);
-
             string commandText =
                 "JV="
                 + motorSpeed
@@ -606,6 +599,7 @@ namespace VertiportNexus.Services.ADS1000
             {
                 return MAX_SPEED;
             }
+
             return degreePerSecond;
         }
 

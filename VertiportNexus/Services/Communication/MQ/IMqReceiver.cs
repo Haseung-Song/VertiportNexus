@@ -5,7 +5,7 @@ namespace VertiportNexus.Services.Communication.MQ
     /// <summary>
     /// [MQ] 수신 서비스 인터페이스
     /// 
-    /// [Mock MQ] / [RabbitMQ] 수신 서비스를
+    /// [MockMQ] / [RabbitMQ] 수신 서비스를
     /// 동일한 구조로 사용하기 위한 공통 인터페이스이다.
     /// </summary>
     internal interface IMqReceiver

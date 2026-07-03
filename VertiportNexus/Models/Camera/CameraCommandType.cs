@@ -46,7 +46,7 @@
 
         #endregion
 
-        #region [Status Command Types]
+        #region [State Command Types]
 
         /// <summary>
         /// 카메라 상태 조회 명령

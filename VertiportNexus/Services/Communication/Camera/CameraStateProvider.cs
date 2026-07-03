@@ -88,7 +88,7 @@ namespace VertiportNexus.Services.Camera
         /// <summary>
         /// 현재 [PTZ] 제어 모드
         /// 
-        /// [IF-GUIS-CSE-008] 요청으로 설정되는
+        /// [IF-GUIS-CSE-004] 요청 또는 화면 제어로 설정되는
         /// [AUTO] / [MANUAL] 값을 보관한다.
         /// </summary>
         private string _ptzControlMode =
@@ -172,7 +172,9 @@ namespace VertiportNexus.Services.Camera
                 {
                     return _currentZoomRatio;
                 }
+
             }
+
         }
 
         /// <summary>
@@ -399,7 +401,7 @@ namespace VertiportNexus.Services.Camera
         /// <summary>
         /// [PTZ] 제어 모드 갱신
         /// 
-        /// [IF-GUIS-CSE-008] 요청 또는
+        /// [IF-GUIS-CSE-004] 요청 또는
         /// 화면 버튼 조작으로 설정된 [AUTO] / [MANUAL] 값을 저장한다.
         /// </summary>
         public void UpdatePtzControlMode(

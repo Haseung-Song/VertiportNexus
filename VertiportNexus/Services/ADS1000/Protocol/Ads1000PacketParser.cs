@@ -149,9 +149,7 @@ namespace VertiportNexus.Services.ADS1000
 
             result.IsValid = true;
 
-            /// <summary>
-            /// [Cmd1] / [Data] 기준 실제 상태값 파싱
-            /// </summary>
+            // [Cmd1] / [Data] 기준 실제 상태값 파싱
             ParseStatusValue(
                 result);
 
@@ -191,9 +189,7 @@ namespace VertiportNexus.Services.ADS1000
 
             while (index <= receivedData.Length - MIN_PACKET_LENGTH)
             {
-                /// <summary>
-                /// [AA AA] [Sync] 위치를 찾는다.
-                /// </summary>
+                // [AA AA] [Sync] 위치를 찾는다.
                 if (receivedData[index] != SYNC_0 ||
                     receivedData[index + 1] != SYNC_1)
                 {
@@ -201,9 +197,7 @@ namespace VertiportNexus.Services.ADS1000
                     continue;
                 }
 
-                /// <summary>
-                /// [Length] 위치까지 접근 가능한지 확인한다.
-                /// </summary>
+                // [Length] 위치까지 접근 가능한지 확인한다.
                 if (index + 3 >= receivedData.Length)
                     break;
 
@@ -212,9 +206,7 @@ namespace VertiportNexus.Services.ADS1000
                 int packetLength =
                     2 + 1 + 1 + dataLength + 1;
 
-                /// <summary>
-                /// 수신 버퍼 안에 완성 [Packet]이 모두 들어왔는지 확인한다.
-                /// </summary>
+                // 수신 버퍼 안에 완성 [Packet]이 모두 들어왔는지 확인한다.
                 if (index + packetLength > receivedData.Length)
                     break;
 
@@ -349,13 +341,11 @@ namespace VertiportNexus.Services.ADS1000
                 return false;
             }
 
-            /// <summary>
-            /// Encoder 값 => 각도 변환
-            /// 
-            /// 문서 기준:
-            /// 위치 = 2^19 / 360 * 각도
-            /// 각도 = 위치 * 360 / 2^19
-            /// </summary>
+            // Encoder 값 => 각도 변환
+            // 
+            // 문서 기준:
+            // 위치 = 2^19 / 360 * 각도
+            // 각도 = 위치 * 360 / 2^19
             angleValue =
                 encoderValue * 360.0 / Ads1000Constants.MOTOR_ENCODER_RESOLUTION;
 
@@ -406,6 +396,7 @@ namespace VertiportNexus.Services.ADS1000
             {
                 return string.Empty;
             }
+
             return "Unknown ADS1000 Packet";
         }
 

@@ -56,10 +56,14 @@ namespace VertiportNexus.Services.ADS1000
 
         #endregion
 
-        #region [Public Methods]
+        #region [Packet Process Methods]
 
         /// <summary>
         /// [ADS1000] 단일 수신 [Packet] 처리
+        /// 
+        /// 수신 데이터가 단일 Packet으로 보장되는 경우 사용한다.
+        /// 일반적인 TCP 수신 처리에서는 여러 Packet이 합쳐질 수 있으므로
+        /// [ProcessReceivedPackets] 사용을 우선한다.
         /// </summary>
         public Ads1000StatusResult ProcessReceivedPacket(
             string deviceName,
@@ -145,7 +149,6 @@ namespace VertiportNexus.Services.ADS1000
                         packetText,
                         parsedPacket));
             }
-
             return statusResults;
         }
 
@@ -207,12 +210,12 @@ namespace VertiportNexus.Services.ADS1000
 
         #endregion
 
-        #region [Utility Methods]
+        #region [Convert Methods]
 
         /// <summary>
         /// [byte[]] 데이터를 [HEX] 문자열로 변환
         /// </summary>
-        private string ConvertToHexString(
+        private static string ConvertToHexString(
             byte[] data)
         {
             if (data == null ||

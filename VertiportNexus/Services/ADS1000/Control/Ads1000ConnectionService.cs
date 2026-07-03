@@ -28,6 +28,9 @@ namespace VertiportNexus.Services.ADS1000
         /// </summary>
         private readonly TcpClientService _scbTcpClientService;
 
+        #endregion
+
+        #region [Events]
 
         /// <summary>
         /// [MCB] / [SCB] 연결 상태 변경 이벤트
@@ -61,7 +64,7 @@ namespace VertiportNexus.Services.ADS1000
 
         #endregion
 
-        #region [Public Methods]
+        #region [Connection Methods]
 
         /// <summary>
         /// [MCB] / [SCB] 장비 [TCP] 연결
@@ -102,7 +105,7 @@ namespace VertiportNexus.Services.ADS1000
             // [SCB] 연결 전 대기
             //
             // 화면에서 [Connecting] 상태가 즉시 지나가지 않도록
-            // [MCB] 연결 시도 전 짧은 대기 시간을 둔다.
+            // [SCB] 연결 시도 전 짧은 대기 시간을 둔다.
             await Task.Delay(
                 500);
 

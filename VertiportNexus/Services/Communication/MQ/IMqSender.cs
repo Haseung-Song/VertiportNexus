@@ -3,7 +3,7 @@
     /// <summary>
     /// [MQ] 송신 서비스 인터페이스
     /// 
-    /// [Mock MQ] / [RabbitMQ] 송신 서비스를
+    /// [MockMQ] / [RabbitMQ] 송신 서비스를
     /// 동일한 구조로 사용하기 위한 공통 인터페이스이다.
     /// </summary>
     internal interface IMqSender

@@ -178,7 +178,7 @@ namespace VertiportNexus.Services.Vertiport
         /// <summary>
         /// [카메라 상태] 응답 송신
         /// 
-        /// 최종 ICD [IF-CSE-GUIS-112] 기준
+        /// 최종 ICD [IF-CSE-GUIS-005] 기준
         /// 현재 카메라 상태를 [q.status.res] Queue로 송신한다.
         /// </summary>
         /// <param name="cameraStateProvider">
@@ -206,7 +206,7 @@ namespace VertiportNexus.Services.Vertiport
 
                     timestamp =
                         DateTime.Now.ToString(
-                            "yyyy-MM-ddTHH:mm:ss"),
+                            RESPONSE_TIMESTAMP_FORMAT),
 
                     status =
                         "success",
@@ -335,14 +335,28 @@ namespace VertiportNexus.Services.Vertiport
             string queueName,
             CseCommandResponse response)
         {
-            string json =
-                JsonSerializer.Serialize(
-                    response,
-                    _jsonSerializerOptions);
+            try
+            {
+                string json =
+                    JsonSerializer.Serialize(
+                        response,
+                        _jsonSerializerOptions);
 
-            _mqSender.Send(
-                queueName,
-                json);
+                _mqSender.Send(
+                    queueName,
+                    json);
+            }
+            catch (Exception ex)
+            {
+                ConsoleLogHelper.PrintLine();
+
+                Console.WriteLine("[CSE][RES] Response Send Failed");
+                Console.WriteLine("[CSE][RES] Queue : " + queueName);
+                Console.WriteLine("[CSE][RES] Error : " + ex.Message);
+
+                ConsoleLogHelper.PrintLine();
+            }
+
         }
         #endregion
     }

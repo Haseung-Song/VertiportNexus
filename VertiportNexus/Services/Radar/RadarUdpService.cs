@@ -91,32 +91,52 @@ namespace VertiportNexus.Services.Radar
             IPEndPoint remoteEndPoint,
             DateTime receivedTime)
         {
-            ConsoleLogHelper.PrintLine();
-            Console.WriteLine("[RADAR][UDP] Packet Received");
-            Console.WriteLine("[RADAR][UDP] Remote : " + remoteEndPoint);
-            Console.WriteLine("[RADAR][UDP] Length : " + receivedData.Length);
-            ConsoleLogHelper.PrintLine();
-
-            byte[] responsePacket =
-                _radarCommandHandler
-                    .Handle(
-                        receivedData);
-
-            if (responsePacket == null ||
-                responsePacket.Length == 0)
+            try
             {
-                Console.WriteLine("[RADAR][UDP] Response Skip : Empty Packet");
-                return;
+                if (receivedData == null ||
+                    receivedData.Length == 0)
+                {
+                    Console.WriteLine("[RADAR][UDP] Receive Skip : Empty Packet");
+
+                    return;
+                }
+
+                ConsoleLogHelper.PrintLine();
+                Console.WriteLine("[RADAR][UDP] Packet Received");
+                Console.WriteLine("[RADAR][UDP] Remote : " + remoteEndPoint);
+                Console.WriteLine("[RADAR][UDP] Length : " + receivedData.Length);
+                ConsoleLogHelper.PrintLine();
+
+                byte[] responsePacket =
+                    _radarCommandHandler
+                        .Handle(
+                            receivedData);
+
+                if (responsePacket == null ||
+                    responsePacket.Length == 0)
+                {
+                    Console.WriteLine("[RADAR][UDP] Response Skip : Empty Packet");
+
+                    return;
+                }
+
+                bool isSent =
+                    _radarUdpClientService
+                        .Send(
+                            responsePacket,
+                            remoteEndPoint);
+
+                Console.WriteLine("[RADAR][UDP] Response Send Result : " + isSent);
+                ConsoleLogHelper.PrintLine();
+            }
+            catch (Exception ex)
+            {
+                ConsoleLogHelper.PrintLine();
+                Console.WriteLine("[RADAR][UDP] Packet Handle Failed");
+                Console.WriteLine("[RADAR][UDP] Error : " + ex.Message);
+                ConsoleLogHelper.PrintLine();
             }
 
-            bool isSent =
-                _radarUdpClientService
-                    .Send(
-                        responsePacket,
-                        remoteEndPoint);
-
-            Console.WriteLine("[RADAR][UDP] Response Send Result : " + isSent);
-            ConsoleLogHelper.PrintLine();
         }
         #endregion
     }

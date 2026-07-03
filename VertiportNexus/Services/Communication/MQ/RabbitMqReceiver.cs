@@ -52,12 +52,12 @@ namespace VertiportNexus.Services.Communication.MQ
         private IModel _channel;
 
         /// <summary>
-        /// [RabbitMQ] Command Request Consumer 식별값
+        /// [RabbitMQ] [Command Request] Consumer 식별값
         /// </summary>
         private string _commandRequestConsumerTag;
 
         /// <summary>
-        /// [RabbitMQ] Status Request Consumer 식별값
+        /// [RabbitMQ] [Status Request] Consumer 식별값
         /// </summary>
         private string _statusRequestConsumerTag;
 

@@ -3,7 +3,7 @@
     /// <summary>
     /// [ADS1000] 장비 연결 결과
     /// 
-    /// [MCB] / [SCB] [TCP] 연결 성공 여부를 보관한다.
+    /// [MCB] / [SCB] [TCP] 연결 처리 결과를 보관한다.
     /// </summary>
     public class Ads1000ConnectionResult
     {
@@ -29,7 +29,6 @@
         /// <param name="isMcbConnected">
         /// [MCB] 연결 성공 여부
         /// </param>
-        /// 
         /// <param name="isScbConnected">
         /// [SCB] 연결 성공 여부
         /// </param>
@@ -43,6 +42,7 @@
             IsScbConnected =
                 isScbConnected;
         }
+
         #endregion
     }
 

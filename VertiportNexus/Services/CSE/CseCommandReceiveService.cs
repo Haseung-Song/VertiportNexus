@@ -115,33 +115,43 @@ namespace VertiportNexus.Services.Vertiport
             string queueName,
             string json)
         {
-            LastMessageChanged?.Invoke(
-                json);
-
-            ConsoleLogHelper.PrintLine();
-            Console.WriteLine("[CSE][RECV] Queue : " + queueName);
-            Console.WriteLine("[CSE][RECV] JSON Parse Start");
-
-            CseCommandMessage message =
-                _messageParser.Parse(
+            try
+            {
+                LastMessageChanged?.Invoke(
                     json);
 
-            if (message == null)
-            {
-                Console.WriteLine("[CSE][RECV] JSON Parse Failed");
+                ConsoleLogHelper.PrintLine();
+                Console.WriteLine("[CSE][RECV] Queue : " + queueName);
+                Console.WriteLine("[CSE][RECV] JSON Parse Start");
+
+                CseCommandMessage message =
+                    _messageParser.Parse(
+                        json);
+
+                if (message == null)
+                {
+                    Console.WriteLine("[CSE][RECV] JSON Parse Failed");
+                    ConsoleLogHelper.PrintLine();
+                    return;
+                }
+
+                Console.WriteLine("[CSE][RECV] InterfaceId : " + message.InterfaceId);
+                Console.WriteLine("[CSE][RECV] MsgType : " + message.MsgType);
+                Console.WriteLine("[CSE][RECV] MsgId : " + message.MsgId);
+                Console.WriteLine("[CSE][RECV] ReplyTo : " + message.ReplyTo);
                 ConsoleLogHelper.PrintLine();
 
-                return;
+                CommandReceived?.Invoke(
+                    message);
+            }
+            catch (Exception ex)
+            {
+                ConsoleLogHelper.PrintLine();
+                Console.WriteLine("[CSE][RECV] Message Receive Failed");
+                Console.WriteLine("[CSE][RECV] Error : " + ex.Message);
+                ConsoleLogHelper.PrintLine();
             }
 
-            Console.WriteLine("[CSE][RECV] InterfaceId : " + message.InterfaceId);
-            Console.WriteLine("[CSE][RECV] MsgType : " + message.MsgType);
-            Console.WriteLine("[CSE][RECV] MsgId : " + message.MsgId);
-            Console.WriteLine("[CSE][RECV] ReplyTo : " + message.ReplyTo);
-            ConsoleLogHelper.PrintLine();
-
-            CommandReceived?.Invoke(
-                message);
         }
         #endregion
     }

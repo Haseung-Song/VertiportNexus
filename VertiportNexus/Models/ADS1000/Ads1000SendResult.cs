@@ -1,11 +1,10 @@
-﻿
-namespace VertiportNexus.Models.ADS1000
+﻿namespace VertiportNexus.Models.ADS1000
 {
     /// <summary>
     /// [ADS1000] [Packet] 송신 결과
     /// 
     /// [MCB] / [SCB] [Packet] 송신 결과와
-    /// 화면에 표시할 명령 정보를 보관한다.
+    /// 화면 표시용 명령 정보를 보관한다.
     /// </summary>
     public class Ads1000SendResult
     {
@@ -57,13 +56,13 @@ namespace VertiportNexus.Models.ADS1000
             bool isSuccess)
         {
             DeviceName =
-                deviceName;
+                deviceName ?? string.Empty;
 
             Packet =
-                packet;
+                packet ?? new byte[0];
 
             CommandName =
-                commandName;
+                commandName ?? string.Empty;
 
             IsSuccess =
                 isSuccess;

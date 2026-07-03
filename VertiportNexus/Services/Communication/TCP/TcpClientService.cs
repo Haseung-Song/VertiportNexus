@@ -12,7 +12,7 @@ namespace VertiportNexus.Services.Communication.TCP
     /// 역할:
     /// 1. [MCB] / [SCB] 장비에 [TCP] 연결
     /// 2. [ADS1000] 제어 [Packet] 송신
-    /// 3. 장비에서 수신되는 데이터 처리 및 [Console] [Log] 출력
+    /// 3. 장비에서 수신되는 데이터 처리 및 수신 이벤트 전달
     /// 4. [Disconnect] 시 [Socket] / [Stream] / [Token] 리소스 정리
     /// </summary>
     public class TcpClientService
@@ -65,7 +65,7 @@ namespace VertiportNexus.Services.Communication.TCP
         /// <summary>
         /// 수신 데이터 전달 이벤트
         /// 
-        /// [ViewModel]에서 수신 [Packet]을 받고 싶을 때 사용한다.
+        /// [ViewModel] 또는 상위 서비스로 수신 [Packet]을 전달할 때 사용한다.
         /// </summary>
         public event Action<byte[], DateTime> MessageReceived;
 
@@ -93,12 +93,15 @@ namespace VertiportNexus.Services.Communication.TCP
         public TcpClientService(
             string deviceName)
         {
-            _deviceName = deviceName;
+            _deviceName =
+                string.IsNullOrWhiteSpace(deviceName)
+                    ? "TCP"
+                    : deviceName;
         }
 
         #endregion
 
-        #region [Connect]
+        #region [Connect Methods]
 
         /// <summary>
         /// 장비에 [TCP] [Client]로 접속
@@ -158,7 +161,7 @@ namespace VertiportNexus.Services.Communication.TCP
 
         #endregion
 
-        #region [Send]
+        #region [Send Methods]
 
         /// <summary>
         /// 장비로 byte[] [Packet] 송신
@@ -210,7 +213,7 @@ namespace VertiportNexus.Services.Communication.TCP
 
         #endregion
 
-        #region [Receive]
+        #region [Receive Methods]
 
         /// <summary>
         /// 장비에서 들어오는 데이터 수신 루프
@@ -293,7 +296,9 @@ namespace VertiportNexus.Services.Communication.TCP
             byte[] receivedData)
         {
             if ((DateTime.Now - _lastRecvLogTime).TotalSeconds < 1)
+            {
                 return;
+            }
 
             PrintHexData(
                 "[TCP][" + _deviceName + "] RECV",
@@ -318,7 +323,7 @@ namespace VertiportNexus.Services.Communication.TCP
 
         #endregion
 
-        #region [Log]
+        #region [Log Methods]
 
         /// <summary>
         /// [byte] 배열을 [HEX] 문자열 형태로 [Console] 출력
@@ -338,7 +343,7 @@ namespace VertiportNexus.Services.Communication.TCP
 
         #endregion
 
-        #region [Disconnect]
+        #region [Disconnect Methods]
 
         /// <summary>
         /// [TCP] 연결 해제 및 리소스 정리

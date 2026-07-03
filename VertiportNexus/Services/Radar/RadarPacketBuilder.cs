@@ -34,6 +34,14 @@ namespace VertiportNexus.Services.Radar
         public byte[] BuildTrackingResponsePacket(
             RadarTrackingResponsePayload payload)
         {
+            if (payload == null)
+            {
+                Console.WriteLine(
+                    "[RADAR][BUILDER] Tracking Response Failed : Payload is null");
+
+                return null;
+            }
+
             byte[] subData =
                 BuildTrackingResponseSubData(
                     payload);
@@ -54,6 +62,14 @@ namespace VertiportNexus.Services.Radar
         public byte[] BuildBistResponsePacket(
             RadarBistResponsePayload payload)
         {
+            if (payload == null)
+            {
+                Console.WriteLine(
+                    "[RADAR][BUILDER] BIST Response Failed : Payload is null");
+
+                return null;
+            }
+
             byte[] subData =
                 BuildBistResponseSubData(
                     payload);
@@ -269,6 +285,7 @@ namespace VertiportNexus.Services.Radar
                 checksum ^=
                     value;
             }
+
             return checksum;
         }
         #endregion

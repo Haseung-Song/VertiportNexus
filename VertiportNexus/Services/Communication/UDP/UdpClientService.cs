@@ -60,7 +60,11 @@ namespace VertiportNexus.Services.Communication.UDP
         {
             get
             {
-                return _isReceiving;
+                lock (_udpClientLock)
+                {
+                    return _isReceiving;
+                }
+
             }
 
         }
@@ -88,12 +92,14 @@ namespace VertiportNexus.Services.Communication.UDP
             string serviceName)
         {
             _serviceName =
-                serviceName;
+                string.IsNullOrWhiteSpace(serviceName)
+                    ? "UDP"
+                    : serviceName;
         }
 
         #endregion
 
-        #region [Receive]
+        #region [Receive Methods]
 
         /// <summary>
         /// UDP 수신 시작
@@ -287,7 +293,7 @@ namespace VertiportNexus.Services.Communication.UDP
 
         #endregion
 
-        #region [Send]
+        #region [Send Methods]
 
         /// <summary>
         /// UDP Packet 송신
@@ -385,7 +391,7 @@ namespace VertiportNexus.Services.Communication.UDP
 
         #endregion
 
-        #region [Stop]
+        #region [Stop Methods]
 
         /// <summary>
         /// UDP 수신 중지
@@ -440,7 +446,7 @@ namespace VertiportNexus.Services.Communication.UDP
 
         #endregion
 
-        #region [Log]
+        #region [Log Methods]
 
         /// <summary>
         /// [byte[]] HEX 로그 출력

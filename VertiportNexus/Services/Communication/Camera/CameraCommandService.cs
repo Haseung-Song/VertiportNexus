@@ -157,7 +157,7 @@ namespace VertiportNexus.Services.Command
 
         #endregion
 
-        #region [Public Methods]
+        #region [Command Handle Methods]
 
         /// <summary>
         /// 내부 카메라 명령 처리
@@ -201,12 +201,12 @@ namespace VertiportNexus.Services.Command
 
         #endregion
 
-        #region [PTZ Methods]
+        #region [PTZ Command Methods]
 
         /// <summary>
         /// [PTZ] 이동 명령 처리
         /// 
-        /// 최신 [IF-GUIS-CSE-006] 기준
+        /// 최종 [IF-GUIS-CSE-004] 기준
         /// [zoom] / [continuous] / [relative] / [absolute] / [auto] / [manual]
         /// 모드에 따라 실제 장비 제어 서비스를 호출한다.
         /// </summary>
@@ -265,7 +265,7 @@ namespace VertiportNexus.Services.Command
         /// <summary>
         /// [PTZ] [AUTO] 모드 설정 처리
         /// 
-        /// 최신 [IF-GUIS-CSE-006]에서
+        /// 최종 [IF-GUIS-CSE-004]에서
         /// [mode] 값이 [auto]인 경우 호출된다.
         /// 
         /// 실제 상태 저장은 [CseCommandHandler] 또는
@@ -280,7 +280,7 @@ namespace VertiportNexus.Services.Command
         /// <summary>
         /// [PTZ] [MANUAL] 모드 설정 처리
         /// 
-        /// 최신 [IF-GUIS-CSE-006]에서
+        /// 최종 [IF-GUIS-CSE-004]에서
         /// [mode] 값이 [manual]인 경우 호출된다.
         /// 
         /// 실제 상태 저장은 [CseCommandHandler] 또는
@@ -302,12 +302,12 @@ namespace VertiportNexus.Services.Command
 
         #endregion
 
-        #region [Continuous Move Methods]
+        #region [Continuous PTZ Methods]
 
         /// <summary>
         /// [continuous] 이동 명령 처리
         /// 
-        /// 최신 [IF-GUIS-CSE-006] 기준
+        /// 최종 [IF-GUIS-CSE-004] 기준
         /// [command] 값으로 Pan / Tilt 연속 이동 방향을 분기한다.
         /// 
         /// 기존 [pan] / [tilt] 부호 기반 제어도
@@ -348,7 +348,9 @@ namespace VertiportNexus.Services.Command
             {
                 return;
             }
-            Console.WriteLine("[CAMERA][CMD] Continuous Move Failed : No command or direction value");
+
+            Console.WriteLine(
+                "[CAMERA][CMD] Continuous Move Failed : No command or direction value");
         }
 
         /// <summary>
@@ -476,7 +478,6 @@ namespace VertiportNexus.Services.Command
             {
                 _ads1000CameraControlService.PanLeft();
             }
-
             return true;
         }
 
@@ -562,12 +563,12 @@ namespace VertiportNexus.Services.Command
 
         #endregion
 
-        #region [Zoom Move Methods]
+        #region [Zoom Command Methods]
 
         /// <summary>
         /// [zoom] 이동 명령 처리
         /// 
-        /// 최신 [IF-GUIS-CSE-006] 기준
+        /// 최종 [IF-GUIS-CSE-004] 기준
         /// [Zoom] 단독 제어를 처리한다.
         /// 
         /// [Zoom] 제어는 [AUTO] / [MANUAL] 모드와 관계없이
@@ -612,12 +613,14 @@ namespace VertiportNexus.Services.Command
 
                 return;
             }
-            Console.WriteLine("[CAMERA][CMD] Zoom Move Failed : Zoom value is empty");
+
+            Console.WriteLine(
+                "[CAMERA][CMD] Zoom Move Failed : Zoom value is empty");
         }
 
         #endregion
 
-        #region [Absolute Move Methods]
+        #region [Absolute PTZ Methods]
 
         /// <summary>
         /// [absolute] 위치 이동 명령 처리
@@ -798,7 +801,7 @@ namespace VertiportNexus.Services.Command
 
         #endregion
 
-        #region [Relative Move Methods]
+        #region [Relative PTZ Methods]
 
         /// <summary>
         /// [relative] 상대 이동 명령 처리
@@ -875,7 +878,7 @@ namespace VertiportNexus.Services.Command
         /// <summary>
         /// [Zoom] 배율을 [ADS1000] 위치값으로 변환
         /// 
-        /// [IF-GUIS-CSE-006]의 [zoom] 값은 실제 배율 기준이고,
+        /// [IF-GUIS-CSE-004]의 [zoom] 값은 실제 배율 기준이고,
         /// [ADS1000] 장비 제어는 [0 ~ 1000] 위치값 기준으로 수행한다.
         /// 
         /// 장비 스펙 기준으로 최대 배율을 [66x] 기준으로 구현한다.
@@ -917,7 +920,8 @@ namespace VertiportNexus.Services.Command
         /// <summary>
         /// 내부 카메라 명령 처리 시작 로그 출력
         /// </summary>
-        private void PrintCommandStartLog(CameraCommand command)
+        private void PrintCommandStartLog(
+            CameraCommand command)
         {
             ConsoleLogHelper.PrintLine();
             Console.WriteLine("[CAMERA][CMD] Camera Command Start");
@@ -958,7 +962,7 @@ namespace VertiportNexus.Services.Command
         {
             return string.Equals(
                 _cameraStateProvider.PtzControlMode,
-                "AUTO",
+                PTZ_MODE_AUTO,
                 StringComparison.OrdinalIgnoreCase);
         }
 
@@ -1111,7 +1115,6 @@ namespace VertiportNexus.Services.Command
             {
                 return 0.0;
             }
-
             return normalizedPan;
         }
 
@@ -1137,7 +1140,6 @@ namespace VertiportNexus.Services.Command
             {
                 return 0.0;
             }
-
             return angle;
         }
 

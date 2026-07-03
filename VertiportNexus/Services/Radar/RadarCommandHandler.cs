@@ -9,8 +9,10 @@ namespace VertiportNexus.Services.Radar
     /// [Radar] Command Handler
     /// 
     /// Radar Packet의 Command를 기준으로
-    /// 추적 요청 / BIST 요청을 분기 처리하고,
-    /// 응답 Packet을 생성한다.
+    /// 추적 요청을 처리하고 응답 Packet을 생성한다.
+    /// 
+    /// BIST 관련 분기는 최종 ICD 확정 전까지
+    /// 기존 참조 구조 유지를 위해 임시로 유지한다.
     /// </summary>
     internal class RadarCommandHandler
     {
@@ -105,66 +107,79 @@ namespace VertiportNexus.Services.Radar
         public byte[] Handle(
             byte[] packetBytes)
         {
-            ConsoleLogHelper.PrintLine();
-
-            Console.WriteLine(
-                "[RADAR][CMD] Packet Handle Start");
-
-            ConsoleLogHelper.PrintLine();
-
-            RadarPacket radarPacket =
-                _radarPacketParser
-                    .ParsePacket(
-                        packetBytes);
-
-            if (radarPacket == null)
+            try
             {
-                Console.WriteLine(
-                    "[RADAR][CMD] Failed : Packet Parse Failed");
+                ConsoleLogHelper.PrintLine();
 
+                Console.WriteLine(
+                    "[RADAR][CMD] Packet Handle Start");
+
+                ConsoleLogHelper.PrintLine();
+
+                RadarPacket radarPacket =
+                    _radarPacketParser
+                        .ParsePacket(
+                            packetBytes);
+
+                if (radarPacket == null)
+                {
+                    Console.WriteLine(
+                        "[RADAR][CMD] Failed : Packet Parse Failed");
+
+                    ConsoleLogHelper.PrintLine();
+
+                    return null;
+                }
+
+                PrintPacketHeaderLog(
+                    radarPacket);
+
+                byte[] responsePacket;
+
+                switch (radarPacket.Header.Command)
+                {
+                    case RadarPacketConstants.COMMAND_TRACKING_REQUEST:
+                        responsePacket =
+                            HandleTrackingRequest(
+                                radarPacket);
+                        break;
+
+                    case RadarPacketConstants.COMMAND_BIST_REQUEST:
+                        responsePacket =
+                            HandleBistRequest(
+                                radarPacket);
+                        break;
+
+                    default:
+                        Console.WriteLine(
+                            "[RADAR][CMD] Failed : Unknown Command");
+
+                        Console.WriteLine(
+                            "[RADAR][CMD] Command : "
+                            + radarPacket.Header.Command);
+
+                        responsePacket =
+                            null;
+                        break;
+                }
+
+                Console.WriteLine(
+                    "[RADAR][CMD] Packet Handle End");
+
+                ConsoleLogHelper.PrintLine();
+
+                return responsePacket;
+            }
+            catch (Exception ex)
+            {
+                ConsoleLogHelper.PrintLine();
+                Console.WriteLine("[RADAR][CMD] Packet Handle Exception");
+                Console.WriteLine("[RADAR][CMD] Error : " + ex.Message);
                 ConsoleLogHelper.PrintLine();
 
                 return null;
             }
 
-            PrintPacketHeaderLog(
-                radarPacket);
-
-            byte[] responsePacket;
-
-            switch (radarPacket.Header.Command)
-            {
-                case RadarPacketConstants.COMMAND_TRACKING_REQUEST:
-                    responsePacket =
-                        HandleTrackingRequest(
-                            radarPacket);
-                    break;
-
-                case RadarPacketConstants.COMMAND_BIST_REQUEST:
-                    responsePacket =
-                        HandleBistRequest(
-                            radarPacket);
-                    break;
-
-                default:
-                    Console.WriteLine(
-                        "[RADAR][CMD] Failed : Unknown Command");
-
-                    Console.WriteLine(
-                        "[RADAR][CMD] Command : "
-                        + radarPacket.Header.Command);
-
-                    responsePacket =
-                        null;
-                    break;
-            }
-
-            Console.WriteLine(
-                "[RADAR][CMD] Packet Handle End");
-
-            ConsoleLogHelper.PrintLine();
-
-            return responsePacket;
         }
 
         #endregion

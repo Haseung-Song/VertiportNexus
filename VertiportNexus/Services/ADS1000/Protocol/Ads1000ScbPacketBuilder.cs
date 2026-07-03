@@ -121,8 +121,7 @@
         /// </summary>
         public Ads1000ScbPacketBuilder()
         {
-            _checksum =
-                new Ads1000Checksum();
+            _checksum = new Ads1000Checksum();
         }
 
         #endregion
@@ -312,24 +311,20 @@
             byte option,
             ushort data)
         {
-            /// <summary>
-            /// [Data]는 문서 기준 [Little Endian]이다.
-            /// 
-            /// 예)
-            /// data = 5
-            /// dataLow  = 0x05
-            /// dataHigh = 0x00
-            /// </summary>
+            // [Data]는 문서 기준 [Little Endian]이다.
+            // 
+            // 예)
+            // data = 5
+            // dataLow  = 0x05
+            // dataHigh = 0x00
             byte dataLow =
                 (byte)(data & 0xFF);
 
             byte dataHigh =
                 (byte)((data >> 8) & 0xFF);
 
-            /// <summary>
-            /// [Checksum] 계산 대상:
-            /// Cmd2 + Option + Data[0] + Data[1] + Data[2]
-            /// </summary>
+            // [Checksum] 계산 대상:
+            // Cmd2 + Option + Data[0] + Data[1] + Data[2]
             byte checksum =
                 _checksum.Calculate(
                     cmd2,

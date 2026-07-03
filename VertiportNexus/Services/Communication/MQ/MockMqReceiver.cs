@@ -8,7 +8,7 @@ namespace VertiportNexus.Services.Communication.MQ
     /// [Mock] [MQ] 수신 서비스
     /// 
     /// 실제 [RabbitMQ] 서버 연결 전,
-    /// 테스트 [JSON] 문자열을 강제로 수신 처리하기 위한
+    /// 테스트 [JSON] 문자열을 수동으로 수신 처리하기 위한
     /// 개발용 수신기이다.
     /// </summary>
     internal class MockMqReceiver : IMqReceiver

@@ -32,6 +32,7 @@ namespace VertiportNexus.Services.Communication.MQ
             {
                 return;
             }
+
             ConsoleLogHelper.PrintLine();
             Console.WriteLine("[MQ][MOCK][SEND] Send");
             Console.WriteLine("[MQ][MOCK][SEND] Queue : " + queueName);
@@ -71,6 +72,7 @@ namespace VertiportNexus.Services.Communication.MQ
                 Console.WriteLine("[MQ][MOCK][SEND] Send Failed : Message is empty");
                 return false;
             }
+
             return true;
         }
         #endregion

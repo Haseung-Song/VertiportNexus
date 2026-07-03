@@ -8,7 +8,7 @@
     /// </summary>
     internal static class CseInterfaceId
     {
-        #region [GUIS -> CSE]
+        #region [GUIS -> CSE Interface IDs]
 
         /// <summary>
         /// [GUIS -> CSE] 탐지 요청
@@ -32,7 +32,7 @@
             "IF-GUIS-CSE-003";
 
         /// <summary>
-        /// [GUIS -> CSE] PTZ 수동 제어 요청
+        /// [GUIS -> CSE] [PTZ] 수동 제어 요청
         /// </summary>
         public const string PtzMove =
             "IF-GUIS-CSE-004";
@@ -47,7 +47,7 @@
 
         #endregion
 
-        #region [CSE -> GUIS]
+        #region [CSE -> GUIS Interface IDs]
 
         /// <summary>
         /// [CSE -> GUIS] 탐지 요청 응답
@@ -68,18 +68,18 @@
             "IF-CSE-GUIS-003";
 
         /// <summary>
-        /// [CSE -> GUIS] PTZ 수동 제어 요청 응답
+        /// [CSE -> GUIS] [PTZ] 수동 제어 요청 응답
         /// </summary>
         public const string PtzMoveResponse =
             "IF-CSE-GUIS-004";
 
         /// <summary>
-        /// [CSE -> GUIS] 카메라 상태 응답
+        /// [CSE -> GUIS] 카메라 상태 조회 응답
         /// 
         /// [q.status.res] Queue로 송신된다.
         /// </summary>
         public const string GetStateResponse =
-            "IF-CSE-GUIS-112";
+            "IF-CSE-GUIS-005";
 
         #endregion
     }

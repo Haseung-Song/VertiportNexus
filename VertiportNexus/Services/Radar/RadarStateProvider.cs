@@ -7,7 +7,10 @@ namespace VertiportNexus.Services.Radar
     /// [Radar] 상태 저장 서비스
     /// 
     /// Radar Packet 수신 결과와
-    /// 마지막 추적 요청 / BIST 요청 정보를 보관한다.
+    /// 마지막 추적 요청 정보를 보관한다.
+    /// 
+    /// BIST 요청 정보는 최종 ICD 정리 전까지
+    /// 기존 참조 구조 유지를 위해 임시로 보관한다.
     /// </summary>
     internal class RadarStateProvider
     {
@@ -29,8 +32,7 @@ namespace VertiportNexus.Services.Radar
         /// <summary>
         /// 동기화 객체
         /// </summary>
-        private readonly object _syncLock =
-            new object();
+        private readonly object _syncLock = new object();
 
         #endregion
 

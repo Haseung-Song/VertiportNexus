@@ -95,6 +95,8 @@ namespace VertiportNexus.Services.Radar
 
         /// <summary>
         /// [IF-CSR-CSE-002] BIST 요청 테스트
+        /// 
+        /// 최종 ICD 정리 후 삭제 예정인 임시 테스트이다.
         /// </summary>
         public void RunBistRequestTest()
         {

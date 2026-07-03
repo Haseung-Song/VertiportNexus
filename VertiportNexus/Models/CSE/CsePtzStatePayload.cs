@@ -3,14 +3,14 @@
 namespace VertiportNexus.Models.Vertiport
 {
     /// <summary>
-    /// [CSE] [PTZ] 상태 응답 모델
+    /// [CSE] [PTZ] 상태 응답 [Payload] 모델
     /// 
-    /// [IF-GUIS-CSE-012] 상태 조회 응답의
+    /// 카메라 상태 조회 응답의
     /// [payload.ptz] 영역을 표현한다.
     /// </summary>
     public class CsePtzStatePayload
     {
-        #region [Properties]
+        #region [Position Properties]
 
         /// <summary>
         /// 현재 [Pan] 위치 값

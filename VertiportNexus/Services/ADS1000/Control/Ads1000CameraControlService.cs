@@ -15,28 +15,12 @@ namespace VertiportNexus.Services.ADS1000
     /// </summary>
     internal class Ads1000CameraControlService
     {
-        #region [Enum Type]
-
-        /// <summary>
-        /// 현재 진행 중인 [연속 제어] 종류
-        /// </summary>
-        private enum ContinuousMoveType
-        {
-            None,
-            PanTilt,
-            Zoom,
-            Focus
-        }
-
-        #endregion
-
         #region [Constants]
 
         /// <summary>
         /// [Pan] / [Tilt] 연속 이동 기본 속도
         /// </summary>
-        private const double DEFAULT_PAN_TILT_SPEED =
-            50;
+        private const double DEFAULT_PAN_TILT_SPEED = 50;
 
         #endregion
 
@@ -61,16 +45,6 @@ namespace VertiportNexus.Services.ADS1000
         /// [SCB] [Zoom] / [Focus] [Packet] 생성 객체
         /// </summary>
         private readonly Ads1000ScbPacketBuilder _scbPacketBuilder;
-
-        /// <summary>
-        /// 현재 진행 중인 [연속 제어] 종류
-        /// 
-        /// 화면 바인딩에는 사용하지 않지만,
-        /// 내부적으로 마지막 제어 동작 상태를 구분하기 위해 유지한다.
-        /// </summary>
-        private ContinuousMoveType _currentMoveType =
-            ContinuousMoveType.None;
-
         #endregion
 
         #region [Events]
@@ -141,9 +115,6 @@ namespace VertiportNexus.Services.ADS1000
         /// </summary>
         public void PanLeft()
         {
-            SetContinuousMoveType(
-                ContinuousMoveType.PanTilt);
-
             SendMcbPacket(
                 _mcbPacketBuilder.BuildPanSpeedPacket(
                     PanTiltSpeedLevel),
@@ -155,9 +126,6 @@ namespace VertiportNexus.Services.ADS1000
         /// </summary>
         public void PanRight()
         {
-            SetContinuousMoveType(
-                ContinuousMoveType.PanTilt);
-
             SendMcbPacket(
                 _mcbPacketBuilder.BuildPanSpeedPacket(
                     -PanTiltSpeedLevel),
@@ -169,9 +137,6 @@ namespace VertiportNexus.Services.ADS1000
         /// </summary>
         public void TiltUp()
         {
-            SetContinuousMoveType(
-                ContinuousMoveType.PanTilt);
-
             SendMcbPacket(
                 _mcbPacketBuilder.BuildTiltSpeedPacket(
                     PanTiltSpeedLevel),
@@ -183,9 +148,6 @@ namespace VertiportNexus.Services.ADS1000
         /// </summary>
         public void TiltDown()
         {
-            SetContinuousMoveType(
-                ContinuousMoveType.PanTilt);
-
             SendMcbPacket(
                 _mcbPacketBuilder.BuildTiltSpeedPacket(
                     -PanTiltSpeedLevel),
@@ -437,9 +399,6 @@ namespace VertiportNexus.Services.ADS1000
         /// </summary>
         public void ZoomIn()
         {
-            SetContinuousMoveType(
-                ContinuousMoveType.Zoom);
-
             SendScbPacket(
                 _scbPacketBuilder.BuildZoomTelePacket(),
                 "Zoom In");
@@ -450,9 +409,6 @@ namespace VertiportNexus.Services.ADS1000
         /// </summary>
         public void ZoomOut()
         {
-            SetContinuousMoveType(
-                ContinuousMoveType.Zoom);
-
             SendScbPacket(
                 _scbPacketBuilder.BuildZoomWidePacket(),
                 "Zoom Out");
@@ -486,9 +442,6 @@ namespace VertiportNexus.Services.ADS1000
         /// </summary>
         public void FocusNear()
         {
-            SetContinuousMoveType(
-                ContinuousMoveType.Focus);
-
             SendScbPacket(
                 _scbPacketBuilder.BuildFocusNearPacket(),
                 "Focus Near");
@@ -499,9 +452,6 @@ namespace VertiportNexus.Services.ADS1000
         /// </summary>
         public void FocusFar()
         {
-            SetContinuousMoveType(
-                ContinuousMoveType.Focus);
-
             SendScbPacket(
                 _scbPacketBuilder.BuildFocusFarPacket(),
                 "Focus Far");
@@ -556,9 +506,6 @@ namespace VertiportNexus.Services.ADS1000
             SendMcbPacket(
                 _mcbPacketBuilder.BuildTiltStopPacket(),
                 "Tilt Stop");
-
-            SetContinuousMoveType(
-                ContinuousMoveType.None);
         }
 
         /// <summary>
@@ -623,10 +570,6 @@ namespace VertiportNexus.Services.ADS1000
                     _scbPacketBuilder.BuildFocusStopPacket(),
                     "Focus Stop");
             }
-
-            SetContinuousMoveType(
-                ContinuousMoveType.None);
-
             PublishSendResult(
                 string.Empty,
                 null,
@@ -646,7 +589,7 @@ namespace VertiportNexus.Services.ADS1000
 
         #endregion
 
-        #region [Private Methods]
+        #region [Packet Send Methods]
 
         /// <summary>
         /// [MCB] [Packet] 송신
@@ -699,19 +642,6 @@ namespace VertiportNexus.Services.ADS1000
                     packet,
                     commandName,
                     isSuccess));
-        }
-
-        /// <summary>
-        /// [연속 제어] 종류 반영
-        /// 
-        /// 현재 화면 바인딩에는 사용하지 않지만,
-        /// 내부적으로 마지막 제어 동작 상태를 관리한다.
-        /// </summary>
-        private void SetContinuousMoveType(
-            ContinuousMoveType moveType)
-        {
-            _currentMoveType =
-                moveType;
         }
         #endregion
     }
