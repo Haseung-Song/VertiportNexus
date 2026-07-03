@@ -8,7 +8,11 @@
         Width="1920"
         Height="1080"
         WindowStartupLocation="CenterScreen"
-        Background="#20242A">
+        Background="#20242A"
+        Focusable="True"
+        Loaded="Window_Loaded"
+        PreviewKeyDown="Window_PreviewKeyDown"
+        PreviewKeyUp="Window_PreviewKeyUp">
 
     <Window.Resources>
 
@@ -995,6 +999,26 @@
                                                                 PreviewMouseUp="MoveStop_MouseUp"
                                                                 MouseLeave="MoveStop_MouseLeave"/>
 
+                                                        <!-- [Pan 왼쪽 / Tilt 위쪽] 대각선 연속 이동 -->
+                                                        <Button Grid.Row="0"
+                                                                Grid.Column="0"
+                                                                Content="↖"
+                                                                IsEnabled="{Binding IsDeviceControlEnabled}"
+                                                                Style="{StaticResource PanTiltDirectionButtonStyle}"
+                                                                PreviewMouseDown="PanLeftTiltUp_MouseDown"
+                                                                PreviewMouseUp="MoveStop_MouseUp"
+                                                                MouseLeave="MoveStop_MouseLeave"/>
+
+                                                        <!-- [Pan 오른쪽 / Tilt 위쪽] 대각선 연속 이동 -->
+                                                        <Button Grid.Row="0"
+                                                                Grid.Column="2"
+                                                                Content="↗"
+                                                                IsEnabled="{Binding IsDeviceControlEnabled}"
+                                                                Style="{StaticResource PanTiltDirectionButtonStyle}"
+                                                                PreviewMouseDown="PanRightTiltUp_MouseDown"
+                                                                PreviewMouseUp="MoveStop_MouseUp"
+                                                                MouseLeave="MoveStop_MouseLeave"/>
+
                                                         <!-- [Pan 왼쪽] 연속 이동 -->
                                                         <Button Grid.Row="1"
                                                                 Grid.Column="0"
@@ -1038,6 +1062,26 @@
                                                                 IsEnabled="{Binding IsDeviceControlEnabled}"
                                                                 Style="{StaticResource PanTiltDirectionButtonStyle}"
                                                                 PreviewMouseDown="TiltDown_MouseDown"
+                                                                PreviewMouseUp="MoveStop_MouseUp"
+                                                                MouseLeave="MoveStop_MouseLeave"/>
+
+                                                        <!-- [Pan 왼쪽 / Tilt 아래쪽] 대각선 연속 이동 -->
+                                                        <Button Grid.Row="2"
+                                                                Grid.Column="0"
+                                                                Content="↙"
+                                                                IsEnabled="{Binding IsDeviceControlEnabled}"
+                                                                Style="{StaticResource PanTiltDirectionButtonStyle}"
+                                                                PreviewMouseDown="PanLeftTiltDown_MouseDown"
+                                                                PreviewMouseUp="MoveStop_MouseUp"
+                                                                MouseLeave="MoveStop_MouseLeave"/>
+
+                                                        <!-- [Pan 오른쪽 / Tilt 아래쪽] 대각선 연속 이동 -->
+                                                        <Button Grid.Row="2"
+                                                                Grid.Column="2"
+                                                                Content="↘"
+                                                                IsEnabled="{Binding IsDeviceControlEnabled}"
+                                                                Style="{StaticResource PanTiltDirectionButtonStyle}"
+                                                                PreviewMouseDown="PanRightTiltDown_MouseDown"
                                                                 PreviewMouseUp="MoveStop_MouseUp"
                                                                 MouseLeave="MoveStop_MouseLeave"/>
 
@@ -1594,7 +1638,7 @@
                                                    FontWeight="Bold"/>
 
                                         <TextBlock Grid.Column="2"
-                                                   Text="{Binding CurrentPan, StringFormat={}{0:F4}}"
+                                                   Text="{Binding CurrentPanDisplayText}"
                                                    Foreground="White"
                                                    FontWeight="Bold"/>
 
@@ -1620,7 +1664,7 @@
                                                    FontWeight="Bold"/>
 
                                         <TextBlock Grid.Column="2"
-                                                   Text="{Binding CurrentTilt, StringFormat={}{0:F4}}"
+                                                   Text="{Binding CurrentTiltDisplayText}"
                                                    Foreground="White"
                                                    FontWeight="Bold"/>
 

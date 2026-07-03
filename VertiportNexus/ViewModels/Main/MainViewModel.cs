@@ -444,15 +444,6 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         private string _ptzControlModeText;
 
-        /// <summary>
-        /// ViewModel 종료 처리 여부
-        /// 
-        /// 프로그램 종료 중
-        /// EO Camera Frame 수신 Callback에서
-        /// UI Binding 객체 접근이 발생하지 않도록 방지한다.
-        /// </summary>
-        private bool _isDisposing;
-
         #endregion
 
         #region [Camera State Fields]
@@ -558,6 +549,57 @@ namespace VertiportNexus.ViewModels.Main
             PanTiltContinuousMoveDirection.None;
 
         /// <summary>
+        /// 현재 [Pan] 연속 이동 진행 여부
+        /// 
+        /// 대각선 이동 및 키보드 동시 입력 시
+        /// Pan 축 이동 상태를 Tilt 축과 분리해서 관리한다.
+        /// </summary>
+        private bool _isPanContinuousMoving;
+
+        /// <summary>
+        /// 현재 [Tilt] 연속 이동 진행 여부
+        /// 
+        /// 대각선 이동 및 키보드 동시 입력 시
+        /// Tilt 축 이동 상태를 Pan 축과 분리해서 관리한다.
+        /// </summary>
+        private bool _isTiltContinuousMoving;
+
+        /// <summary>
+        /// 현재 [Pan] 연속 이동 방향
+        /// </summary>
+        private PanTiltContinuousMoveDirection _currentPanContinuousMoveDirection =
+            PanTiltContinuousMoveDirection.None;
+
+        /// <summary>
+        /// 현재 [Tilt] 연속 이동 방향
+        /// </summary>
+        private PanTiltContinuousMoveDirection _currentTiltContinuousMoveDirection =
+            PanTiltContinuousMoveDirection.None;
+
+        /// <summary>
+        /// [Keyboard] Pan Left 입력 상태
+        /// 
+        /// 방향키 조합으로 대각선 이동을 처리하기 위해
+        /// 현재 눌려 있는 Pan Left 키 상태를 저장한다.
+        /// </summary>
+        private bool _isKeyboardPanLeftPressed;
+
+        /// <summary>
+        /// [Keyboard] Pan Right 입력 상태
+        /// </summary>
+        private bool _isKeyboardPanRightPressed;
+
+        /// <summary>
+        /// [Keyboard] Tilt Up 입력 상태
+        /// </summary>
+        private bool _isKeyboardTiltUpPressed;
+
+        /// <summary>
+        /// [Keyboard] Tilt Down 입력 상태
+        /// </summary>
+        private bool _isKeyboardTiltDownPressed;
+
+        /// <summary>
         /// [Pan] Absolute 이동 입력값
         /// </summary>
         private double? _panAbsoluteValue;
@@ -592,6 +634,28 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         private int? _focusPositionValue;
 
+        /// <summary>
+        /// [Pan] UI Zero Offset
+        /// 
+        /// 사용자가 [Pan Zero]를 설정한 시점의
+        /// 실제 Pan 위치값을 저장한다.
+        /// 
+        /// 이후 UI 기준 Pan Target 값은
+        /// 해당 Offset을 더해 장비 실제 이동 목표 위치로 변환한다.
+        /// </summary>
+        private double _panUiZeroOffset;
+
+        /// <summary>
+        /// [Tilt] UI Zero Offset
+        /// 
+        /// 사용자가 [Tilt Zero]를 설정한 시점의
+        /// 실제 Tilt 위치값을 저장한다.
+        /// 
+        /// 이후 UI 기준 Tilt Target 값은
+        /// 해당 Offset을 더해 장비 실제 이동 목표 위치로 변환한다.
+        /// </summary>
+        private double _tiltUiZeroOffset;
+
         #endregion
 
         #region [Image Binding Fields - Test Only]
@@ -608,6 +672,27 @@ namespace VertiportNexus.ViewModels.Main
         /// 뒤늦게 들어온 [Frame]이 화면에 다시 표시되지 않도록 제어한다.
         /// </summary>
         private bool _isEoVideoDisplayEnabled;
+
+        /// <summary>
+        /// [EO] RTSP 재연결 진행 여부
+        /// 
+        /// 장비 전원 직후 EO Camera가 아직 Ready 상태가 아닐 경우,
+        /// CAMERA ERROR MODE 상태에서 RTSP 연결을 반복 재시도하기 위해 사용한다.
+        /// </summary>
+        private bool _isEoRtspReconnectRunning;
+
+        /// <summary>
+        /// [EO] RTSP 재연결 시도 번호
+        /// </summary>
+        private int _eoRtspReconnectTryCount;
+
+        /// <summary>
+        /// [EO] RTSP 연결 완료 여부
+        /// 
+        /// EO Camera RTSP 연결 성공 후
+        /// Home Position 이동을 수행하기 위해 사용한다.
+        /// </summary>
+        private bool _isEoRtspConnected;
 
         #endregion
 
@@ -1162,7 +1247,7 @@ namespace VertiportNexus.ViewModels.Main
 
             SetTiltZeroCommand =
                 new RelayCommand(
-                    _ads1000CameraControlService.SetTiltZero);
+                    SetTiltZero);
 
             ResetPositionInputCommand =
                 new RelayCommand(
@@ -1204,16 +1289,18 @@ namespace VertiportNexus.ViewModels.Main
 
             #region [Default Initialize]
 
-            InitializeDefaultValues();
-
             Console.WriteLine(
-                "[MAIN] ADS1000 Direct TCP Test Initialize Complete");
+                "[CAMERA][STATE] Pan Turn Mode : "
+                + _panTurnMode);
+
+            ConsoleLogHelper.PrintLine();
+
+            InitializeDefaultValues();
 
             ConsoleLogHelper.PrintLine();
 
             Console.WriteLine(
-                "[CAMERA][STATE] Pan Turn Mode : "
-                + _panTurnMode);
+                "[MAIN] ADS1000 Direct TCP Test Initialize Complete");
 
             ConsoleLogHelper.PrintLine();
 
@@ -1869,7 +1956,9 @@ namespace VertiportNexus.ViewModels.Main
                 if (_currentPan != value)
                 {
                     _currentPan = value;
+
                     OnPropertyChanged();
+                    OnPropertyChanged(nameof(CurrentPanDisplayText));
                 }
 
             }
@@ -1887,9 +1976,51 @@ namespace VertiportNexus.ViewModels.Main
                 if (_currentTilt != value)
                 {
                     _currentTilt = value;
+
                     OnPropertyChanged();
+                    OnPropertyChanged(nameof(CurrentTiltDisplayText));
                 }
 
+            }
+
+        }
+
+        /// <summary>
+        /// [Pan] 현재 위치 표시 문자열
+        /// 
+        /// 장비 실제 Pan 위치값에서
+        /// UI Zero Offset 값을 보정한 후,
+        /// 소수점 둘째 자리까지 표시한다.
+        /// 
+        /// 사용자가 [Pan Zero]를 설정한 경우,
+        /// 해당 위치가 화면 기준 [0.00]으로 표시된다.
+        /// </summary>
+        public string CurrentPanDisplayText
+        {
+            get
+            {
+                return GetUiCurrentPan()
+                    .ToString("F2");
+            }
+
+        }
+
+        /// <summary>
+        /// [Tilt] 현재 위치 표시 문자열
+        /// 
+        /// 장비 실제 Tilt 위치값에서
+        /// UI Zero Offset 값을 보정한 후,
+        /// 소수점 둘째 자리까지 표시한다.
+        /// 
+        /// 사용자가 [Tilt Zero]를 설정한 경우,
+        /// 해당 위치가 화면 기준 [0.00]으로 표시된다.
+        /// </summary>
+        public string CurrentTiltDisplayText
+        {
+            get
+            {
+                return GetUiCurrentTilt()
+                    .ToString("F2");
             }
 
         }
@@ -1916,6 +2047,8 @@ namespace VertiportNexus.ViewModels.Main
                         + _ads1000CameraControlService.PanTiltSpeedLevel.ToString("F0")
                         + " -> "
                         + value.ToString("F0"));
+
+                    Console.WriteLine();
 
                     _ads1000CameraControlService.PanTiltSpeedLevel =
                         value;
@@ -2089,15 +2222,26 @@ namespace VertiportNexus.ViewModels.Main
 
         /// <summary>
         /// [Pan] Absolute 이동 입력값
+        /// 
+        /// ADS3000 Offset 저장 기준과 동일하게
+        /// 소수점 둘째 자리까지의 각도값만 사용한다.
         /// </summary>
         public double? PanAbsoluteValue
         {
             get => _panAbsoluteValue;
             set
             {
-                if (_panAbsoluteValue != value)
+                double? roundedValue =
+                    value.HasValue
+                        ? RoundAngleToProtocolScale(
+                            value.Value)
+                        : value;
+
+                if (_panAbsoluteValue != roundedValue)
                 {
-                    _panAbsoluteValue = value;
+                    _panAbsoluteValue =
+                        roundedValue;
+
                     OnPropertyChanged();
                 }
 
@@ -2107,15 +2251,26 @@ namespace VertiportNexus.ViewModels.Main
 
         /// <summary>
         /// [Tilt] Absolute 이동 입력값
+        /// 
+        /// ADS3000 Offset 저장 기준과 동일하게
+        /// 소수점 둘째 자리까지의 각도값만 사용한다.
         /// </summary>
         public double? TiltAbsoluteValue
         {
             get => _tiltAbsoluteValue;
             set
             {
-                if (_tiltAbsoluteValue != value)
+                double? roundedValue =
+                    value.HasValue
+                        ? RoundAngleToProtocolScale(
+                            value.Value)
+                        : value;
+
+                if (_tiltAbsoluteValue != roundedValue)
                 {
-                    _tiltAbsoluteValue = value;
+                    _tiltAbsoluteValue =
+                        roundedValue;
+
                     OnPropertyChanged();
                 }
 
@@ -2125,15 +2280,26 @@ namespace VertiportNexus.ViewModels.Main
 
         /// <summary>
         /// [Pan] Relative 이동 입력값
+        /// 
+        /// ADS3000 Offset 저장 기준과 동일하게
+        /// 소수점 둘째 자리까지의 각도값만 사용한다.
         /// </summary>
         public double? PanRelativeValue
         {
             get => _panRelativeValue;
             set
             {
-                if (_panRelativeValue != value)
+                double? roundedValue =
+                    value.HasValue
+                        ? RoundAngleToProtocolScale(
+                            value.Value)
+                        : value;
+
+                if (_panRelativeValue != roundedValue)
                 {
-                    _panRelativeValue = value;
+                    _panRelativeValue =
+                        roundedValue;
+
                     OnPropertyChanged();
                 }
 
@@ -2143,15 +2309,26 @@ namespace VertiportNexus.ViewModels.Main
 
         /// <summary>
         /// [Tilt] Relative 이동 입력값
+        /// 
+        /// ADS3000 Offset 저장 기준과 동일하게
+        /// 소수점 둘째 자리까지의 각도값만 사용한다.
         /// </summary>
         public double? TiltRelativeValue
         {
             get => _tiltRelativeValue;
             set
             {
-                if (_tiltRelativeValue != value)
+                double? roundedValue =
+                    value.HasValue
+                        ? RoundAngleToProtocolScale(
+                            value.Value)
+                        : value;
+
+                if (_tiltRelativeValue != roundedValue)
                 {
-                    _tiltRelativeValue = value;
+                    _tiltRelativeValue =
+                        roundedValue;
+
                     OnPropertyChanged();
                 }
 
@@ -2567,6 +2744,9 @@ namespace VertiportNexus.ViewModels.Main
                     _isEoVideoDisplayEnabled =
                         true;
 
+                    OperationModeText =
+                        "CAMERA CONNECTING...";
+
                     _eoCameraService.Connect(
                         DEFAULT_EO_RTSP_ADDRESS);
                 }
@@ -2584,12 +2764,11 @@ namespace VertiportNexus.ViewModels.Main
                 if (_mcbConnectionState == ConnectionState.Connected &&
                     _scbConnectionState == ConnectionState.Connected)
                 {
-                    // [장비 연결 후] Home Position 이동
+                    // [장비 연결 후] EO RTSP 연결 성공 대기 및 Home Position 이동
                     //
-                    // EO 영상 연결을 먼저 시도한 뒤,
-                    // 화면으로 현재 장비 방향을 확인할 수 있도록
-                    // 짧은 대기 후 Home Position 명령을 자동 송신한다.
-                    await MoveHomePositionAfterDeviceConnectedAsync();
+                    // 장비 전원 직후 EO Camera가 아직 Ready 상태가 아닐 수 있으므로,
+                    // RTSP 연결 성공 상태를 확인한 뒤 Home Position 명령을 송신한다.
+                    await WaitEoRtspConnectedAndMoveHomePositionAsync();
                 }
 
             }
@@ -2611,6 +2790,81 @@ namespace VertiportNexus.ViewModels.Main
                 OnPropertyChanged(nameof(IsDeviceConnectionSettingEnabled));
             }
 
+        }
+
+        /// <summary>
+        /// [장비 연결 후] EO RTSP 연결 성공 대기 및 Home Position 이동
+        /// 
+        /// 장비 전원 직후 EO Camera가 Ready 상태가 아닐 수 있으므로,
+        /// EO RTSP 연결 성공 여부를 일정 시간 대기한 뒤
+        /// 연결 성공 시 Home Position 명령을 송신한다.
+        /// 
+        /// RTSP 연결 실패 상태에서는 Home Position 명령을 송신하지 않는다.
+        /// </summary>
+        private async Task WaitEoRtspConnectedAndMoveHomePositionAsync()
+        {
+            const int CHECK_DELAY_MS =
+                200;
+
+            const int MAX_WAIT_MS =
+                65000;
+
+            int elapsedMs =
+                0;
+
+            ConsoleLogHelper.PrintLine();
+
+            Console.WriteLine(
+                "[EO CAMERA] RTSP Connected Wait Start");
+
+            ConsoleLogHelper.PrintLine();
+
+            while (_isEoVideoDisplayEnabled &&
+                   !_isEoRtspConnected &&
+                   elapsedMs < MAX_WAIT_MS)
+            {
+                await Task.Delay(
+                    CHECK_DELAY_MS);
+
+                elapsedMs +=
+                    CHECK_DELAY_MS;
+            }
+
+            if (!_isEoVideoDisplayEnabled)
+            {
+                ConsoleLogHelper.PrintLine();
+
+                Console.WriteLine(
+                    "[EO CAMERA] RTSP Connected Wait Canceled : Display Disabled");
+
+                ConsoleLogHelper.PrintLine();
+
+                return;
+            }
+
+            if (!_isEoRtspConnected)
+            {
+                ConsoleLogHelper.PrintLine();
+
+                Console.WriteLine(
+                    "[EO CAMERA] RTSP Connected Wait Failed : Timeout");
+
+                Console.WriteLine(
+                    "[DEVICE] Home Position After Connect Skipped : EO RTSP Not Connected");
+
+                ConsoleLogHelper.PrintLine();
+
+                return;
+            }
+
+            ConsoleLogHelper.PrintLine();
+
+            Console.WriteLine(
+                "[EO CAMERA] RTSP Connected Wait Complete");
+
+            ConsoleLogHelper.PrintLine();
+
+            await MoveHomePositionAfterDeviceConnectedAsync();
         }
 
         /// <summary>
@@ -2997,10 +3251,14 @@ namespace VertiportNexus.ViewModels.Main
                 _cameraStateProvider.UpdateConnectionState(
                     false);
 
+                // [EO] RTSP 재연결 중지
+                StopEoRtspReconnect();
+
+                // [EO] RTSP 연결 상태 초기화
+                _isEoRtspConnected =
+                    false;
+
                 // [EO] 영상 표시 차단
-                //
-                // 연결 중 해제 시에도
-                // 뒤늦게 수신되는 [Frame] 표시를 방지한다.
                 _isEoVideoDisplayEnabled =
                     false;
 
@@ -3008,10 +3266,6 @@ namespace VertiportNexus.ViewModels.Main
                 _eoCameraService.Disconnect();
 
                 // [EO] 영상 화면 초기화
-                //
-                // [RTSP] 연결 해제 후에도
-                // 마지막 [Frame]이 화면에 남지 않도록
-                // [Image] 바인딩 값을 비운다.
                 EOCameraImage = null;
             }
             finally
@@ -3322,10 +3576,10 @@ namespace VertiportNexus.ViewModels.Main
                             DateTime.Now;
 
                         Console.WriteLine(
-                            $"[ADS1000] Pan   : {CurrentPan:F4}");
+                            $"[ADS1000] Pan   : {CurrentPan:F2}");
 
                         Console.WriteLine(
-                            $"[ADS1000] Tilt  : {CurrentTilt:F4}");
+                            $"[ADS1000] Tilt  : {CurrentTilt:F2}");
 
                         Console.WriteLine(
                             $"[ADS1000] Zoom  : {CurrentZoom:F0}");
@@ -3361,11 +3615,6 @@ namespace VertiportNexus.ViewModels.Main
         private void OnEoCameraFrameReceived(
             BitmapSource bitmap)
         {
-            if (_isDisposing)
-            {
-                return;
-            }
-
             if (bitmap == null)
             {
                 return;
@@ -3411,6 +3660,10 @@ namespace VertiportNexus.ViewModels.Main
         /// 
         /// [EoCameraService]에서 전달받은 상태 메시지를
         /// [OperationModeText]에 반영한다.
+        /// 
+        /// EO Camera가 Error / Connect Failed 상태인 경우,
+        /// 장비 전원 직후 Camera Ready 지연 가능성을 고려하여
+        /// RTSP 연결 재시도를 시작한다.
         /// </summary>
         /// <param name="statusText">
         /// [EO] 영상 상태 문자열
@@ -3422,18 +3675,143 @@ namespace VertiportNexus.ViewModels.Main
             {
                 if (statusText == "EO RTSP Connected")
                 {
+                    _isEoRtspConnected =
+                        true;
+
                     OperationModeText =
                         "SURVEILLANCE MODE";
+
+                    StopEoRtspReconnect();
                 }
                 else if (statusText == "EO RTSP Error" ||
                          statusText == "EO RTSP Connect Failed")
                 {
+                    _isEoRtspConnected =
+                        false;
+
                     OperationModeText =
-                        "CAMERA ERROR MODE";
+                        "CAMERA RECONNECTING...";
+
+                    StartEoRtspReconnect();
                 }
 
             });
 
+        }
+
+        /// <summary>
+        /// [EO] RTSP 재연결 시작
+        /// 
+        /// CAMERA ERROR MODE 상태에서 EO Camera가 Ready 상태로 전환될 때까지
+        /// 일정 간격으로 RTSP 연결을 재시도한다.
+        /// </summary>
+        private async void StartEoRtspReconnect()
+        {
+            const int RECONNECT_DELAY_MS =
+                3000;
+
+            const int MAX_RECONNECT_COUNT =
+                20;
+
+            if (_isEoRtspReconnectRunning)
+            {
+                return;
+            }
+
+            if (!_isEoVideoDisplayEnabled)
+            {
+                return;
+            }
+
+            _isEoRtspReconnectRunning =
+                true;
+
+            _eoRtspReconnectTryCount =
+                0;
+
+            try
+            {
+                ConsoleLogHelper.PrintLine();
+
+                Console.WriteLine(
+                    "[EO CAMERA] RTSP Reconnect Start");
+
+                ConsoleLogHelper.PrintLine();
+
+                while (_isEoRtspReconnectRunning &&
+                       _isEoVideoDisplayEnabled &&
+                       _eoRtspReconnectTryCount < MAX_RECONNECT_COUNT)
+                {
+                    _eoRtspReconnectTryCount++;
+
+                    await Task.Delay(
+                        RECONNECT_DELAY_MS);
+
+                    if (!_isEoRtspReconnectRunning ||
+                        !_isEoVideoDisplayEnabled)
+                    {
+                        return;
+                    }
+
+                    ConsoleLogHelper.PrintLine();
+
+                    Console.WriteLine(
+                        "[EO CAMERA] RTSP Reconnect Try : "
+                        + _eoRtspReconnectTryCount
+                        + " / "
+                        + MAX_RECONNECT_COUNT);
+
+                    ConsoleLogHelper.PrintLine();
+
+                    _eoCameraService.Connect(
+                        DEFAULT_EO_RTSP_ADDRESS);
+                }
+
+                if (_isEoRtspReconnectRunning)
+                {
+                    OperationModeText =
+                        "CAMERA ERROR MODE";
+
+                    ConsoleLogHelper.PrintLine();
+
+                    Console.WriteLine(
+                        "[EO CAMERA] RTSP Reconnect Failed : Max Retry Count");
+
+                    ConsoleLogHelper.PrintLine();
+                }
+
+            }
+            finally
+            {
+                _isEoRtspReconnectRunning =
+                    false;
+            }
+
+        }
+
+        /// <summary>
+        /// [EO] RTSP 재연결 중지
+        /// 
+        /// EO Camera가 정상 연결되었거나,
+        /// 장비 연결 해제 / 프로그램 종료 시
+        /// RTSP 재연결 Loop를 중지한다.
+        /// </summary>
+        private void StopEoRtspReconnect()
+        {
+            if (!_isEoRtspReconnectRunning)
+            {
+                return;
+            }
+
+            _isEoRtspReconnectRunning =
+                false;
+
+            ConsoleLogHelper.PrintLine();
+
+            Console.WriteLine(
+                "[EO CAMERA] RTSP Reconnect Stop");
+
+            ConsoleLogHelper.PrintLine();
         }
 
         #endregion
@@ -3530,18 +3908,157 @@ namespace VertiportNexus.ViewModels.Main
 
         #endregion
 
+        #region [Keyboard Control Methods]
+
+        /// <summary>
+        /// [Keyboard] 방향키 입력 처리
+        /// 
+        /// 운용 제어 화면에서 방향키 입력을
+        /// Pan / Tilt 연속 이동 명령으로 변환한다.
+        /// 
+        /// 두 방향키가 동시에 눌린 경우
+        /// Pan / Tilt 축을 각각 제어하여 대각선 이동으로 처리한다.
+        /// </summary>
+        /// <param name="key">
+        /// 입력된 키
+        /// </param>
+        public void HandlePanTiltKeyDown(
+            Key key)
+        {
+            switch (key)
+            {
+                case Key.Left:
+                    _isKeyboardPanLeftPressed =
+                        true;
+                    break;
+
+                case Key.Right:
+                    _isKeyboardPanRightPressed =
+                        true;
+                    break;
+
+                case Key.Up:
+                    _isKeyboardTiltUpPressed =
+                        true;
+                    break;
+
+                case Key.Down:
+                    _isKeyboardTiltDownPressed =
+                        true;
+                    break;
+
+                default:
+                    return;
+            }
+            UpdateKeyboardPanTiltMove();
+        }
+
+        /// <summary>
+        /// [Keyboard] 방향키 해제 처리
+        /// 
+        /// 해제된 방향키에 해당하는 축만 정지하고,
+        /// 다른 방향키가 계속 눌려 있는 경우 해당 축 이동은 유지한다.
+        /// </summary>
+        /// <param name="key">
+        /// 해제된 키
+        /// </param>
+        public void HandlePanTiltKeyUp(
+            Key key)
+        {
+            switch (key)
+            {
+                case Key.Left:
+                    _isKeyboardPanLeftPressed =
+                        false;
+                    break;
+
+                case Key.Right:
+                    _isKeyboardPanRightPressed =
+                        false;
+                    break;
+
+                case Key.Up:
+                    _isKeyboardTiltUpPressed =
+                        false;
+                    break;
+
+                case Key.Down:
+                    _isKeyboardTiltDownPressed =
+                        false;
+                    break;
+
+                default:
+                    return;
+            }
+            UpdateKeyboardPanTiltMove();
+        }
+
+        /// <summary>
+        /// [Keyboard] Pan / Tilt 이동 상태 갱신
+        /// 
+        /// 현재 눌려 있는 방향키 상태를 기준으로
+        /// Pan 축과 Tilt 축의 연속 이동 / 정지 명령을 각각 처리한다.
+        /// </summary>
+        private void UpdateKeyboardPanTiltMove()
+        {
+            if (_mcbConnectionState != ConnectionState.Connected ||
+                _isHomePositionMoving)
+            {
+                return;
+            }
+
+            // [Pan] 이동 방향 결정
+            //
+            // Left / Right가 동시에 눌린 경우에는
+            // 상쇄 입력으로 판단하여 Pan 축을 정지한다.
+            if (_isKeyboardPanLeftPressed &&
+                !_isKeyboardPanRightPressed)
+            {
+                StartPanLeftMove();
+            }
+            else if (_isKeyboardPanRightPressed &&
+                     !_isKeyboardPanLeftPressed)
+            {
+                StartPanRightMove();
+            }
+            else
+            {
+                StopPanMove();
+            }
+
+            // [Tilt] 이동 방향 결정
+            //
+            // Up / Down이 동시에 눌린 경우에는
+            // 상쇄 입력으로 판단하여 Tilt 축을 정지한다.
+            if (_isKeyboardTiltUpPressed &&
+                !_isKeyboardTiltDownPressed)
+            {
+                StartTiltUpMove();
+            }
+            else if (_isKeyboardTiltDownPressed &&
+                     !_isKeyboardTiltUpPressed)
+            {
+                StartTiltDownMove();
+            }
+            else
+            {
+                StopTiltMove();
+            }
+
+        }
+
+        #endregion
+
         #region [Camera Continuous Control Methods]
 
         /// <summary>
         /// [Pan / Tilt] 연속 이동 속도 재적용
         /// 
-        /// UI에서 Pan / Tilt 연속 이동 중 [Pan / Tilt Speed] 값이 변경된 경우,
-        /// 현재 이동 중인 방향의 명령을 다시 송신하여
-        /// 장비 실제 이동 속도에 변경값을 반영한다.
-        /// 
         /// ADS1000 장비는 이동 중에도 [JV] 속도 명령을 다시 수신하면
         /// 현재 이동 속도를 갱신할 수 있으므로,
-        /// 별도 정지 명령 없이 동일 방향의 연속 이동 명령을 재송신한다.
+        /// 별도 정지 명령 없이 현재 이동 중인 Pan / Tilt 방향 명령을 재송신한다.
+        /// 
+        /// 대각선 이동 중에는 Pan / Tilt 두 축에 모두 변경된 속도를 반영한다.
         /// </summary>
         private void ApplyCurrentPanTiltContinuousMoveSpeed()
         {
@@ -3550,39 +4067,42 @@ namespace VertiportNexus.ViewModels.Main
                 return;
             }
 
-            if (_currentPanTiltContinuousMoveDirection == PanTiltContinuousMoveDirection.None)
+            if (!_isPanContinuousMoving &&
+                !_isTiltContinuousMoving)
             {
                 return;
             }
 
             Console.WriteLine(
-                "[UI][PTZ] Pan / Tilt Speed Changed : "
+                "[UI][PTZ] Pan / Tilt Continuous Speed Changed : "
                 + PanTiltSpeedLevel.ToString("F0"));
 
-            switch (_currentPanTiltContinuousMoveDirection)
+            switch (_currentPanContinuousMoveDirection)
             {
                 case PanTiltContinuousMoveDirection.PanLeft:
                     _ads1000CameraControlService
                         .PanLeft();
-
                     break;
 
                 case PanTiltContinuousMoveDirection.PanRight:
                     _ads1000CameraControlService
                         .PanRight();
-
                     break;
 
+                default:
+                    break;
+            }
+
+            switch (_currentTiltContinuousMoveDirection)
+            {
                 case PanTiltContinuousMoveDirection.TiltUp:
                     _ads1000CameraControlService
                         .TiltUp();
-
                     break;
 
                 case PanTiltContinuousMoveDirection.TiltDown:
                     _ads1000CameraControlService
                         .TiltDown();
-
                     break;
 
                 default:
@@ -3608,6 +4128,13 @@ namespace VertiportNexus.ViewModels.Main
             {
                 Console.WriteLine(
                     "[UI][PTZ] Pan / Tilt Speed Apply Ignored : Home Position Moving");
+
+                return;
+            }
+
+            if (_currentPanTiltMoveType == PanTiltMoveType.Continuous)
+            {
+                ApplyCurrentPanTiltContinuousMoveSpeed();
 
                 return;
             }
@@ -3659,16 +4186,28 @@ namespace VertiportNexus.ViewModels.Main
         /// <summary>
         /// [Pan] 왼쪽 연속 이동 시작
         /// 
-        /// 화면 버튼 [MouseDown] 시
+        /// 화면 버튼 [MouseDown] 또는 키보드 방향키 입력 시
         /// [Pan] 왼쪽 연속 이동 명령을 송신한다.
         /// 
-        /// 이후 이동 중 [Pan / Tilt Speed] 값이 변경될 경우,
-        /// 동일 방향 명령을 다시 송신할 수 있도록 현재 이동 방향을 저장한다.
+        /// 이미 동일 방향으로 이동 중인 경우에는
+        /// 키 반복 입력에 의한 중복 Packet 송신을 방지한다.
         /// </summary>
         public void StartPanLeftMove()
         {
+            if (_isPanContinuousMoving &&
+                _currentPanContinuousMoveDirection == PanTiltContinuousMoveDirection.PanLeft)
+            {
+                return;
+            }
+
             _isUiContinuousMoveStarted =
                 true;
+
+            _isPanContinuousMoving =
+                true;
+
+            _currentPanContinuousMoveDirection =
+                PanTiltContinuousMoveDirection.PanLeft;
 
             _currentPanTiltContinuousMoveDirection =
                 PanTiltContinuousMoveDirection.PanLeft;
@@ -3686,16 +4225,28 @@ namespace VertiportNexus.ViewModels.Main
         /// <summary>
         /// [Pan] 오른쪽 연속 이동 시작
         /// 
-        /// 화면 버튼 [MouseDown] 시
+        /// 화면 버튼 [MouseDown] 또는 키보드 방향키 입력 시
         /// [Pan] 오른쪽 연속 이동 명령을 송신한다.
         /// 
-        /// 이후 이동 중 [Pan / Tilt Speed] 값이 변경될 경우,
-        /// 동일 방향 명령을 다시 송신할 수 있도록 현재 이동 방향을 저장한다.
+        /// 이미 동일 방향으로 이동 중인 경우에는
+        /// 키 반복 입력에 의한 중복 Packet 송신을 방지한다.
         /// </summary>
         public void StartPanRightMove()
         {
+            if (_isPanContinuousMoving &&
+                _currentPanContinuousMoveDirection == PanTiltContinuousMoveDirection.PanRight)
+            {
+                return;
+            }
+
             _isUiContinuousMoveStarted =
                 true;
+
+            _isPanContinuousMoving =
+                true;
+
+            _currentPanContinuousMoveDirection =
+                PanTiltContinuousMoveDirection.PanRight;
 
             _currentPanTiltContinuousMoveDirection =
                 PanTiltContinuousMoveDirection.PanRight;
@@ -3713,16 +4264,28 @@ namespace VertiportNexus.ViewModels.Main
         /// <summary>
         /// [Tilt] 위쪽 연속 이동 시작
         /// 
-        /// 화면 버튼 [MouseDown] 시
+        /// 화면 버튼 [MouseDown] 또는 키보드 방향키 입력 시
         /// [Tilt] 위쪽 연속 이동 명령을 송신한다.
         /// 
-        /// 이후 이동 중 [Pan / Tilt Speed] 값이 변경될 경우,
-        /// 동일 방향 명령을 다시 송신할 수 있도록 현재 이동 방향을 저장한다.
+        /// 이미 동일 방향으로 이동 중인 경우에는
+        /// 키 반복 입력에 의한 중복 Packet 송신을 방지한다.
         /// </summary>
         public void StartTiltUpMove()
         {
+            if (_isTiltContinuousMoving &&
+                _currentTiltContinuousMoveDirection == PanTiltContinuousMoveDirection.TiltUp)
+            {
+                return;
+            }
+
             _isUiContinuousMoveStarted =
                 true;
+
+            _isTiltContinuousMoving =
+                true;
+
+            _currentTiltContinuousMoveDirection =
+                PanTiltContinuousMoveDirection.TiltUp;
 
             _currentPanTiltContinuousMoveDirection =
                 PanTiltContinuousMoveDirection.TiltUp;
@@ -3740,16 +4303,28 @@ namespace VertiportNexus.ViewModels.Main
         /// <summary>
         /// [Tilt] 아래쪽 연속 이동 시작
         /// 
-        /// 화면 버튼 [MouseDown] 시
+        /// 화면 버튼 [MouseDown] 또는 키보드 방향키 입력 시
         /// [Tilt] 아래쪽 연속 이동 명령을 송신한다.
         /// 
-        /// 이후 이동 중 [Pan / Tilt Speed] 값이 변경될 경우,
-        /// 동일 방향 명령을 다시 송신할 수 있도록 현재 이동 방향을 저장한다.
+        /// 이미 동일 방향으로 이동 중인 경우에는
+        /// 키 반복 입력에 의한 중복 Packet 송신을 방지한다.
         /// </summary>
         public void StartTiltDownMove()
         {
+            if (_isTiltContinuousMoving &&
+                _currentTiltContinuousMoveDirection == PanTiltContinuousMoveDirection.TiltDown)
+            {
+                return;
+            }
+
             _isUiContinuousMoveStarted =
                 true;
+
+            _isTiltContinuousMoving =
+                true;
+
+            _currentTiltContinuousMoveDirection =
+                PanTiltContinuousMoveDirection.TiltDown;
 
             _currentPanTiltContinuousMoveDirection =
                 PanTiltContinuousMoveDirection.TiltDown;
@@ -3762,6 +4337,46 @@ namespace VertiportNexus.ViewModels.Main
 
             _ads1000CameraControlService
                 .TiltDown();
+        }
+
+        /// <summary>
+        /// [Pan Left] / [Tilt Up] 대각선 연속 이동 시작
+        /// </summary>
+        public void StartPanLeftTiltUpMove()
+        {
+            StartPanLeftMove();
+
+            StartTiltUpMove();
+        }
+
+        /// <summary>
+        /// [Pan Right] / [Tilt Up] 대각선 연속 이동 시작
+        /// </summary>
+        public void StartPanRightTiltUpMove()
+        {
+            StartPanRightMove();
+
+            StartTiltUpMove();
+        }
+
+        /// <summary>
+        /// [Pan Left] / [Tilt Down] 대각선 연속 이동 시작
+        /// </summary>
+        public void StartPanLeftTiltDownMove()
+        {
+            StartPanLeftMove();
+
+            StartTiltDownMove();
+        }
+
+        /// <summary>
+        /// [Pan Right] / [Tilt Down] 대각선 연속 이동 시작
+        /// </summary>
+        public void StartPanRightTiltDownMove()
+        {
+            StartPanRightMove();
+
+            StartTiltDownMove();
         }
 
         /// <summary>
@@ -3861,6 +4476,84 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
+        /// [Pan] 연속 이동 정지
+        /// 
+        /// 키보드 방향키 조합 제어 중
+        /// Pan 축 입력이 해제된 경우 Pan 축만 정지한다.
+        /// </summary>
+        private void StopPanMove()
+        {
+            if (!_isPanContinuousMoving)
+            {
+                return;
+            }
+
+            _ads1000CameraControlService
+                .StopPanMove();
+
+            _isPanContinuousMoving =
+                false;
+
+            _currentPanContinuousMoveDirection =
+                PanTiltContinuousMoveDirection.None;
+
+            if (!_isTiltContinuousMoving)
+            {
+                _isUiContinuousMoveStarted =
+                    false;
+
+                _currentPanTiltContinuousMoveDirection =
+                    PanTiltContinuousMoveDirection.None;
+
+                _currentPanTiltMoveAxis =
+                    PanTiltMoveAxis.None;
+
+                _currentPanTiltMoveType =
+                    PanTiltMoveType.None;
+            }
+
+        }
+
+        /// <summary>
+        /// [Tilt] 연속 이동 정지
+        /// 
+        /// 키보드 방향키 조합 제어 중
+        /// Tilt 축 입력이 해제된 경우 Tilt 축만 정지한다.
+        /// </summary>
+        private void StopTiltMove()
+        {
+            if (!_isTiltContinuousMoving)
+            {
+                return;
+            }
+
+            _ads1000CameraControlService
+                .StopTiltMove();
+
+            _isTiltContinuousMoving =
+                false;
+
+            _currentTiltContinuousMoveDirection =
+                PanTiltContinuousMoveDirection.None;
+
+            if (!_isPanContinuousMoving)
+            {
+                _isUiContinuousMoveStarted =
+                    false;
+
+                _currentPanTiltContinuousMoveDirection =
+                    PanTiltContinuousMoveDirection.None;
+
+                _currentPanTiltMoveAxis =
+                    PanTiltMoveAxis.None;
+
+                _currentPanTiltMoveType =
+                    PanTiltMoveType.None;
+            }
+
+        }
+
+        /// <summary>
         /// [UI] 장비 이동 정지
         /// 
         /// 화면 버튼을 통해 시작된
@@ -3889,6 +4582,30 @@ namespace VertiportNexus.ViewModels.Main
                 "[UI][CMD] Stop Move Request");
 
             _isUiContinuousMoveStarted =
+                false;
+
+            _isPanContinuousMoving =
+                false;
+
+            _isTiltContinuousMoving =
+                false;
+
+            _currentPanContinuousMoveDirection =
+                PanTiltContinuousMoveDirection.None;
+
+            _currentTiltContinuousMoveDirection =
+                PanTiltContinuousMoveDirection.None;
+
+            _isKeyboardPanLeftPressed =
+                false;
+
+            _isKeyboardPanRightPressed =
+                false;
+
+            _isKeyboardTiltUpPressed =
+                false;
+
+            _isKeyboardTiltDownPressed =
                 false;
 
             _currentPanTiltContinuousMoveDirection =
@@ -4015,6 +4732,31 @@ namespace VertiportNexus.ViewModels.Main
                     // 소프트웨어에서 관리하는 Pan 누적 위치값도 함께 초기화한다.
                     ResetPanAccumulatedStatus();
 
+                    // [UI Zero Offset] 초기화
+                    //
+                    // Home Position 이동 완료 후에는
+                    // 장비 기준 Home 위치를 다시 UI 기준 [0]으로 사용한다.
+                    _panUiZeroOffset =
+                        0.0;
+
+                    _tiltUiZeroOffset =
+                        0.0;
+
+                    PanAbsoluteValue =
+                        0;
+
+                    TiltAbsoluteValue =
+                        0;
+
+                    PanRelativeValue =
+                        0;
+
+                    TiltRelativeValue =
+                        0;
+
+                    OnPropertyChanged(nameof(CurrentPanDisplayText));
+                    OnPropertyChanged(nameof(CurrentTiltDisplayText));
+
                     Console.WriteLine(
                         logPrefix
                         + " Move Complete");
@@ -4051,22 +4793,122 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
-        /// [Pan] 현재 위치 [0] 설정
+        /// [Pan] 현재 위치를 UI / 장비 Script 기준 [0] 위치로 저장
         /// 
-        /// 장비 기준 현재 [Pan] 위치를 [0]으로 재설정하고,
-        /// 소프트웨어에서 관리하는 Pan 누적 위치값도 함께 초기화한다.
+        /// 현재 [Pan] 위치값을 장비 Offset 저장 프로토콜로 송신하고,
+        /// 프로그램 화면에서도 현재 위치가 [0.00]으로 표시되도록
+        /// UI Zero Offset을 저장한다.
         /// </summary>
         private void SetPanZero()
         {
-            _ads1000CameraControlService
-                .SetPanZero();
+            double currentPan =
+                RoundAngleToProtocolScale(
+                    NormalizePanStatus(
+                        CurrentPan));
 
-            // [Pan] 누적 상태값 초기화
+            int offsetValue =
+                Convert.ToInt32(
+                    Math.Round(
+                        currentPan * 100.0,
+                        MidpointRounding.AwayFromZero));
+
+            ConsoleLogHelper.PrintLine();
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Zero Offset Request");
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Zero Current : "
+                + currentPan.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Zero Offset Value : "
+                + offsetValue);
+
+            // [Pan] UI Zero Offset 저장
             //
-            // Pan Zero 명령은 현재 장비 Pan 위치를 [0]으로 재설정하므로,
-            // 이후 Absolute Pan 제어가 이전 누적 회전값을 기준으로 계산되지 않도록
-            // 내부 누적 위치값도 함께 초기화한다.
+            // 현재 장비 Pan 위치를 UI 기준 [0] 위치로 저장한다.
+            // 이후 Current Status 표시와 Target 0 이동 기준에 사용한다.
+            _panUiZeroOffset =
+                currentPan;
+
+            // [Pan] 입력값 초기화
+            //
+            // Pan Zero 설정 후에는 현재 위치가 UI 기준 [0]이므로,
+            // Absolute / Relative 입력값도 [0.00]으로 초기화한다.
+            PanAbsoluteValue =
+                0;
+
+            PanRelativeValue =
+                0;
+
+            _ads1000CameraControlService
+                .SetPanZero(
+                    currentPan);
+
             ResetPanAccumulatedStatus();
+
+            OnPropertyChanged(nameof(CurrentPanDisplayText));
+
+            ConsoleLogHelper.PrintLine();
+        }
+
+        /// <summary>
+        /// [Tilt] 현재 위치를 UI / 장비 Script 기준 [0] 위치로 저장
+        /// 
+        /// 현재 [Tilt] 위치값을 장비 Offset 저장 프로토콜로 송신하고,
+        /// 프로그램 화면에서도 현재 위치가 [0.00]으로 표시되도록
+        /// UI Zero Offset을 저장한다.
+        /// </summary>
+        private void SetTiltZero()
+        {
+            double currentTilt =
+                RoundAngleToProtocolScale(
+                    CurrentTilt);
+
+            int offsetValue =
+                Convert.ToInt32(
+                    Math.Round(
+                        currentTilt * 100.0,
+                        MidpointRounding.AwayFromZero));
+
+            ConsoleLogHelper.PrintLine();
+
+            Console.WriteLine(
+                "[UI][PTZ] Tilt Zero Offset Request");
+
+            Console.WriteLine(
+                "[UI][PTZ] Tilt Zero Current : "
+                + currentTilt.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Tilt Zero Offset Value : "
+                + offsetValue);
+
+            // [Tilt] UI Zero Offset 저장
+            //
+            // 현재 장비 Tilt 위치를 UI 기준 [0] 위치로 저장한다.
+            // 이후 Current Status 표시와 Target 0 이동 기준에 사용한다.
+            _tiltUiZeroOffset =
+                currentTilt;
+
+            // [Tilt] 입력값 초기화
+            //
+            // Tilt Zero 설정 후에는 현재 위치가 UI 기준 [0]이므로,
+            // Absolute / Relative 입력값도 [0.00]으로 초기화한다.
+            TiltAbsoluteValue =
+                0;
+
+            TiltRelativeValue =
+                0;
+
+            _ads1000CameraControlService
+                .SetTiltZero(
+                    currentTilt);
+
+            OnPropertyChanged(nameof(CurrentTiltDisplayText));
+
+            ConsoleLogHelper.PrintLine();
         }
 
         /// <summary>
@@ -4178,17 +5020,13 @@ namespace VertiportNexus.ViewModels.Main
         /// [Pan] 절대 위치 이동
         /// 
         /// 입력된 [Pan Absolute] 목표값을
-        /// 최종 ICD 기준 [0 ~ 360] 범위로 보정한 후,
-        /// 현재 [Pan] 위치와 선택된 선회 모드를 기준으로 이동 각도를 계산한다.
+        /// UI Zero 기준 [0 ~ 360] 범위로 보정한 후,
+        /// 장비 실제 Target 값으로 변환하여 이동 명령을 송신한다.
         /// 
-        /// 화면 표시용 [Pan] 값은 [0 ~ 360] 범위로 정규화되지만,
-        /// 장비의 실제 Pan 위치는 한 바퀴 이상 누적될 수 있으므로
-        /// 장비 송신용 목표값은 내부 누적 위치값을 기준으로 계산한다.
+        /// 사용자가 [Pan Zero]를 설정한 경우,
+        /// UI Target [0.00]은 Zero 설정 당시의 실제 Pan 위치로 변환된다.
         /// 
-        /// 단, 현재 표시 위치와 목표 표시 위치가 이미 동일한 경우에는
-        /// 장비에 불필요한 [PA] 명령을 송신하지 않는다.
-        /// 
-        /// [360] 입력은 [0]과 표시 위치는 같지만,
+        /// 단, [360] 입력은 [0]과 표시 위치는 같지만,
         /// 사용자가 한 바퀴 이동을 의도한 값으로 보고 별도로 처리한다.
         /// </summary>
         private void MovePanAbsolute()
@@ -4208,17 +5046,28 @@ namespace VertiportNexus.ViewModels.Main
                 GetCurrentPanCommandAngle();
 
             double currentPan =
-                NormalizePanStatus(
-                    currentPanCommandAngle);
+                GetUiCurrentPan();
+
+            double inputPan =
+                RoundAngleToProtocolScale(
+                    PanAbsoluteValue.Value);
 
             double targetPan =
                 Clamp(
-                    PanAbsoluteValue.Value,
+                    inputPan,
                     0,
                     360);
 
             bool isFullTurnTarget =
                 Math.Abs(targetPan - 360.0) <= PAN_POSITION_EPSILON;
+
+            double deviceCurrentPan =
+                NormalizePanStatus(
+                    currentPanCommandAngle);
+
+            double deviceTargetPan =
+                ConvertUiPanTargetToDeviceTarget(
+                    targetPan);
 
             double panMoveAngle;
 
@@ -4238,7 +5087,7 @@ namespace VertiportNexus.ViewModels.Main
 
             // [Pan Absolute] 동일 위치 명령 차단
             //
-            // 현재 표시용 [Pan] 위치와 목표 [Pan] 위치가 이미 동일한 경우,
+            // UI Zero 기준 현재 [Pan] 위치와 목표 [Pan] 위치가 이미 동일한 경우,
             // 장비에 불필요한 [PA] 명령을 송신하지 않는다.
             //
             // 단, [360] 입력은 표시 위치상 [0]과 같더라도
@@ -4252,11 +5101,15 @@ namespace VertiportNexus.ViewModels.Main
 
                 Console.WriteLine(
                     "[UI][PTZ] Pan Absolute Current : "
-                    + currentPan.ToString("F4"));
+                    + currentPan.ToString("F2"));
 
                 Console.WriteLine(
                     "[UI][PTZ] Pan Absolute Target : "
-                    + targetPan.ToString("F4"));
+                    + targetPan.ToString("F2"));
+
+                Console.WriteLine(
+                    "[UI][PTZ] Pan UI Zero Offset : "
+                    + _panUiZeroOffset.ToString("F2"));
 
                 return;
             }
@@ -4264,9 +5117,24 @@ namespace VertiportNexus.ViewModels.Main
             double panCommandTarget =
                 currentPanCommandAngle + panMoveAngle;
 
+            // [Pan] UI Zero 기준 장비 Target 보정
+            //
+            // 일반 입력값은 UI Zero Offset을 더한 장비 실제 Target으로 변환한다.
+            // 단, 기존 누적 회전 처리와 [360] 한 바퀴 이동 처리를 유지하기 위해
+            // 실제 송신값은 누적 계산 결과를 사용한다.
+            //
+            // 현재 실행 기준에서 UI Target 0.00이 Zero 설정 위치로 가야 하므로,
+            // 누적 계산 결과가 장비 Target과 다를 수 있는 경우에는
+            // 장비 Target 기준으로 송신한다.
+            if (!isFullTurnTarget)
+            {
+                panCommandTarget =
+                    deviceTargetPan;
+            }
+
             Console.WriteLine(
                 "[UI][PTZ] Pan Absolute Input : "
-                + PanAbsoluteValue.Value.ToString("F4"));
+                + inputPan.ToString("F2"));
 
             Console.WriteLine(
                 "[UI][PTZ] Pan Absolute Mode : "
@@ -4274,23 +5142,31 @@ namespace VertiportNexus.ViewModels.Main
 
             Console.WriteLine(
                 "[UI][PTZ] Pan Absolute Current : "
-                + currentPan.ToString("F4"));
+                + currentPan.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Device Current : "
+                + deviceCurrentPan.ToString("F2"));
 
             Console.WriteLine(
                 "[UI][PTZ] Pan Absolute Accumulated Current : "
-                + currentPanCommandAngle.ToString("F4"));
+                + currentPanCommandAngle.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan UI Zero Offset : "
+                + _panUiZeroOffset.ToString("F2"));
 
             Console.WriteLine(
                 "[UI][PTZ] Pan Absolute Target : "
-                + targetPan.ToString("F4"));
+                + targetPan.ToString("F2"));
 
             Console.WriteLine(
                 "[UI][PTZ] Pan Absolute Move Angle : "
-                + panMoveAngle.ToString("F4"));
+                + panMoveAngle.ToString("F2"));
 
             Console.WriteLine(
                 "[UI][PTZ] Pan Absolute Command Target : "
-                + panCommandTarget.ToString("F4"));
+                + panCommandTarget.ToString("F2"));
 
             _currentPanTiltMoveAxis =
                 PanTiltMoveAxis.Pan;
@@ -4307,11 +5183,11 @@ namespace VertiportNexus.ViewModels.Main
         /// [Tilt] 절대 위치 이동
         /// 
         /// 입력된 [Tilt Absolute] 값을
-        /// 장비 물리 제한 기준 [-90 ~ 90] 범위로 보정한 후,
-        /// [ADS1000] 장비에 절대 위치 이동 명령을 송신한다.
+        /// UI Zero 기준 [-90 ~ 90] 범위로 보정한 후,
+        /// 장비 실제 Target 값으로 변환하여 이동 명령을 송신한다.
         /// 
-        /// 현재 [Tilt] 상태값과 목표 위치를 로그로 출력하여,
-        /// 실제 장비 응답값과 비교할 수 있도록 한다.
+        /// 사용자가 [Tilt Zero]를 설정한 경우,
+        /// UI Target [0.00]은 Zero 설정 당시의 실제 Tilt 위치로 변환된다.
         /// </summary>
         private void MoveTiltAbsolute()
         {
@@ -4324,21 +5200,28 @@ namespace VertiportNexus.ViewModels.Main
             }
 
             double currentTilt =
-                NormalizeTiltStatus(
-                    CurrentTilt);
+                GetUiCurrentTilt();
+
+            double inputTilt =
+                RoundAngleToProtocolScale(
+                    TiltAbsoluteValue.Value);
 
             double targetTilt =
                 Clamp(
-                    TiltAbsoluteValue.Value,
+                    inputTilt,
                     -90,
                     90);
+
+            double deviceTargetTilt =
+                ConvertUiTiltTargetToDeviceTarget(
+                    targetTilt);
 
             double tiltMoveAngle =
                 targetTilt - currentTilt;
 
             // [Tilt Absolute] 동일 위치 명령 차단
             //
-            // 현재 [Tilt] 위치와 목표 [Tilt] 위치가 이미 동일한 경우,
+            // UI Zero 기준 현재 [Tilt] 위치와 목표 [Tilt] 위치가 이미 동일한 경우,
             // 장비에 불필요한 [PA] 명령을 송신하지 않는다.
             if (Math.Abs(tiltMoveAngle) <= 0.001)
             {
@@ -4347,30 +5230,42 @@ namespace VertiportNexus.ViewModels.Main
 
                 Console.WriteLine(
                     "[UI][PTZ] Tilt Absolute Current : "
-                    + currentTilt.ToString("F4"));
+                    + currentTilt.ToString("F2"));
 
                 Console.WriteLine(
                     "[UI][PTZ] Tilt Absolute Target : "
-                    + targetTilt.ToString("F4"));
+                    + targetTilt.ToString("F2"));
+
+                Console.WriteLine(
+                    "[UI][PTZ] Tilt UI Zero Offset : "
+                    + _tiltUiZeroOffset.ToString("F2"));
 
                 return;
             }
 
             Console.WriteLine(
                 "[UI][PTZ] Tilt Absolute Input : "
-                + TiltAbsoluteValue.Value.ToString("F4"));
+                + inputTilt.ToString("F2"));
 
             Console.WriteLine(
                 "[UI][PTZ] Tilt Absolute Current : "
-                + currentTilt.ToString("F4"));
+                + currentTilt.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Tilt UI Zero Offset : "
+                + _tiltUiZeroOffset.ToString("F2"));
 
             Console.WriteLine(
                 "[UI][PTZ] Tilt Absolute Target : "
-                + targetTilt.ToString("F4"));
+                + targetTilt.ToString("F2"));
 
             Console.WriteLine(
                 "[UI][PTZ] Tilt Absolute Move Angle : "
-                + tiltMoveAngle.ToString("F4"));
+                + tiltMoveAngle.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Tilt Absolute Command Target : "
+                + deviceTargetTilt.ToString("F2"));
 
             _currentPanTiltMoveAxis =
                 PanTiltMoveAxis.Tilt;
@@ -4380,7 +5275,7 @@ namespace VertiportNexus.ViewModels.Main
 
             _ads1000CameraControlService
                 .MoveTiltAbsolute(
-                    targetTilt);
+                    deviceTargetTilt);
         }
 
         #endregion
@@ -4391,7 +5286,7 @@ namespace VertiportNexus.ViewModels.Main
         /// [Pan] 상대 위치 이동
         /// 
         /// 입력된 [Pan Relative] 값을 기준으로
-        /// 현재 [Pan] 누적 위치에서 상대 이동량을 더한
+        /// UI Zero 기준 현재 Pan 위치에서 상대 이동량을 더한
         /// 최종 목표 위치를 계산한 후,
         /// [ADS1000] 장비에는 절대 위치 이동 명령으로 송신한다.
         /// 
@@ -4410,46 +5305,44 @@ namespace VertiportNexus.ViewModels.Main
                 return;
             }
 
-            double currentPanCommandAngle =
-                GetCurrentPanCommandAngle();
-
             double currentPan =
-                NormalizePanStatus(
-                    currentPanCommandAngle);
+                GetUiCurrentPan();
 
             double movePan =
-                PanRelativeValue.Value;
+                RoundAngleToProtocolScale(
+                    PanRelativeValue.Value);
 
-            double panCommandTarget =
-                currentPanCommandAngle + movePan;
-
-            double expectedPan =
+            double targetPan =
                 NormalizePanStatus(
                     currentPan + movePan);
 
+            double deviceTargetPan =
+                ConvertUiPanTargetToDeviceTarget(
+                    targetPan);
+
             Console.WriteLine(
                 "[UI][PTZ] Pan Relative Input : "
-                + movePan.ToString("F4"));
+                + movePan.ToString("F2"));
 
             Console.WriteLine(
                 "[UI][PTZ] Pan Relative Current : "
-                + currentPan.ToString("F4"));
+                + currentPan.ToString("F2"));
 
             Console.WriteLine(
-                "[UI][PTZ] Pan Relative Accumulated Current : "
-                + currentPanCommandAngle.ToString("F4"));
+                "[UI][PTZ] Pan UI Zero Offset : "
+                + _panUiZeroOffset.ToString("F2"));
 
             Console.WriteLine(
                 "[UI][PTZ] Pan Relative Move Angle : "
-                + movePan.ToString("F4"));
+                + movePan.ToString("F2"));
 
             Console.WriteLine(
                 "[UI][PTZ] Pan Relative Expected Display : "
-                + expectedPan.ToString("F4"));
+                + targetPan.ToString("F2"));
 
             Console.WriteLine(
                 "[UI][PTZ] Pan Relative Command Target : "
-                + panCommandTarget.ToString("F4"));
+                + deviceTargetPan.ToString("F2"));
 
             _currentPanTiltMoveAxis =
                 PanTiltMoveAxis.Pan;
@@ -4464,14 +5357,14 @@ namespace VertiportNexus.ViewModels.Main
 
             _ads1000CameraControlService
                 .MovePanAbsolute(
-                    panCommandTarget);
+                    deviceTargetPan);
         }
 
         /// <summary>
         /// [Tilt] 상대 위치 이동
         /// 
         /// 입력된 [Tilt Relative] 값을 기준으로
-        /// 현재 [Tilt] 위치에서 상대 이동량을 더한
+        /// UI Zero 기준 현재 Tilt 위치에서 상대 이동량을 더한
         /// 최종 목표 위치를 계산한 후,
         /// [ADS1000] 장비에는 절대 위치 이동 명령으로 송신한다.
         /// 
@@ -4491,11 +5384,11 @@ namespace VertiportNexus.ViewModels.Main
             }
 
             double currentTilt =
-                NormalizeTiltStatus(
-                    CurrentTilt);
+                GetUiCurrentTilt();
 
             double moveTilt =
-                TiltRelativeValue.Value;
+                RoundAngleToProtocolScale(
+                    TiltRelativeValue.Value);
 
             double targetTilt =
                 Clamp(
@@ -4503,29 +5396,33 @@ namespace VertiportNexus.ViewModels.Main
                     -90,
                     90);
 
-            double expectedTilt =
-                NormalizeTiltStatus(
+            double deviceTargetTilt =
+                ConvertUiTiltTargetToDeviceTarget(
                     targetTilt);
 
             Console.WriteLine(
                 "[UI][PTZ] Tilt Relative Input : "
-                + moveTilt.ToString("F4"));
+                + moveTilt.ToString("F2"));
 
             Console.WriteLine(
                 "[UI][PTZ] Tilt Relative Current : "
-                + currentTilt.ToString("F4"));
+                + currentTilt.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Tilt UI Zero Offset : "
+                + _tiltUiZeroOffset.ToString("F2"));
 
             Console.WriteLine(
                 "[UI][PTZ] Tilt Relative Move Angle : "
-                + moveTilt.ToString("F4"));
+                + moveTilt.ToString("F2"));
 
             Console.WriteLine(
                 "[UI][PTZ] Tilt Relative Expected Display : "
-                + expectedTilt.ToString("F4"));
+                + targetTilt.ToString("F2"));
 
             Console.WriteLine(
                 "[UI][PTZ] Tilt Relative Command Target : "
-                + targetTilt.ToString("F4"));
+                + deviceTargetTilt.ToString("F2"));
 
             _currentPanTiltMoveAxis =
                 PanTiltMoveAxis.Tilt;
@@ -4540,7 +5437,7 @@ namespace VertiportNexus.ViewModels.Main
 
             _ads1000CameraControlService
                 .MoveTiltAbsolute(
-                    targetTilt);
+                    deviceTargetTilt);
         }
 
         #endregion
@@ -5289,6 +6186,109 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
+        /// [Pan] UI Zero 기준 현재 위치 계산
+        /// 
+        /// 장비에서 수신한 실제 Pan 위치값에서
+        /// 사용자가 설정한 UI Zero Offset 값을 빼서,
+        /// 화면 기준 Pan 현재 위치를 계산한다.
+        /// </summary>
+        /// <returns>
+        /// UI Zero 기준 Pan 현재 위치
+        /// </returns>
+        private double GetUiCurrentPan()
+        {
+            return RoundAngleToProtocolScale(
+                NormalizePanStatus(
+                    CurrentPan
+                    - _panUiZeroOffset));
+        }
+
+        /// <summary>
+        /// [Tilt] UI Zero 기준 현재 위치 계산
+        /// 
+        /// 장비에서 수신한 실제 Tilt 위치값에서
+        /// 사용자가 설정한 UI Zero Offset 값을 빼서,
+        /// 화면 기준 Tilt 현재 위치를 계산한다.
+        /// </summary>
+        /// <returns>
+        /// UI Zero 기준 Tilt 현재 위치
+        /// </returns>
+        private double GetUiCurrentTilt()
+        {
+            return RoundAngleToProtocolScale(
+                CurrentTilt
+                - _tiltUiZeroOffset);
+        }
+
+        /// <summary>
+        /// [Pan] UI Target 값을 장비 실제 Target 값으로 변환
+        /// 
+        /// 사용자가 입력한 UI 기준 Pan Target 값에
+        /// Pan UI Zero Offset 값을 더해
+        /// 장비에 송신할 실제 Pan Target 값을 계산한다.
+        /// </summary>
+        /// <param name="uiTargetPan">
+        /// UI 기준 Pan Target
+        /// </param>
+        /// <returns>
+        /// 장비 실제 Pan Target
+        /// </returns>
+        private double ConvertUiPanTargetToDeviceTarget(
+            double uiTargetPan)
+        {
+            return RoundAngleToProtocolScale(
+                NormalizePanStatus(
+                    uiTargetPan
+                    + _panUiZeroOffset));
+        }
+
+        /// <summary>
+        /// [Tilt] UI Target 값을 장비 실제 Target 값으로 변환
+        /// 
+        /// 사용자가 입력한 UI 기준 Tilt Target 값에
+        /// Tilt UI Zero Offset 값을 더해
+        /// 장비에 송신할 실제 Tilt Target 값을 계산한다.
+        /// </summary>
+        /// <param name="uiTargetTilt">
+        /// UI 기준 Tilt Target
+        /// </param>
+        /// <returns>
+        /// 장비 실제 Tilt Target
+        /// </returns>
+        private double ConvertUiTiltTargetToDeviceTarget(
+            double uiTargetTilt)
+        {
+            return RoundAngleToProtocolScale(
+                Clamp(
+                    uiTargetTilt
+                    + _tiltUiZeroOffset,
+                    -90,
+                    90));
+        }
+
+        /// <summary>
+        /// [Pan / Tilt] 각도값 소수점 둘째 자리 보정
+        /// 
+        /// ADS3000 Offset 저장 프로토콜은
+        /// 각도값을 [각도 * 100] 정수값으로 송신하므로,
+        /// UI 입력 및 표시 기준도 소수점 둘째 자리로 통일한다.
+        /// </summary>
+        /// <param name="angle">
+        /// 각도값
+        /// </param>
+        /// <returns>
+        /// 소수점 둘째 자리로 반올림된 각도값
+        /// </returns>
+        private double RoundAngleToProtocolScale(
+            double angle)
+        {
+            return Math.Round(
+                angle,
+                2,
+                MidpointRounding.AwayFromZero);
+        }
+
+        /// <summary>
         /// 입력값 범위 제한
         /// 
         /// 입력값이 지정된 최소 / 최대 범위를 벗어난 경우
@@ -5319,10 +6319,6 @@ namespace VertiportNexus.ViewModels.Main
 
             return value;
         }
-
-        #endregion
-
-        #region [Dispose Methods]
 
         #endregion
 

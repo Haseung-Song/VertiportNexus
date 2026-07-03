@@ -319,7 +319,10 @@ namespace VertiportNexus.Services.ADS1000
         }
 
         /// <summary>
-        /// [Pan] 현재 위치를 [0]으로 설정
+        /// [Pan] 현재 위치 [0] 설정
+        /// 
+        /// 이전 Set Zero 방식 호환용 메서드이다.
+        /// 현재 UI에서는 각도값을 전달하는 Offset 저장 방식을 사용한다.
         /// </summary>
         public void SetPanZero()
         {
@@ -329,13 +332,52 @@ namespace VertiportNexus.Services.ADS1000
         }
 
         /// <summary>
-        /// [Tilt] 현재 위치를 [0]으로 설정
+        /// [Tilt] 현재 위치 [0] 설정
+        /// 
+        /// 이전 Set Zero 방식 호환용 메서드이다.
+        /// 현재 UI에서는 각도값을 전달하는 Offset 저장 방식을 사용한다.
         /// </summary>
         public void SetTiltZero()
         {
             SendMcbPacket(
                 _mcbPacketBuilder.BuildTiltSetZeroPacket(),
                 "Tilt Set Zero");
+        }
+
+        /// <summary>
+        /// [Pan] 현재 위치를 장비 Script 기준 [0] 위치로 저장
+        /// 
+        /// 현재 [Pan] 각도값을 장비 Script 내부 Offset 값으로 저장하여,
+        /// 이후 장비 상태값이 해당 위치를 기준으로 보정되도록 한다.
+        /// </summary>
+        /// <param name="currentPan">
+        /// 현재 Pan 각도
+        /// </param>
+        public void SetPanZero(
+            double currentPan)
+        {
+            SendMcbPacket(
+                _mcbPacketBuilder.BuildPanHomeOffsetPacket(
+                    currentPan),
+                "Pan Zero Offset");
+        }
+
+        /// <summary>
+        /// [Tilt] 현재 위치를 장비 Script 기준 [0] 위치로 저장
+        /// 
+        /// 현재 [Tilt] 각도값을 장비 Script 내부 Offset 값으로 저장하여,
+        /// 이후 장비 상태값이 해당 위치를 기준으로 보정되도록 한다.
+        /// </summary>
+        /// <param name="currentTilt">
+        /// 현재 Tilt 각도
+        /// </param>
+        public void SetTiltZero(
+            double currentTilt)
+        {
+            SendMcbPacket(
+                _mcbPacketBuilder.BuildTiltHomeOffsetPacket(
+                    currentTilt),
+                "Tilt Zero Offset");
         }
 
         /// <summary>
@@ -517,6 +559,32 @@ namespace VertiportNexus.Services.ADS1000
 
             SetContinuousMoveType(
                 ContinuousMoveType.None);
+        }
+
+        /// <summary>
+        /// [Pan] 이동 정지
+        /// 
+        /// 대각선 이동 또는 키보드 방향키 제어 중
+        /// Pan 축만 정지해야 하는 경우 사용한다.
+        /// </summary>
+        public void StopPanMove()
+        {
+            SendMcbPacket(
+                _mcbPacketBuilder.BuildPanStopPacket(),
+                "Pan Stop");
+        }
+
+        /// <summary>
+        /// [Tilt] 이동 정지
+        /// 
+        /// 대각선 이동 또는 키보드 방향키 제어 중
+        /// Tilt 축만 정지해야 하는 경우 사용한다.
+        /// </summary>
+        public void StopTiltMove()
+        {
+            SendMcbPacket(
+                _mcbPacketBuilder.BuildTiltStopPacket(),
+                "Tilt Stop");
         }
 
         /// <summary>

@@ -37,6 +37,20 @@ namespace VertiportNexus.Views.Main
             DataContext = _viewModel;
         }
 
+        /// <summary>
+        /// [MainWindow] Loaded 처리
+        /// 
+        /// 방향키 입력을 Window에서 받을 수 있도록
+        /// 초기 Keyboard Focus를 MainWindow에 설정한다.
+        /// </summary>
+        private void Window_Loaded(
+            object sender,
+            RoutedEventArgs e)
+        {
+            Keyboard.Focus(
+                this);
+        }
+
         #endregion
 
         #region [Pan / Tilt Mouse Event Methods]
@@ -62,6 +76,26 @@ namespace VertiportNexus.Views.Main
         }
 
         /// <summary>
+        /// [Pan Left] / [Tilt Up] 대각선 버튼 [MouseDown]
+        /// </summary>
+        private void PanLeftTiltUp_MouseDown(
+            object sender,
+            MouseButtonEventArgs e)
+        {
+            _viewModel.StartPanLeftTiltUpMove();
+        }
+
+        /// <summary>
+        /// [Pan Right] / [Tilt Up] 대각선 버튼 [MouseDown]
+        /// </summary>
+        private void PanRightTiltUp_MouseDown(
+            object sender,
+            MouseButtonEventArgs e)
+        {
+            _viewModel.StartPanRightTiltUpMove();
+        }
+
+        /// <summary>
         /// [Tilt] 위쪽 버튼 [MouseDown]
         /// </summary>
         private void TiltUp_MouseDown(
@@ -79,6 +113,123 @@ namespace VertiportNexus.Views.Main
             MouseButtonEventArgs e)
         {
             _viewModel.StartTiltDownMove();
+        }
+
+        /// <summary>
+        /// [Pan Left] / [Tilt Down] 대각선 버튼 [MouseDown]
+        /// </summary>
+        private void PanLeftTiltDown_MouseDown(
+            object sender,
+            MouseButtonEventArgs e)
+        {
+            _viewModel.StartPanLeftTiltDownMove();
+        }
+
+        /// <summary>
+        /// [Pan Right] / [Tilt Down] 대각선 버튼 [MouseDown]
+        /// </summary>
+        private void PanRightTiltDown_MouseDown(
+            object sender,
+            MouseButtonEventArgs e)
+        {
+            _viewModel.StartPanRightTiltDownMove();
+        }
+
+        #endregion
+
+        #region [Pan / Tilt Keyboard Event Methods]
+
+        /// <summary>
+        /// [Window] 방향키 [KeyDown] 처리
+        /// 
+        /// 운용 제어 화면에서 방향키 입력을
+        /// Pan / Tilt 연속 이동으로 전달한다.
+        /// 
+        /// TextBox 입력 중에는 방향키가 커서 이동 / 입력 보조 용도로 사용될 수 있으므로
+        /// Pan / Tilt 제어로 처리하지 않는다.
+        /// </summary>
+        private void Window_PreviewKeyDown(
+            object sender,
+            KeyEventArgs e)
+        {
+            if (IsTextBoxKeyboardFocus())
+            {
+                return;
+            }
+
+            if (!IsPanTiltDirectionKey(
+                e.Key))
+            {
+                return;
+            }
+
+            _viewModel
+                .HandlePanTiltKeyDown(
+                    e.Key);
+
+            e.Handled =
+                true;
+        }
+
+        /// <summary>
+        /// [Window] 방향키 [KeyUp] 처리
+        /// 
+        /// 해제된 방향키에 해당하는 Pan / Tilt 축만 정지할 수 있도록
+        /// ViewModel로 KeyUp 이벤트를 전달한다.
+        /// </summary>
+        private void Window_PreviewKeyUp(
+            object sender,
+            KeyEventArgs e)
+        {
+            if (IsTextBoxKeyboardFocus())
+            {
+                return;
+            }
+
+            if (!IsPanTiltDirectionKey(
+                e.Key))
+            {
+                return;
+            }
+
+            _viewModel
+                .HandlePanTiltKeyUp(
+                    e.Key);
+
+            e.Handled =
+                true;
+        }
+
+        /// <summary>
+        /// [Pan / Tilt] 방향키 여부 확인
+        /// </summary>
+        /// <param name="key">
+        /// 입력 키
+        /// </param>
+        /// <returns>
+        /// 방향키 여부
+        /// </returns>
+        private bool IsPanTiltDirectionKey(
+            Key key)
+        {
+            return key == Key.Left ||
+                   key == Key.Right ||
+                   key == Key.Up ||
+                   key == Key.Down;
+        }
+
+        /// <summary>
+        /// [TextBox] Keyboard Focus 여부 확인
+        /// 
+        /// 숫자 입력 TextBox 사용 중에는 방향키 입력을
+        /// Pan / Tilt 제어로 사용하지 않기 위해 확인한다.
+        /// </summary>
+        /// <returns>
+        /// TextBox Focus 여부
+        /// </returns>
+        private bool IsTextBoxKeyboardFocus()
+        {
+            return Keyboard.FocusedElement is TextBox;
         }
 
         #endregion
@@ -176,7 +327,7 @@ namespace VertiportNexus.Views.Main
         /// 
         /// [Pan Absolute] 입력값은 최종 ICD 기준
         /// [0 ~ 360] 범위의 양수 각도값이므로,
-        /// 숫자와 소수점 넷째 자리까지만 허용한다.
+        /// 숫자와 소수점 둘째 자리까지만 허용한다.
         /// 
         /// 입력 중에는 최대 범위 제한을 적용하지 않고,
         /// 범위 보정은 [LostFocus] 시점에 처리한다.
@@ -210,14 +361,14 @@ namespace VertiportNexus.Views.Main
             e.Handled =
                 !Regex.IsMatch(
                     newText,
-                    @"^\d*\.?\d{0,4}$");
+                    @"^\d*\.?\d{0,2}$");
         }
 
         /// <summary>
         /// [소수점 숫자] 입력 제한
         /// 
         /// [Pan] / [Tilt] 입력값에서
-        /// 음수, 정수, 소수점 넷째 자리까지 허용한다.
+        /// 음수, 정수, 소수점 둘째 자리까지 허용한다.
         /// 
         /// 입력 중에는 범위 제한을 적용하지 않고,
         /// 범위 보정은 [LostFocus] 시점에 처리한다.
@@ -252,7 +403,7 @@ namespace VertiportNexus.Views.Main
             e.Handled =
                 !Regex.IsMatch(
                     newText,
-                    @"^-?\d*\.?\d{0,4}$");
+                    @"^-?\d*\.?\d{0,2}$");
         }
 
         /// <summary>
@@ -519,7 +670,7 @@ namespace VertiportNexus.Views.Main
         /// 기본값 [0]으로 설정한다.
         ///
         /// 결과 값은
-        /// 소수점 넷째 자리까지 표시한다.
+        /// 소수점 둘째 자리까지 표시한다.
         /// </summary>
         private void ClampDecimalTextBoxValue(
             object sender,
@@ -536,7 +687,7 @@ namespace VertiportNexus.Views.Main
                 out double value))
             {
                 textBox.Text =
-                    "0";
+                    "0.00";
 
                 return;
             }
@@ -553,9 +704,15 @@ namespace VertiportNexus.Views.Main
                     max;
             }
 
+            value =
+                Math.Round(
+                    value,
+                    2,
+                    MidpointRounding.AwayFromZero);
+
             textBox.Text =
                 value.ToString(
-                    "F4");
+                    "F2");
         }
 
         /// <summary>

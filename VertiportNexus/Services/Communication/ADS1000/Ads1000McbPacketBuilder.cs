@@ -332,6 +332,66 @@ namespace VertiportNexus.Services.ADS1000
 
         #endregion
 
+        #region [Offset Packet]
+
+        /// <summary>
+        /// [Pan] Home Offset 저장 [Packet] 생성
+        /// 
+        /// 현재 [Pan] 각도값을 장비 Script 내부 Offset 값으로 저장하기 위한
+        /// [Pan Home offset] 명령 Packet을 생성한다.
+        /// 
+        /// [Pan] 제어는 [LA Local Agent] 기준 표시 좌표와
+        /// [MCB] 모터 명령 좌표의 부호 방향이 반대이므로,
+        /// Offset 저장 시에도 [Pan] 값만 부호를 반전하여 전달한다.
+        /// 
+        /// 장비는 각도값을 소수점 둘째 자리 기준으로 인식하므로,
+        /// 전달받은 각도값에 [100]을 곱한 뒤 [int] 값으로 변환하여 송신한다.
+        /// </summary>
+        /// <param name="angle">
+        /// 현재 Pan 각도
+        /// </param>
+        /// <returns>
+        /// Pan Home Offset Packet
+        /// </returns>
+        public byte[] BuildPanHomeOffsetPacket(
+            double angle)
+        {
+            return BuildHomeOffsetPacket(
+                CMD1_PAN,
+                angle);
+        }
+
+        /// <summary>
+        /// [Tilt] Home Offset 저장 [Packet] 생성
+        /// 
+        /// 현재 [Tilt] 각도값을 장비 Script 내부 Offset 값으로 저장하기 위한
+        /// [Tilt Home offset] 명령 Packet을 생성한다.
+        /// 
+        /// 장비는 각도값을 소수점 둘째 자리 기준으로 인식하므로,
+        /// 전달받은 각도값에 [100]을 곱한 뒤 [int] 값으로 변환하여 송신한다.
+        /// 
+        /// Data 형식:
+        /// MO=0;
+        /// ui[6]=각도*100;
+        /// sv;
+        /// MO=1;
+        /// </summary>
+        /// <param name="angle">
+        /// 현재 Tilt 각도
+        /// </param>
+        /// <returns>
+        /// Tilt Home Offset Packet
+        /// </returns>
+        public byte[] BuildTiltHomeOffsetPacket(
+            double angle)
+        {
+            return BuildHomeOffsetPacket(
+                CMD1_TILT,
+                angle);
+        }
+
+        #endregion
+
         #region [Common Packet Builder]
 
         /// <summary>
@@ -547,6 +607,51 @@ namespace VertiportNexus.Services.ADS1000
                 return MAX_SPEED;
             }
             return degreePerSecond;
+        }
+
+        /// <summary>
+        /// [Pan / Tilt] Home Offset 저장 [Packet] 생성
+        /// 
+        /// 현재 Pan / Tilt 각도값을 장비 Script 내부 Offset 값으로 저장하기 위한
+        /// 공통 Packet을 생성한다.
+        /// 
+        /// 장비는 각도값을 소수점 둘째 자리 기준으로 인식하므로,
+        /// 각도값에 [100]을 곱한 뒤 [int] 값으로 변환하여 송신한다.
+        /// </summary>
+        /// <param name="cmd1">
+        /// 제어 축 Command
+        /// </param>
+        /// <param name="angle">
+        /// 현재 각도
+        /// </param>
+        /// <returns>
+        /// Home Offset 저장 Packet
+        /// </returns>
+        private byte[] BuildHomeOffsetPacket(
+            byte cmd1,
+            double angle)
+        {
+            // [Home Offset] 각도값 변환
+            //
+            // 장비는 소수점 둘째 자리 기준의 정수값을 사용하므로,
+            // 현재 각도에 [100]을 곱한 뒤 반올림하여 송신한다.
+            //
+            // MidpointRounding.AwayFromZero를 사용하여
+            // 양수 / 음수 Offset 값 모두 일관된 반올림 기준을 적용한다.
+            int offsetValue =
+                Convert.ToInt32(
+                    Math.Round(
+                        angle * 100.0,
+                        MidpointRounding.AwayFromZero));
+
+            string commandText =
+                "MO=0;ui[6]="
+                + offsetValue
+                + ";sv;MO=1;";
+
+            return BuildTextPacket(
+                cmd1,
+                commandText);
         }
 
         /// <summary>

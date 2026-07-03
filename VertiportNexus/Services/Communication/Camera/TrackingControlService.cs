@@ -634,19 +634,19 @@ namespace VertiportNexus.Services.Camera
 
             Console.WriteLine(
                 "[TRACKING][FOV] Horizontal : "
-                + horizontalFov.ToString("F4"));
+                + horizontalFov.ToString("F2"));
 
             Console.WriteLine(
                 "[TRACKING][FOV] Vertical : "
-                + verticalFov.ToString("F4"));
+                + verticalFov.ToString("F2"));
 
             Console.WriteLine(
                 "[TRACKING][ANGLE] Pan Offset : "
-                + panAngleOffset.ToString("F4"));
+                + panAngleOffset.ToString("F2"));
 
             Console.WriteLine(
                 "[TRACKING][ANGLE] Tilt Offset : "
-                + tiltAngleOffset.ToString("F4"));
+                + tiltAngleOffset.ToString("F2"));
         }
         #endregion
     }

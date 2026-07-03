@@ -175,8 +175,8 @@ namespace VertiportNexus.Services.Radar
             Console.WriteLine("[RADAR][CONTROL] Elevation(rad) : " + payload.Elevation);
             Console.WriteLine("[RADAR][CONTROL] Distance(m) : " + payload.Distance);
 
-            Console.WriteLine("[RADAR][CONTROL] Pan(deg) : " + panDegree.ToString("F4"));
-            Console.WriteLine("[RADAR][CONTROL] Tilt(deg) : " + tiltDegree.ToString("F4"));
+            Console.WriteLine("[RADAR][CONTROL] Pan(deg) : " + panDegree.ToString("F2"));
+            Console.WriteLine("[RADAR][CONTROL] Tilt(deg) : " + tiltDegree.ToString("F2"));
         }
         #endregion
     }

@@ -680,19 +680,19 @@ namespace VertiportNexus.Services.Command
 
                     Console.WriteLine(
                         "[CAMERA][PTZ] Absolute Pan Current : "
-                        + currentPan.ToString("F4"));
+                        + currentPan.ToString("F2"));
 
                     Console.WriteLine(
                         "[CAMERA][PTZ] Absolute Pan Target : "
-                        + targetPan.ToString("F4"));
+                        + targetPan.ToString("F2"));
 
                     Console.WriteLine(
                         "[CAMERA][PTZ] Absolute Pan Move Angle : "
-                        + panMoveAngle.ToString("F4"));
+                        + panMoveAngle.ToString("F2"));
 
                     Console.WriteLine(
                         "[CAMERA][PTZ] Absolute Pan Command Target : "
-                        + panCommandTarget.ToString("F4"));
+                        + panCommandTarget.ToString("F2"));
 
                     _ads1000CameraControlService
                         .MovePanAbsolute(
