@@ -540,8 +540,7 @@ namespace VertiportNexus.ViewModels.Main
         /// 사용자가 화면 버튼으로 [Pan] / [Tilt] 연속 이동을 시작한 경우,
         /// 이동 중 속도 변경 시 동일 방향 명령을 다시 송신하기 위해 사용한다.
         /// </summary>
-        private PanTiltContinuousMoveDirection _currentPanTiltContinuousMoveDirection =
-            PanTiltContinuousMoveDirection.None;
+        private PanTiltContinuousMoveDirection _currentPanTiltContinuousMoveDirection;
 
         /// <summary>
         /// 현재 [Pan] 연속 이동 진행 여부
@@ -1007,6 +1006,8 @@ namespace VertiportNexus.ViewModels.Main
             _cameraStateProvider.PtzControlModeChanged +=
                 OnPtzControlModeChanged;
 
+            _currentPanTiltContinuousMoveDirection = PanTiltContinuousMoveDirection.None;
+
             #endregion
 
             #region [CSE Initialize]
@@ -1301,7 +1302,6 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         #endregion
-
 
         #region [Initialize]
 
