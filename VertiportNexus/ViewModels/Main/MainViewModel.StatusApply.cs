@@ -62,13 +62,13 @@ namespace VertiportNexus.ViewModels.Main
                 // 장비에서 수신한 원본 Pan 값과
                 // 화면 표시 기준으로 보정된 Pan 값을 비교하여,
                 // 장비 상태값과 UI 표시값의 보정 차이를 확인한다.
-                Console.WriteLine(
-                    "[ADS1000][PAN] Raw Pan : "
-                    + parsedPacket.PanValue.ToString("F2"));
+                //Console.WriteLine(
+                //    "[ADS1000][PAN] Raw Pan : "
+                //    + parsedPacket.PanValue.ToString("F2"));
 
-                Console.WriteLine(
-                    "[ADS1000][PAN] Display Pan : "
-                    + CurrentPan.ToString("F2"));
+                //Console.WriteLine(
+                //    "[ADS1000][PAN] Display Pan : "
+                //    + CurrentPan.ToString("F2"));
 
 #endif
 
@@ -94,13 +94,13 @@ namespace VertiportNexus.ViewModels.Main
                 // 장비에서 수신한 원본 Tilt 값과
                 // 화면 표시 기준으로 보정된 Tilt 값을 비교하여,
                 // 장비 Limit 문제인지 표시 Clamp 문제인지 확인한다.
-                Console.WriteLine(
-                    "[ADS1000][TILT] Raw Tilt : "
-                    + parsedPacket.TiltValue.ToString("F2"));
+                //Console.WriteLine(
+                //    "[ADS1000][TILT] Raw Tilt : "
+                //    + parsedPacket.TiltValue.ToString("F2"));
 
-                Console.WriteLine(
-                    "[ADS1000][TILT] Display Tilt : "
-                    + CurrentTilt.ToString("F2"));
+                //Console.WriteLine(
+                //    "[ADS1000][TILT] Display Tilt : "
+                //    + CurrentTilt.ToString("F2"));
 
 #endif
                 updatedTilt =

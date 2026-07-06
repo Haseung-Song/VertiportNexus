@@ -47,13 +47,9 @@ namespace VertiportNexus.ViewModels.Main
         {
             if (_isHomePositionMoving)
             {
-                ConsoleLogHelper.PrintLine();
-
-                Console.WriteLine(
+                ConsoleLogHelper.PrintBlock(
                     logPrefix
                     + " Ignored : Home Position Moving");
-
-                Console.WriteLine();
 
                 return;
             }
@@ -61,24 +57,20 @@ namespace VertiportNexus.ViewModels.Main
             if (_mcbConnectionState != ConnectionState.Connected ||
                 _scbConnectionState != ConnectionState.Connected)
             {
-                ConsoleLogHelper.PrintLine();
-
-                Console.WriteLine(
+                ConsoleLogHelper.PrintBlock(
                     logPrefix
                     + " Skipped : Device Not Fully Connected");
-
-                Console.WriteLine();
 
                 return;
             }
 
             try
             {
-                ConsoleLogHelper.PrintLine();
-
                 Console.WriteLine(
                     logPrefix
                     + " Move Start");
+
+                Console.WriteLine();
 
                 // [Pan / Tilt] 이동 상태 초기화
                 //
@@ -143,12 +135,16 @@ namespace VertiportNexus.ViewModels.Main
                     Console.WriteLine(
                         logPrefix
                         + " Move Complete");
+
+                    Console.WriteLine();
                 }
                 else
                 {
                     Console.WriteLine(
                         logPrefix
                         + " Move Timeout");
+
+                    Console.WriteLine();
                 }
 
             }
@@ -169,8 +165,6 @@ namespace VertiportNexus.ViewModels.Main
 
                 SetHomePositionMovingState(
                     false);
-
-                ConsoleLogHelper.PrintLine();
             }
 
         }
@@ -344,7 +338,7 @@ namespace VertiportNexus.ViewModels.Main
                 if (_mcbConnectionState != ConnectionState.Connected ||
                     _scbConnectionState != ConnectionState.Connected)
                 {
-                    Console.WriteLine(
+                    ConsoleLogHelper.PrintBlock(
                         "[DEVICE] Home Position Wait Canceled : Device Disconnected");
 
                     return false;
@@ -371,7 +365,7 @@ namespace VertiportNexus.ViewModels.Main
 
                     if (stableCount >= REQUIRED_STABLE_COUNT)
                     {
-                        Console.WriteLine(
+                        ConsoleLogHelper.PrintBlock(
                             "[DEVICE] Home Position Stable Count : "
                             + stableCount);
 

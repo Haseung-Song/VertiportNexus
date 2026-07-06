@@ -173,8 +173,6 @@ namespace VertiportNexus.ViewModels.Main
             int elapsedMs =
                 0;
 
-            ConsoleLogHelper.PrintLine();
-
             Console.WriteLine(
                 "[EO CAMERA] RTSP Connected Wait Start");
 
@@ -217,8 +215,6 @@ namespace VertiportNexus.ViewModels.Main
 
                 return;
             }
-
-            ConsoleLogHelper.PrintLine();
 
             Console.WriteLine(
                 "[EO CAMERA] RTSP Connected Wait Complete");
