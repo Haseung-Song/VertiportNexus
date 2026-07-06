@@ -140,7 +140,6 @@
     <Compile Include="Services\ADS1000\Control\Ads1000CameraControlService.cs" />
     <Compile Include="Services\ADS1000\Control\Ads1000ConnectionService.cs" />
     <Compile Include="Services\ADS1000\Control\Ads1000StatusService.cs" />
-    <Compile Include="Services\Communication\Camera\CameraCommandService.cs" />
     <Compile Include="Views\Main\MainWindow.StopControl.cs" />
     <Compile Include="Views\Main\MainWindow.TextBoxInput.cs" />
     <Compile Include="Views\Main\MainWindow.TextBoxLostFocus.cs" />
