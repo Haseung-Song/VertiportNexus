@@ -137,9 +137,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
-    <Compile Include="Services\ADS1000\Control\Ads1000CameraControlService.cs" />
     <Compile Include="Services\ADS1000\Control\Ads1000ConnectionService.cs" />
-    <Compile Include="Services\ADS1000\Control\Ads1000StatusService.cs" />
     <Compile Include="Views\Main\MainWindow.StopControl.cs" />
     <Compile Include="Views\Main\MainWindow.TextBoxInput.cs" />
     <Compile Include="Views\Main\MainWindow.TextBoxLostFocus.cs" />
@@ -189,7 +187,6 @@
     <Compile Include="Services\ADS1000\Protocol\Ads1000McbPacketBuilder.cs" />
     <Compile Include="Services\ADS1000\Protocol\Ads1000PacketParser.cs" />
     <Compile Include="Services\ADS1000\Protocol\Ads1000ScbPacketBuilder.cs" />
-    <Compile Include="Services\ADS1000\Control\Ads1000ConnectionService.cs" />
     <Compile Include="Models\ADS1000\Ads1000ConnectionResult.cs" />
     <Compile Include="Services\Communication\Camera\CameraStateProvider.cs" />
     <Compile Include="Services\Communication\Camera\DetectionStateProvider.cs" />
