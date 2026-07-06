@@ -55,7 +55,7 @@ namespace VertiportNexus.ViewModels.Main
                 // 연결 시도 중에는 중복 연결 / 해제 요청을 방지하기 위해
                 // [장비 연결] / [연결 해제] 버튼을 비활성화한다.
                 OnPropertyChanged(nameof(IsDeviceConnectButtonEnabled));
-                OnPropertyChanged(nameof(IsDeviceConnectButtonEnabled));
+                OnPropertyChanged(nameof(IsDeviceDisconnectButtonEnabled));
 
                 // [장비 통신 설정] 입력 가능 상태 갱신
                 //
