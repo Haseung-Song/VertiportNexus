@@ -10,7 +10,7 @@ namespace VertiportNexus.Services.Camera
     /// 명령 처리 결과와 영상처리유닛에서 전달되는
     /// 최신 탐지 객체 정보를 보관한다.
     /// 
-    /// [detect_conf]는 약 [30Hz]로 수신될 수 있으므로
+    /// [detect_cont]는 약 [30Hz]로 수신될 수 있으므로
     /// Queue에 누적하지 않고 마지막 탐지 객체 정보만 유지한다.
     /// </summary>
     internal class DetectionStateProvider
@@ -50,7 +50,7 @@ namespace VertiportNexus.Services.Camera
         /// <summary>
         /// 마지막 탐지 객체 영역 정보
         /// 
-        /// [detect_conf] 메시지가 [30Hz]로 수신되므로
+        /// [detect_cont] 메시지가 [30Hz]로 수신되므로
         /// Queue에 누적하지 않고 최신 값만 유지한다.
         /// </summary>
         private DetectionBoundingBox _lastBoundingBox;
@@ -263,7 +263,7 @@ namespace VertiportNexus.Services.Camera
         /// <summary>
         /// 마지막 탐지 객체 정보 갱신
         /// 
-        /// [detect_on] / [detect_conf] 수신 시 호출되며,
+        /// [detect_on] / [detect_cont] 수신 시 호출되며,
         /// 수신된 객체 화면 좌표를 마지막 탐지 객체 정보로 저장한다.
         /// </summary>
         public void UpdateBoundingBox(

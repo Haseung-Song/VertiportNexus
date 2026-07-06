@@ -5,7 +5,7 @@ namespace VertiportNexus.Models.Vertiport
     /// <summary>
     /// [CSE] 명령 [Payload] 모델
     /// 
-    /// [detect_on] / [detect_off] / [detect_conf] /
+    /// [detect_on] / [detect_off] / [detect_cont] /
     /// [ptz_move] / [get_state] 메시지의
     /// [payload] 영역을 표현한다.
     /// 

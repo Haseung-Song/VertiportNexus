@@ -31,7 +31,7 @@ namespace VertiportNexus.Models.Vertiport
         /// 예)
         /// detect_on
         /// detect_off
-        /// detect_conf
+        /// detect_cont
         /// ptz_move
         /// get_state
         /// </summary>

@@ -27,8 +27,8 @@
         /// 
         /// 탐지 중 약 [30Hz] 주기로 수신된다.
         /// </summary>
-        public const string DetectConf =
-            "detect_conf";
+        public const string DetectCont =
+            "detect_cont";
 
         #endregion
 

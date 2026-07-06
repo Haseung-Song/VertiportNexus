@@ -311,7 +311,7 @@ namespace VertiportNexus.Services.Vertiport
                         message);
                     break;
 
-                case CseCommandType.DetectConf:
+                case CseCommandType.DetectCont:
                     HandleDetectConf(
                         message);
                     break;
@@ -457,7 +457,7 @@ namespace VertiportNexus.Services.Vertiport
 
             // [탐지 결과 연속 갱신]
             //
-            // [detect_conf]는 탐지 중 약 [30Hz]로 수신되므로
+            // [detect_cont]는 탐지 중 약 [30Hz]로 수신되므로
             // Queue에 누적하지 않고 마지막 객체 화면 좌표만 덮어쓴다.
             _detectionStateProvider
                 .UpdateBoundingBox(
