@@ -264,8 +264,8 @@ namespace VertiportNexus.Services.Vertiport
                         message);
                     break;
 
-                case CseInterfaceId.DetectConf:
-                    HandleDetectConf(
+                case CseInterfaceId.DetectCont:
+                    HandleDetectCont(
                         message);
                     break;
 
@@ -312,7 +312,7 @@ namespace VertiportNexus.Services.Vertiport
                     break;
 
                 case CseCommandType.DetectCont:
-                    HandleDetectConf(
+                    HandleDetectCont(
                         message);
                     break;
 
@@ -433,7 +433,7 @@ namespace VertiportNexus.Services.Vertiport
         /// <param name="message">
         /// [CSE] 명령 메시지
         /// </param>
-        private void HandleDetectConf(
+        private void HandleDetectCont(
             CseCommandMessage message)
         {
             PrintCommandLog(
@@ -446,7 +446,7 @@ namespace VertiportNexus.Services.Vertiport
             if (!_detectionStateProvider.IsDetectEnabled)
             {
                 Console.WriteLine(
-                    "[CSE][DETECT] Detect Conf Ignored : LOCK OFF");
+                    "[CSE][DETECT] Detect Cont Ignored : LOCK OFF");
 
                 return;
             }

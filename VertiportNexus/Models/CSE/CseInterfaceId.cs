@@ -28,7 +28,7 @@
         /// 탐지 상태에서 약 [30Hz] 주기로
         /// 최신 객체 화면 좌표를 수신한다.
         /// </summary>
-        public const string DetectConf =
+        public const string DetectCont =
             "IF-GUIS-CSE-003";
 
         /// <summary>
@@ -64,7 +64,7 @@
         /// <summary>
         /// [CSE -> GUIS] 탐지 결과 연속 갱신 응답
         /// </summary>
-        public const string DetectConfResponse =
+        public const string DetectContResponse =
             "IF-CSE-GUIS-003";
 
         /// <summary>
