@@ -1,9 +1,13 @@
-﻿using System;
-using System.ComponentModel;
+﻿using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
+using System.Windows.Media;
+using System;
 using VertiportNexus.Common;
 using VertiportNexus.Models.ADS1000;
+using VertiportNexus.Models.Vertiport;
 using VertiportNexus.Services.ADS1000;
 using VertiportNexus.Services.Camera;
 using VertiportNexus.Services.Command;
@@ -18,17 +22,11 @@ namespace VertiportNexus.ViewModels.Main
     /// <summary>
     /// [Main] 화면 [ViewModel]
     /// 
-    /// 메인 클래스 역할:
-    /// 1. [MCB] / [SCB] [TCP] 연결 상태 관리
-    /// 2. [ADS1000] [Packet Builder]를 통한 장비 제어 [Packet] 생성
-    /// 3. [MCB] [Pan] / [Tilt] 제어
-    /// 4. [SCB] [Zoom] / [Focus] 제어
-    /// 5. [Console] 로그 및 [XAML] 상태 표시
-    /// 
-    /// 실제 [TCP] 송수신은 [TcpClientService]에서 처리하고,
-    /// [ViewModel]은 [Command] 연결과 화면 상태 갱신만 담당한다.
+    /// 화면 Binding Property / Command / Controller 호출 / 결과 반영을 담당한다.
+    /// 실제 기능 처리는 [Controllers] 하위 클래스에서 수행하고,
+    /// [MainViewModel]은 반환된 결과를 기준으로 UI 상태만 갱신한다.
     /// </summary>
-    public partial class MainViewModel : INotifyPropertyChanged
+    public class MainViewModel : INotifyPropertyChanged
     {
         #region [Enum Type]
 
@@ -217,14 +215,6 @@ namespace VertiportNexus.ViewModels.Main
         private readonly IMqSender _mqSender;
 
         /// <summary>
-        /// [Mock] [MQ] 수신 서비스
-        /// 
-        /// 개발용 테스트 메시지 주입 시 사용한다.
-        /// 실제 운용 수신은 [_mqReceiver]를 통해 처리한다.
-        /// </summary>
-        private readonly MockMqReceiver _mockMqReceiver;
-
-        /// <summary>
         /// [CSE] 명령 수신 서비스
         /// </summary>
         private readonly CseCommandReceiveService _cseCommandReceiveService;
@@ -275,25 +265,81 @@ namespace VertiportNexus.ViewModels.Main
         private readonly RadarUdpService _radarUdpService;
 
         /// <summary>
-        /// [Radar] UDP Mock 송신 서비스
-        /// 
-        /// RadarUdpService 수신 흐름을 검증하기 위해
-        /// Mock Packet을 UDP Loopback으로 송신한다.
-        /// </summary>
-        private readonly RadarUdpMockSenderService _radarUdpMockSenderService;
-
-        /// <summary>
-        /// [Radar] Mock Packet 테스트 서비스
-        /// </summary>
-        private readonly RadarMockPacketTestService _radarMockPacketTestService;
-
-        /// <summary>
         /// [Radar] 추적 제어 서비스
         /// 
         /// Radar Tracking Request에서 수신한
         /// 방위각 / 고각 정보를 ADS1000 Pan / Tilt 제어로 연결한다.
         /// </summary>
         private readonly RadarTrackingControlService _radarTrackingControlService;
+
+        #endregion
+
+        #region [Controller Fields]
+
+        /// <summary>
+        /// [RabbitMQ] 수신 Controller
+        /// </summary>
+        private readonly RabbitMqController _rabbitMqController;
+
+        /// <summary>
+        /// [Radar] UDP 수신 Controller
+        /// </summary>
+        private readonly RadarUdpController _radarUdpController;
+
+        /// <summary>
+        /// [Device Connection] Controller
+        /// </summary>
+        private readonly DeviceConnectionController _deviceConnectionController;
+
+        /// <summary>
+        /// [EO Camera] Controller
+        /// </summary>
+        private readonly EoCameraController _eoCameraController;
+
+        /// <summary>
+        /// [ADS1000 Receive] Controller
+        /// </summary>
+        private readonly Ads1000ReceiveController _ads1000ReceiveController;
+
+        /// <summary>
+        /// [ADS1000 Status Apply] Controller
+        /// </summary>
+        private readonly Ads1000StatusApplyController _ads1000StatusApplyController;
+
+        /// <summary>
+        /// [PTZ Absolute] Controller
+        /// </summary>
+        private readonly PtzAbsoluteController _ptzAbsoluteController;
+
+        /// <summary>
+        /// [PTZ Relative] Controller
+        /// </summary>
+        private readonly PtzRelativeController _ptzRelativeController;
+
+        /// <summary>
+        /// [PTZ Continuous] Controller
+        /// </summary>
+        private readonly PtzContinuousController _ptzContinuousController;
+
+        /// <summary>
+        /// [PTZ Home / Zero] Controller
+        /// </summary>
+        private readonly PtzHomeZeroController _ptzHomeZeroController;
+
+        /// <summary>
+        /// [Keyboard PTZ] Controller
+        /// </summary>
+        private readonly KeyboardPtzController _keyboardPtzController;
+
+        /// <summary>
+        /// [Zoom / Focus Position] Controller
+        /// </summary>
+        private readonly ZoomFocusPositionController _zoomFocusPositionController;
+
+        /// <summary>
+        /// [PTZ Mode] Controller
+        /// </summary>
+        private readonly PtzModeController _ptzModeController;
 
         #endregion
 
@@ -390,12 +436,6 @@ namespace VertiportNexus.ViewModels.Main
         /// 장비 연결 해제 진행 여부
         /// </summary>
         private bool _isDeviceDisconnecting;
-
-        /// <summary>
-        /// 마지막 [ADS1000] 상태 로그 출력 시간
-        /// </summary>
-        private DateTime _lastAds1000StatusLogTime =
-            DateTime.MinValue;
 
         /// <summary>
         /// [MCB] 연결 상태
@@ -533,15 +573,6 @@ namespace VertiportNexus.ViewModels.Main
         /// [UI] MouseUp 정지 처리를 분리하기 위해 사용한다.
         /// </summary>
         private bool _isUiContinuousMoveStarted;
-
-        /// <summary>
-        /// 현재 [Pan / Tilt] 연속 이동 방향
-        /// 
-        /// 사용자가 화면 버튼으로 [Pan] / [Tilt] 연속 이동을 시작한 경우,
-        /// 이동 중 속도 변경 시 동일 방향 명령을 다시 송신하기 위해 사용한다.
-        /// </summary>
-        private PanTiltContinuousMoveDirection _currentPanTiltContinuousMoveDirection
-            = PanTiltContinuousMoveDirection.None;
 
         /// <summary>
         /// 현재 [Pan] 연속 이동 진행 여부
@@ -723,11 +754,6 @@ namespace VertiportNexus.ViewModels.Main
         public ICommand StopTcpReceiveCommand { get; }
 
         /// <summary>
-        /// [TCP] 테스트 송신 요청 [Command]
-        /// </summary>
-        public ICommand SendTcpTestCommand { get; }
-
-        /// <summary>
         /// [PT] 좌측 이동 요청 [Command]
         /// </summary>
         public ICommand PanLeftCommand { get; }
@@ -831,11 +857,6 @@ namespace VertiportNexus.ViewModels.Main
         /// [Focus] 위치 이동 요청 [Command]
         /// </summary>
         public ICommand SetFocusPositionCommand { get; }
-
-        /// <summary>
-        /// [Status] 조회 요청 [Command]
-        /// </summary>
-        public ICommand RequestStatusCommand { get; }
 
         /// <summary>
         /// [PTZ] [AUTO] 모드 설정 요청 [Command]
@@ -1011,13 +1032,6 @@ namespace VertiportNexus.ViewModels.Main
 
             #region [CSE Initialize]
 
-            // [Mock] [MQ] 수신 서비스 생성
-            //
-            // 개발 단계에서 [JSON] 테스트 메시지를
-            // 직접 주입하기 위해 별도 보관한다.
-            _mockMqReceiver =
-                new MockMqReceiver();
-
             // [MQ] 수신 서비스 지정
             //
             // 실제 [RabbitMQ]의 [q.command.req] / [q.status.req] Queue에서
@@ -1128,14 +1142,6 @@ namespace VertiportNexus.ViewModels.Main
                     _radarStateProvider,
                     _radarTrackingControlService);
 
-            // [Radar] Mock Packet 테스트 서비스 생성
-            //
-            // Tracking Request / BIST Request Mock Packet을 생성하여
-            // 실제 UDP 통신 없이 Radar Command 처리 로직을 테스트한다.
-            _radarMockPacketTestService =
-                new RadarMockPacketTestService(
-                    _radarCommandHandler);
-
             // [Radar] UDP 연동 서비스 생성
             //
             // UDP 수신 Packet을 Handler로 전달하고,
@@ -1145,14 +1151,61 @@ namespace VertiportNexus.ViewModels.Main
                     _radarUdpClientService,
                     _radarCommandHandler);
 
-            // [Radar] UDP Mock 송신 서비스 생성
-            //
-            // 실제 Radar 장비 연동 전,
-            // Mock Packet을 UDP Loopback으로 송신하여
-            // RadarUdpService 수신 / Handler 처리 / ADS1000 제어 흐름을 검증한다.
-            _radarUdpMockSenderService =
-                new RadarUdpMockSenderService(
-                    _radarMockPacketTestService);
+            #endregion
+
+            #region [Controller Initialize]
+
+            _rabbitMqController =
+                new RabbitMqController(
+                    _cseCommandReceiveService,
+                    _cseCommandHandler,
+                    _mqReceiver);
+
+            _radarUdpController =
+                new RadarUdpController(
+                    _radarUdpService);
+
+            _deviceConnectionController =
+                new DeviceConnectionController(
+                    _ads1000ConnectionService);
+
+            _eoCameraController =
+                new EoCameraController(
+                    _eoCameraService);
+
+            _ads1000ReceiveController =
+                new Ads1000ReceiveController(
+                    _ads1000StatusService);
+
+            _ads1000StatusApplyController =
+                new Ads1000StatusApplyController(
+                    _cameraStateProvider);
+
+            _ptzAbsoluteController =
+                new PtzAbsoluteController(
+                    _ads1000CameraControlService);
+
+            _ptzRelativeController =
+                new PtzRelativeController(
+                    _ads1000CameraControlService);
+
+            _ptzContinuousController =
+                new PtzContinuousController(
+                    _ads1000CameraControlService);
+
+            _ptzHomeZeroController =
+                new PtzHomeZeroController(
+                    _ads1000CameraControlService);
+
+            _keyboardPtzController =
+                new KeyboardPtzController();
+
+            _zoomFocusPositionController =
+                new ZoomFocusPositionController(
+                    _ads1000CameraControlService);
+
+            _ptzModeController =
+                new PtzModeController();
 
             #endregion
 
@@ -1171,10 +1224,6 @@ namespace VertiportNexus.ViewModels.Main
 
             StopTcpReceiveCommand =
                 new AsyncRelayCommand(DisconnectDevicesAsync);
-
-            SendTcpTestCommand =
-                new RelayCommand(
-                    _ads1000CameraControlService.SendVersionQuery);
 
             PanLeftCommand =
                 new RelayCommand(
@@ -1198,23 +1247,23 @@ namespace VertiportNexus.ViewModels.Main
 
             ZoomInCommand =
                 new RelayCommand(
-                    _ads1000CameraControlService.ZoomIn);
+                    StartZoomInMove);
 
             ZoomOutCommand =
                 new RelayCommand(
-                    _ads1000CameraControlService.ZoomOut);
+                    StartZoomOutMove);
 
             FocusNearCommand =
                 new RelayCommand(
-                    _ads1000CameraControlService.FocusNear);
+                    StartFocusNearMove);
 
             FocusFarCommand =
                 new RelayCommand(
-                    _ads1000CameraControlService.FocusFar);
+                    StartFocusFarMove);
 
             AutoFocusCommand =
                 new RelayCommand(
-                    _ads1000CameraControlService.AutoFocus);
+                    AutoFocus);
 
             MovePanAbsoluteCommand =
                 new RelayCommand(
@@ -1259,10 +1308,6 @@ namespace VertiportNexus.ViewModels.Main
             SetFocusPositionCommand =
                 new RelayCommand(
                     SetFocusPosition);
-
-            RequestStatusCommand =
-                new RelayCommand(
-                    _ads1000CameraControlService.SendVersionQuery);
 
             SetPtzAutoModeCommand =
                 new RelayCommand(
@@ -1371,6 +1416,3902 @@ namespace VertiportNexus.ViewModels.Main
             OnPropertyChanged(nameof(IsPanTurnShortMode));
 
             OnPropertyChanged(nameof(IsPanTurnViaZeroMode));
+        }
+        #endregion
+
+
+        #region [ADS1000 Control Event Methods]
+
+        /// <summary>
+        /// [ADS1000] [Packet] 송신 결과 처리
+        /// 
+        /// [Ads1000CameraControlService]에서 전달받은 송신 결과를
+        /// 화면 상태 문자열에 반영한다.
+        /// </summary>
+        /// <param name="sendResult">
+        /// [ADS1000] [Packet] 송신 결과
+        /// </param>
+        private void OnAds1000SendResultChanged(
+            Ads1000SendResult sendResult)
+        {
+            if (!sendResult.IsSuccess)
+            {
+                return;
+            }
+
+        }
+        #endregion
+
+
+        #region [TCP Connection Methods]
+
+        /// <summary>
+        /// [MCB] / [SCB] 장비 [TCP] 연결
+        /// </summary>
+        private async Task ConnectDevicesAsync()
+        {
+            if (_isDeviceConnecting)
+            {
+                ConsoleLogHelper.PrintBlock(
+                    "[DEVICE] Connect Ignored : Connecting");
+
+                return;
+            }
+
+            if (_mcbConnectionState == ConnectionState.Connected ||
+                _scbConnectionState == ConnectionState.Connected)
+            {
+                ConsoleLogHelper.PrintBlock(
+                    "[DEVICE] Connect Ignored : Already Connected");
+
+                return;
+            }
+
+            MainStatusText =
+                "MCB / SCB CONNECTING...";
+
+            OperationModeText =
+                "DEVICE CONNECTING...";
+
+            _isDeviceConnecting =
+                true;
+
+            SetDeviceConnectionState(
+                ConnectionState.Connecting,
+                ConnectionState.Connecting);
+
+            OnPropertyChanged(nameof(IsDeviceConnectButtonEnabled));
+            OnPropertyChanged(nameof(IsDeviceDisconnectButtonEnabled));
+            OnPropertyChanged(nameof(IsDeviceConnectionSettingEnabled));
+            OnPropertyChanged(nameof(IsRadarUdpConnectionSettingEnabled));
+            OnPropertyChanged(nameof(IsRabbitMqConnectionSettingEnabled));
+
+            try
+            {
+                DeviceConnectionControllerResult result =
+                    await _deviceConnectionController
+                        .ConnectAsync(
+                            McbIpAddress,
+                            McbPort,
+                            ScbIpAddress,
+                            ScbPort);
+
+                if (result.IsSuccess &&
+                    result.ConnectionResult != null)
+                {
+                    ApplyDeviceConnectionResult(
+                        result.ConnectionResult);
+
+                    MainStatusText =
+                        result.Message;
+
+                    OperationModeText =
+                        "DEVICE CONNECTED";
+
+                    _isEoVideoDisplayEnabled =
+                        true;
+
+                    _eoCameraController
+                        .Connect(
+                            DEFAULT_EO_RTSP_ADDRESS);
+
+                    // [EO RTSP] 연결 성공 대기 후 [Home Position] 이동
+                    //
+                    // 장비 연결 직후 EO Camera가 Ready 상태가 아닐 수 있으므로,
+                    // RTSP 연결 성공 상태를 별도 비동기 흐름에서 대기한 뒤
+                    // Home Position 이동을 수행한다.
+                    _ =
+                        WaitEoRtspConnectedAndMoveHomePositionAsync();
+                }
+                else
+                {
+                    SetDeviceConnectionState(
+                        ConnectionState.Disconnected,
+                        ConnectionState.Disconnected);
+
+                    MainStatusText =
+                        result.Message;
+
+                    OperationModeText =
+                        "DEVICE CONNECT FAILED";
+                }
+
+            }
+            finally
+            {
+                _isDeviceConnecting =
+                    false;
+
+                OnPropertyChanged(nameof(IsDeviceConnectButtonEnabled));
+                OnPropertyChanged(nameof(IsDeviceDisconnectButtonEnabled));
+                OnPropertyChanged(nameof(IsDeviceConnectionSettingEnabled));
+                OnPropertyChanged(nameof(IsRadarUdpConnectionSettingEnabled));
+                OnPropertyChanged(nameof(IsRabbitMqConnectionSettingEnabled));
+            }
+
+        }
+
+        /// <summary>
+        /// [장비 연결 후] EO RTSP 연결 성공 대기 및 Home Position 이동
+        /// 
+        /// 장비 전원 직후 EO Camera가 Ready 상태가 아닐 수 있으므로,
+        /// EO RTSP 연결 성공 여부를 일정 시간 대기한 뒤
+        /// 연결 성공 시 Home Position 명령을 송신한다.
+        /// 
+        /// RTSP 연결 실패 상태에서는 Home Position 명령을 송신하지 않는다.
+        /// </summary>
+        private async Task WaitEoRtspConnectedAndMoveHomePositionAsync()
+        {
+            const int CHECK_DELAY_MS =
+                200;
+
+            const int MAX_WAIT_MS =
+                65000;
+
+            int elapsedMs =
+                0;
+
+            Console.WriteLine(
+                "[EO CAMERA] RTSP Connected Wait Start");
+
+            ConsoleLogHelper.PrintLine();
+
+            while (_isEoVideoDisplayEnabled &&
+                   !_isEoRtspConnected &&
+                   elapsedMs < MAX_WAIT_MS)
+            {
+                await Task.Delay(
+                    CHECK_DELAY_MS);
+
+                elapsedMs +=
+                    CHECK_DELAY_MS;
+            }
+
+            if (!_isEoVideoDisplayEnabled)
+            {
+                ConsoleLogHelper.PrintLine();
+
+                Console.WriteLine(
+                    "[EO CAMERA] RTSP Connected Wait Canceled : Display Disabled");
+
+                ConsoleLogHelper.PrintLine();
+
+                return;
+            }
+
+            if (!_isEoRtspConnected)
+            {
+                ConsoleLogHelper.PrintLine();
+
+                Console.WriteLine(
+                    "[EO CAMERA] RTSP Connected Wait Failed : Timeout");
+
+                Console.WriteLine(
+                    "[DEVICE] Home Position After Connect Skipped : EO RTSP Not Connected");
+
+                ConsoleLogHelper.PrintLine();
+
+                return;
+            }
+
+            Console.WriteLine(
+                "[EO CAMERA] RTSP Connected Wait Complete");
+
+            ConsoleLogHelper.PrintLine();
+
+            await MoveHomePositionAfterDeviceConnectedAsync();
+        }
+
+        /// <summary>
+        /// [장비 연결 후] Home Position 이동
+        /// 
+        /// [MCB] / [SCB] 장비 연결이 완료되면
+        /// 장비 기준 Home Position 상태에서 운용을 시작할 수 있도록
+        /// Pan Home / Tilt Home 명령을 자동 송신한다.
+        /// 
+        /// EO 영상 연결 시도 후 Home 이동 과정을 확인할 수 있도록
+        /// 짧은 대기 후 Home Position 이동을 수행한다.
+        /// </summary>
+        private async Task MoveHomePositionAfterDeviceConnectedAsync()
+        {
+            // [EO 영상 표시 대기]
+            //
+            // 장비 연결 직후 바로 Home Position 명령을 송신하면
+            // 영상이 표시되기 전에 장비가 이동할 수 있다.
+            //
+            // 사용자가 화면으로 현재 방향과 Home 이동 과정을 확인할 수 있도록
+            // EO 영상 연결 시도 후 짧은 대기 시간을 둔다.
+            await Task.Delay(
+                300);
+
+            await MoveHomePositionWithControlLockAsync(
+                "[DEVICE] Home Position After Connect");
+        }
+
+        /// <summary>
+        /// [Home Position] 이동 상태 반영
+        /// 
+        /// Home Position 이동 진행 여부를 저장하고,
+        /// 장비 연결 버튼 및 장비 제어 탭 활성 / 비활성 상태를 갱신한다.
+        /// </summary>
+        /// <param name="isMoving">
+        /// Home Position 이동 진행 여부
+        /// </param>
+        private void SetHomePositionMovingState(
+            bool isMoving)
+        {
+            _isHomePositionMoving =
+                isMoving;
+
+            // [장비 연결 버튼] 활성화 상태 갱신
+            //
+            // Home Position 이동 중에는
+            // [장비 연결] 버튼이 비활성화되도록 갱신한다.
+            OnPropertyChanged(nameof(IsDeviceConnectButtonEnabled));
+
+            // [장비 연결 해제 버튼] 활성화 상태 갱신
+            //
+            // Home Position 이동 중에는
+            // 장비 내부 Home Script 실행 상태를 보호하기 위해
+            // [연결 해제] 버튼이 비활성화되도록 갱신한다.
+            OnPropertyChanged(nameof(IsDeviceDisconnectButtonEnabled));
+
+            // [장비 통신 설정] 입력 가능 상태 갱신
+            //
+            // Home Position 이동 중에는
+            // 장비 연결 설정값을 변경하지 못하도록 갱신한다.
+            OnPropertyChanged(nameof(IsDeviceConnectionSettingEnabled));
+
+            // [장비 제어] 활성화 상태 갱신
+            //
+            // Home Position 이동 중에는
+            // 운용 제어 / 이동 제어 영역이 비활성화되도록 갱신한다.
+            OnPropertyChanged(nameof(IsDeviceControlEnabled));
+
+            // [장비 제어 탭] 활성화 상태 갱신
+            //
+            // Home Position 이동 중에는
+            // 통신 설정 / 운용 제어 / 이동 제어 탭이 비활성화되도록 갱신한다.
+            OnPropertyChanged(nameof(IsDeviceControlTabEnabled));
+
+            // [Pan / Tilt Speed] 설정 가능 상태 갱신
+            //
+            // Home Position 이동 중에는
+            // Pan / Tilt Speed 설정을 변경하지 못하도록 갱신한다.
+            OnPropertyChanged(nameof(IsPanTiltSpeedEnabled));
+        }
+
+        /// <summary>
+        /// [MCB] / [SCB] 연결 상태 반영
+        /// </summary>
+        /// <param name="mcbConnectionState">
+        /// [MCB] 연결 상태
+        /// </param>
+        /// <param name="scbConnectionState">
+        /// [SCB] 연결 상태
+        /// </param>
+        private void SetDeviceConnectionState(
+            ConnectionState mcbConnectionState,
+            ConnectionState scbConnectionState)
+        {
+            // [MCB] 연결 상태 저장
+            //
+            // [MCB] 연결 여부를
+            // 내부 상태값에 반영한다.
+            _mcbConnectionState =
+                mcbConnectionState;
+
+            // [SCB] 연결 상태 저장
+            //
+            // [SCB] 연결 여부를
+            // 내부 상태값에 반영한다.
+            _scbConnectionState =
+                scbConnectionState;
+
+            // [MCB] 연결 상태 UI 갱신
+            //
+            // 연결 상태 텍스트 및
+            // 상태 표시 색상을 갱신한다.
+            OnPropertyChanged(nameof(McbConnectionStatusText));
+            OnPropertyChanged(nameof(McbConnectionStatusBrush));
+
+            // [SCB] 연결 상태 UI 갱신
+            //
+            // 연결 상태 텍스트 및
+            // 상태 표시 색상을 갱신한다.
+            OnPropertyChanged(nameof(ScbConnectionStatusText));
+            OnPropertyChanged(nameof(ScbConnectionStatusBrush));
+
+            // [장비 제어] 활성화 상태 갱신
+            //
+            // [MCB] / [SCB] 연결 상태 변경에 따라
+            // 화면 제어 버튼 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsDeviceControlEnabled));
+
+            // [장비 통신 설정] 입력 가능 상태 갱신
+            //
+            // [MCB] / [SCB] 연결 상태 변경에 따라
+            // IP / Port 입력칸 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsDeviceConnectionSettingEnabled));
+
+            // [장비 제어 탭] 활성화 상태 갱신
+            //
+            // Home Position 이동 여부 및 연결 상태 변경에 따라
+            // 장비 제어 관련 탭 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsDeviceControlTabEnabled));
+
+            // [Pan / Tilt Speed] 설정 가능 상태 갱신
+            //
+            // [MCB] 연결 상태 및 Home Position 이동 상태에 따라
+            // Pan / Tilt Speed 슬라이더 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsPanTiltSpeedEnabled));
+
+            // [장비 연결] 버튼 활성화 상태 갱신
+            //
+            // [MCB] / [SCB] 연결 상태 변경에 따라
+            // 중복 연결 요청 가능 여부를 갱신한다.
+            OnPropertyChanged(nameof(IsDeviceConnectButtonEnabled));
+
+            // [장비 연결 해제 버튼] 활성화 상태 갱신
+            //
+            // [MCB] / [SCB] 연결 상태 변경에 따라
+            // [연결 해제] 버튼 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsDeviceDisconnectButtonEnabled));
+
+            // [Radar UDP 수신 시작] 버튼 활성화 상태 갱신
+            //
+            // [MCB] / [SCB] 연결 상태 및
+            // [Radar UDP] 수신 상태에 따라
+            // [UDP START] 버튼 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsRadarUdpStartButtonEnabled));
+
+            // [Radar UDP 수신 중지] 버튼 활성화 상태 갱신
+            //
+            // [MCB] / [SCB] 연결 상태 및
+            // [Radar UDP] 수신 상태에 따라
+            // [UDP STOP] 버튼 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsRadarUdpStopButtonEnabled));
+
+            // [Radar UDP 통신 설정] 입력 가능 상태 갱신
+            //
+            // [Radar UDP] 수신 상태 변경에 따라
+            // Radar UDP IP / Port 입력칸 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsRadarUdpConnectionSettingEnabled));
+
+            // [RabbitMQ 수신 시작] 버튼 활성화 상태 갱신
+            //
+            // [MCB] / [SCB] 연결 상태 및
+            // [RabbitMQ] 수신 상태에 따라
+            // [MQ START] 버튼 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsRabbitMqStartButtonEnabled));
+
+            // [RabbitMQ 수신 중지] 버튼 활성화 상태 갱신
+            //
+            // [MCB] / [SCB] 연결 상태 및
+            // [RabbitMQ] 수신 상태에 따라
+            // [MQ STOP] 버튼 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsRabbitMqStopButtonEnabled));
+
+            // [RabbitMQ 통신 설정] 입력 가능 상태 갱신
+            //
+            // [RabbitMQ] 수신 상태 변경에 따라
+            // RabbitMQ Host / Port 입력칸 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsRabbitMqConnectionSettingEnabled));
+        }
+
+        /// <summary>
+        /// [ADS1000] 장비 연결 상태 변경 처리
+        /// 
+        /// [MCB] / [SCB] 연결 시도 결과를
+        /// 장비별로 화면에 즉시 반영한다.
+        /// </summary>
+        /// <param name="isMcbConnected">
+        /// [MCB] 연결 성공 여부
+        /// </param>
+        /// <param name="isScbConnected">
+        /// [SCB] 연결 성공 여부
+        /// </param>
+        private void OnAds1000ConnectionStateChanged(
+            bool? isMcbConnected,
+            bool? isScbConnected)
+        {
+            App.Current.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                ConnectionState mcbConnectionState =
+                    isMcbConnected.HasValue
+                        ? isMcbConnected.Value
+                            ? ConnectionState.Connected
+                            : ConnectionState.Disconnected
+                        : _mcbConnectionState;
+
+                ConnectionState scbConnectionState =
+                    isScbConnected.HasValue
+                        ? isScbConnected.Value
+                            ? ConnectionState.Connected
+                            : ConnectionState.Disconnected
+                        : _scbConnectionState;
+
+                SetDeviceConnectionState(
+                    mcbConnectionState,
+                    scbConnectionState);
+            }));
+
+        }
+
+        /// <summary>
+        /// [MCB] / [SCB] 연결 결과 화면 반영
+        /// </summary>
+        /// <param name="connectionResult">
+        /// [ADS1000] 장비 연결 결과
+        /// </param>
+        private void ApplyDeviceConnectionResult(
+            Ads1000ConnectionResult connectionResult)
+        {
+            if (connectionResult.IsMcbConnected &&
+                connectionResult.IsScbConnected)
+            {
+                MainStatusText =
+                    "MCB / SCB CONNECTED";
+
+                OperationModeText =
+                    "ADS1000 CONTROL";
+            }
+            else if (connectionResult.IsMcbConnected)
+            {
+                MainStatusText =
+                    "MCB ONLY CONNECTED";
+
+                OperationModeText =
+                    "MCB ONLY";
+            }
+            else if (connectionResult.IsScbConnected)
+            {
+                MainStatusText =
+                    "SCB ONLY CONNECTED";
+
+                OperationModeText =
+                    "SCB ONLY";
+            }
+            else
+            {
+                MainStatusText =
+                    "MCB / SCB DISCONNECTED";
+
+                OperationModeText =
+                    "CONNECT FAILED";
+            }
+
+            SetDeviceConnectionState(
+                connectionResult.IsMcbConnected
+                    ? ConnectionState.Connected
+                    : ConnectionState.Disconnected,
+                connectionResult.IsScbConnected
+                    ? ConnectionState.Connected
+                    : ConnectionState.Disconnected);
+
+            // [Camera] 연결 상태 저장
+            //
+            // [CSE] [Get PTZ State] 응답에서 사용할 수 있도록
+            // [MCB] / [SCB] 중 하나 이상 연결된 경우 연결 상태로 판단한다.
+            _cameraStateProvider.UpdateConnectionState(
+                connectionResult.IsMcbConnected ||
+                connectionResult.IsScbConnected);
+        }
+
+        /// <summary>
+        /// [MCB] / [SCB] 장비 [TCP] 연결 해제
+        /// </summary>
+        private Task DisconnectDevicesAsync()
+        {
+            if (_isDeviceDisconnecting)
+            {
+                ConsoleLogHelper.PrintBlock(
+                    "[DEVICE] Disconnect Ignored : Disconnecting");
+
+                return Task.CompletedTask;
+            }
+
+            if (_mcbConnectionState == ConnectionState.Disconnected &&
+                _scbConnectionState == ConnectionState.Disconnected)
+            {
+                ConsoleLogHelper.PrintBlock(
+                    "[DEVICE] Disconnect Ignored : Already Disconnected");
+
+                return Task.CompletedTask;
+            }
+
+            _isDeviceDisconnecting =
+                true;
+
+            try
+            {
+                if (_radarUdpConnectionState == ConnectionState.Connected)
+                {
+                    ControllerResult radarResult =
+                        _radarUdpController
+                            .StopReceive();
+
+                    SetRadarUdpConnectionState(
+                        ConnectionState.Disconnected);
+
+                    MainStatusText =
+                        radarResult.Message;
+                }
+
+                if (_rabbitMqConnectionState == ConnectionState.Connected)
+                {
+                    ControllerResult mqResult =
+                        _rabbitMqController
+                            .StopReceive();
+
+                    SetRabbitMqConnectionState(
+                        ConnectionState.Disconnected);
+
+                    MqStatusText =
+                        mqResult.Message;
+                }
+
+                StopEoRtspReconnect();
+
+                _eoCameraController
+                    .Disconnect();
+
+                ControllerResult result =
+                    _deviceConnectionController
+                        .Disconnect();
+
+                SetDeviceConnectionState(
+                    ConnectionState.Disconnected,
+                    ConnectionState.Disconnected);
+
+                MainStatusText =
+                    result.Message;
+
+                OperationModeText =
+                    "DEVICE DISCONNECTED";
+            }
+            finally
+            {
+                _isDeviceDisconnecting =
+                    false;
+
+                OnPropertyChanged(nameof(IsDeviceConnectButtonEnabled));
+                OnPropertyChanged(nameof(IsDeviceDisconnectButtonEnabled));
+                OnPropertyChanged(nameof(IsDeviceConnectionSettingEnabled));
+                OnPropertyChanged(nameof(IsRadarUdpConnectionSettingEnabled));
+                OnPropertyChanged(nameof(IsRabbitMqConnectionSettingEnabled));
+            }
+            return Task.CompletedTask;
+        }
+        #endregion
+
+
+        #region [CSE Receive Event Methods]
+
+        /// <summary>
+        /// [CSE] 명령 수신 처리
+        /// 
+        /// [MQ] 수신부에서 [JSON] 파싱이 완료된 명령을 전달받아,
+        /// [CseCommandHandler]를 통해 실제 카메라 제어 명령으로 처리한다.
+        /// </summary>
+        /// <param name="message">
+        /// [CSE] 명령 메시지
+        /// </param>
+        private void OnCseCommandReceived(
+            CseCommandMessage message)
+        {
+            _cseCommandHandler.HandleCommand(
+                message);
+        }
+        #endregion
+
+
+        #region [EO Camera Event Methods]
+
+        /// <summary>
+        /// [EO Camera] Frame 수신 처리
+        /// 
+        /// RTSP 수신 서비스에서 전달된 BitmapSource Frame을
+        /// UI Binding 속성에 반영한다.
+        /// 
+        /// 프로그램 종료 중이거나 Frame 데이터가 없는 경우에는
+        /// UI 객체 접근을 수행하지 않는다.
+        /// </summary>
+        /// <param name="bitmap">
+        /// EO Camera Frame Image
+        /// </param>
+        private void OnEoCameraFrameReceived(
+            BitmapSource bitmap)
+        {
+            EoCameraControllerResult result =
+                _eoCameraController
+                    .CreateFrameResult(
+                        bitmap);
+
+            App.Current.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                EOCameraImage =
+                    result.Frame;
+            }));
+
+        }
+
+        /// <summary>
+        /// [EO] 영상 상태 변경 처리
+        /// 
+        /// [EoCameraService]에서 전달받은 상태 메시지를
+        /// [OperationModeText]에 반영한다.
+        /// 
+        /// EO Camera가 Error / Connect Failed 상태인 경우,
+        /// 장비 전원 직후 Camera Ready 지연 가능성을 고려하여
+        /// RTSP 연결 재시도를 시작한다.
+        /// </summary>
+        /// <param name="statusText">
+        /// [EO] 영상 상태 문자열
+        /// </param>
+        private void OnEoCameraStatusChanged(
+            string statusText)
+        {
+            EoCameraControllerResult result =
+                _eoCameraController
+                    .CreateStatusResult(
+                        statusText);
+
+            App.Current.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                MainStatusText =
+                    result.Message;
+
+                if (result.IsConnected.HasValue)
+                {
+                    _isEoRtspConnected =
+                        result.IsConnected.Value;
+                }
+
+                if (!string.IsNullOrWhiteSpace(result.OperationModeText))
+                {
+                    OperationModeText =
+                        result.OperationModeText;
+                }
+
+                if (result.ShouldStartReconnect)
+                {
+                    StartEoRtspReconnect();
+                }
+
+            }));
+
+        }
+
+        /// <summary>
+        /// [EO] RTSP 재연결 시작
+        /// 
+        /// CAMERA ERROR MODE 상태에서 EO Camera가 Ready 상태로 전환될 때까지
+        /// 일정 간격으로 RTSP 연결을 재시도한다.
+        /// </summary>
+        private async void StartEoRtspReconnect()
+        {
+            const int RECONNECT_DELAY_MS =
+                3000;
+
+            const int MAX_RECONNECT_COUNT =
+                20;
+
+            if (_isEoRtspReconnectRunning)
+            {
+                return;
+            }
+
+            if (!_isEoVideoDisplayEnabled)
+            {
+                return;
+            }
+
+            _isEoRtspReconnectRunning =
+                true;
+
+            _eoRtspReconnectTryCount =
+                0;
+
+            try
+            {
+                ConsoleLogHelper.PrintLine();
+
+                Console.WriteLine(
+                    "[EO CAMERA] RTSP Reconnect Start");
+
+                ConsoleLogHelper.PrintLine();
+
+                while (_isEoRtspReconnectRunning &&
+                       _isEoVideoDisplayEnabled &&
+                       _eoRtspReconnectTryCount < MAX_RECONNECT_COUNT)
+                {
+                    _eoRtspReconnectTryCount++;
+
+                    await Task.Delay(
+                        RECONNECT_DELAY_MS);
+
+                    if (!_isEoRtspReconnectRunning ||
+                        !_isEoVideoDisplayEnabled)
+                    {
+                        return;
+                    }
+
+                    ConsoleLogHelper.PrintLine();
+
+                    Console.WriteLine(
+                        "[EO CAMERA] RTSP Reconnect Try : "
+                        + _eoRtspReconnectTryCount
+                        + " / "
+                        + MAX_RECONNECT_COUNT);
+
+                    ConsoleLogHelper.PrintLine();
+
+                    _eoCameraService.Connect(
+                        DEFAULT_EO_RTSP_ADDRESS);
+                }
+
+                if (_isEoRtspReconnectRunning)
+                {
+                    OperationModeText =
+                        "CAMERA ERROR MODE";
+
+                    ConsoleLogHelper.PrintLine();
+
+                    Console.WriteLine(
+                        "[EO CAMERA] RTSP Reconnect Failed : Max Retry Count");
+
+                    ConsoleLogHelper.PrintLine();
+                }
+
+            }
+            finally
+            {
+                _isEoRtspReconnectRunning =
+                    false;
+            }
+
+        }
+
+        /// <summary>
+        /// [EO] RTSP 재연결 중지
+        /// 
+        /// EO Camera가 정상 연결되었거나,
+        /// 장비 연결 해제 / 프로그램 종료 시
+        /// RTSP 재연결 Loop를 중지한다.
+        /// </summary>
+        private void StopEoRtspReconnect()
+        {
+            if (!_isEoRtspReconnectRunning)
+            {
+                return;
+            }
+
+            _isEoRtspReconnectRunning =
+                false;
+
+            ConsoleLogHelper.PrintLine();
+
+            Console.WriteLine(
+                "[EO CAMERA] RTSP Reconnect Stop");
+
+            ConsoleLogHelper.PrintLine();
+        }
+
+        #endregion
+
+        #region [Utility Methods]
+
+        /// <summary>
+        /// [Pan] 누적 상태값 갱신
+        /// 
+        /// 장비 상태 Packet에서 수신한 [Pan] 원본 각도값을 기준으로
+        /// 장비 제어용 누적 위치값을 갱신한다.
+        /// 
+        /// 화면 표시용 [Pan] 값은 [0 ~ 360] 범위로 정규화하지만,
+        /// 장비 상태 Packet의 [Pan] 원본값은 한 바퀴 이상 회전한
+        /// 누적 각도 정보를 포함할 수 있으므로 정규화하지 않고 보관한다.
+        /// </summary>
+        /// <param name="panStatus">
+        /// 장비에서 수신한 Pan 원본 각도값
+        /// </param>
+        private void UpdatePanAccumulatedStatus(
+            double panStatus)
+        {
+            _currentPanAccumulated =
+                panStatus;
+
+            _lastPanDisplayStatus =
+                CameraCommandService.NormalizePanStatus(
+                    panStatus);
+
+            _hasPanAccumulatedStatus =
+                true;
+        }
+
+        /// <summary>
+        /// [Pan] 제어 기준 위치값 조회
+        /// 
+        /// Pan 누적 상태값이 초기화된 경우에는
+        /// 장비 제어용 누적 위치값을 반환하고,
+        /// 아직 상태값을 수신하지 못한 경우에는
+        /// 화면 표시용 현재 Pan 값을 반환한다.
+        /// </summary>
+        /// <returns>
+        /// Pan 제어 기준 위치값
+        /// </returns>
+        private double GetCurrentPanCommandAngle()
+        {
+            if (_hasPanAccumulatedStatus)
+            {
+                return _currentPanAccumulated;
+            }
+            return CurrentPan;
+        }
+
+        /// <summary>
+        /// [Pan] 누적 상태값 초기화
+        /// 
+        /// Home Position 또는 Pan Zero 수행 후
+        /// 장비 Pan 기준 위치가 [0]으로 재설정되는 경우,
+        /// 소프트웨어에서 관리하는 누적 위치값도 함께 초기화한다.
+        /// </summary>
+        private void ResetPanAccumulatedStatus()
+        {
+            _currentPanAccumulated =
+                0.0;
+
+            _lastPanDisplayStatus =
+                0.0;
+
+            _hasPanAccumulatedStatus =
+                true;
+        }
+
+
+        /// <summary>
+        /// [Tilt] 상태값 범위 정규화
+        /// 
+        /// ADS1000 상태 Packet에서 수신한 Tilt 값을
+        /// 장비 물리 제한 기준 [-90 ~ 90] 범위로 보정한다.
+        /// 
+        /// 장비 Encoder 오차로 인해
+        /// [0] 근처의 미세 오차가 발생하는 경우,
+        /// 화면 표시 및 상태 응답 기준에서는 [0]으로 보정한다.
+        /// </summary>
+        /// <param name="tilt">
+        /// Tilt 원본 상태값
+        /// </param>
+        /// <returns>
+        /// [-90 ~ 90] 범위로 정규화된 Tilt 상태값
+        /// </returns>
+        private double NormalizeTiltStatus(
+            double tilt)
+        {
+            const double MIN_TILT_DEGREES =
+                -90.0;
+
+            const double MAX_TILT_DEGREES =
+                90.0;
+
+            const double ZERO_EPSILON =
+                0.001;
+
+            double normalizedTilt =
+                CameraCommandService.Clamp(
+                    tilt,
+                    MIN_TILT_DEGREES,
+                    MAX_TILT_DEGREES);
+
+            if (Math.Abs(normalizedTilt) <= ZERO_EPSILON)
+            {
+                return 0.0;
+            }
+            return NormalizePosition(
+                normalizedTilt);
+        }
+
+        /// <summary>
+        /// [범위 위치 상태값] 미세 오차 보정
+        /// 
+        /// 장비 상태 Packet에서 수신한 위치값을
+        /// 지정한 최소 / 최대 범위로 보정한다.
+        /// 
+        /// 장비 Encoder 또는 위치 응답에서 발생하는
+        /// [0] 근처 또는 정수 위치 근처의 미세 오차는
+        /// 화면 표시 및 상태 응답 기준에서 보정한다.
+        /// </summary>
+        /// <param name="value">
+        /// 원본 위치값
+        /// </param>
+        /// <param name="min">
+        /// 최소 위치값
+        /// </param>
+        /// <param name="max">
+        /// 최대 위치값
+        /// </param>
+        /// <returns>
+        /// 범위 및 미세 오차가 보정된 위치값
+        /// </returns>
+        private double NormalizeRangePosition(
+            double value,
+            double min,
+            double max)
+        {
+            double clampedValue =
+                CameraCommandService.Clamp(
+                    value,
+                    min,
+                    max);
+
+            return NormalizePosition(
+                clampedValue);
+        }
+
+        /// <summary>
+        /// [위치 상태값] 미세 오차 보정
+        /// 
+        /// 장비 Encoder 또는 위치 응답에서 발생하는
+        /// [0] 근처 또는 정수 위치 근처의 미세 오차를
+        /// 화면 표시 및 상태 응답 기준에서 보정한다.
+        /// </summary>
+        /// <param name="value">
+        /// 원본 위치값
+        /// </param>
+        /// <returns>
+        /// 미세 오차가 보정된 위치값
+        /// </returns>
+        private double NormalizePosition(
+            double value)
+        {
+            const double ZERO_EPSILON =
+                0.001;
+
+            const double INTEGER_EPSILON =
+                0.001;
+
+            if (Math.Abs(value) <= ZERO_EPSILON)
+            {
+                return 0.0;
+            }
+
+            double roundedValue =
+                Math.Round(
+                    value);
+
+            if (Math.Abs(value - roundedValue) <= INTEGER_EPSILON)
+            {
+                return roundedValue;
+            }
+            return value;
+        }
+
+        /// <summary>
+        /// [Pan] UI Zero 기준 현재 위치 계산
+        /// 
+        /// 장비에서 수신한 실제 Pan 위치값에서
+        /// 사용자가 설정한 UI Zero Offset 값을 빼서,
+        /// 화면 기준 Pan 현재 위치를 계산한다.
+        /// </summary>
+        /// <returns>
+        /// UI Zero 기준 Pan 현재 위치
+        /// </returns>
+        private double GetUiCurrentPan()
+        {
+            return RoundAngleToProtocolScale(
+                CameraCommandService.NormalizePanStatus(
+                    CurrentPan
+                    - _panUiZeroOffset));
+        }
+
+        /// <summary>
+        /// [Tilt] UI Zero 기준 현재 위치 계산
+        /// 
+        /// 장비에서 수신한 실제 Tilt 위치값에서
+        /// 사용자가 설정한 UI Zero Offset 값을 빼서,
+        /// 화면 기준 Tilt 현재 위치를 계산한다.
+        /// </summary>
+        /// <returns>
+        /// UI Zero 기준 Tilt 현재 위치
+        /// </returns>
+        private double GetUiCurrentTilt()
+        {
+            return RoundAngleToProtocolScale(
+                CurrentTilt
+                - _tiltUiZeroOffset);
+        }
+
+        /// <summary>
+        /// [Pan] UI Target 값을 장비 실제 Target 값으로 변환
+        /// 
+        /// 사용자가 입력한 UI 기준 Pan Target 값에
+        /// Pan UI Zero Offset 값을 더해
+        /// 장비에 송신할 실제 Pan Target 값을 계산한다.
+        /// </summary>
+        /// <param name="uiTargetPan">
+        /// UI 기준 Pan Target
+        /// </param>
+        /// <returns>
+        /// 장비 실제 Pan Target
+        /// </returns>
+        private double ConvertUiPanTargetToDeviceTarget(
+            double uiTargetPan)
+        {
+            return RoundAngleToProtocolScale(
+                CameraCommandService.NormalizePanStatus(
+                    uiTargetPan
+                    + _panUiZeroOffset));
+        }
+
+        /// <summary>
+        /// [Tilt] UI Target 값을 장비 실제 Target 값으로 변환
+        /// 
+        /// 사용자가 입력한 UI 기준 Tilt Target 값에
+        /// Tilt UI Zero Offset 값을 더해
+        /// 장비에 송신할 실제 Tilt Target 값을 계산한다.
+        /// </summary>
+        /// <param name="uiTargetTilt">
+        /// UI 기준 Tilt Target
+        /// </param>
+        /// <returns>
+        /// 장비 실제 Tilt Target
+        /// </returns>
+        private double ConvertUiTiltTargetToDeviceTarget(
+            double uiTargetTilt)
+        {
+            return RoundAngleToProtocolScale(
+                CameraCommandService.Clamp(
+                    uiTargetTilt
+                    + _tiltUiZeroOffset,
+                    -90,
+                    90));
+        }
+
+        /// <summary>
+        /// [Pan / Tilt] 각도값 소수점 둘째 자리 보정
+        /// 
+        /// ADS3000 Offset 저장 프로토콜은
+        /// 각도값을 [각도 * 100] 정수값으로 송신하므로,
+        /// UI 입력 및 표시 기준도 소수점 둘째 자리로 통일한다.
+        /// </summary>
+        /// <param name="angle">
+        /// 각도값
+        /// </param>
+        /// <returns>
+        /// 소수점 둘째 자리로 반올림된 각도값
+        /// </returns>
+        private double RoundAngleToProtocolScale(
+            double angle)
+        {
+            return Math.Round(
+                angle,
+                2,
+                MidpointRounding.AwayFromZero);
+        }
+
+        #endregion
+
+
+        #region [Keyboard Control Methods]
+
+        /// <summary>
+        /// [Keyboard] 방향키 입력 처리
+        /// 
+        /// 운용 제어 화면에서 방향키 입력을
+        /// Pan / Tilt 연속 이동 명령으로 변환한다.
+        /// 
+        /// 두 방향키가 동시에 눌린 경우
+        /// Pan / Tilt 축을 각각 제어하여 대각선 이동으로 처리한다.
+        /// </summary>
+        /// <param name="key">
+        /// 입력된 키
+        /// </param>
+        public void HandlePanTiltKeyDown(
+            Key key)
+        {
+            _keyboardPtzController
+                .HandleKeyDown();
+
+            switch (key)
+            {
+                case Key.Left:
+                    _isKeyboardPanLeftPressed =
+                        true;
+                    break;
+
+                case Key.Right:
+                    _isKeyboardPanRightPressed =
+                        true;
+                    break;
+
+                case Key.Up:
+                    _isKeyboardTiltUpPressed =
+                        true;
+                    break;
+
+                case Key.Down:
+                    _isKeyboardTiltDownPressed =
+                        true;
+                    break;
+
+                default:
+                    return;
+            }
+            UpdateKeyboardPanTiltMove();
+        }
+
+        /// <summary>
+        /// [Keyboard] 방향키 해제 처리
+        /// 
+        /// 해제된 방향키에 해당하는 축만 정지하고,
+        /// 다른 방향키가 계속 눌려 있는 경우 해당 축 이동은 유지한다.
+        /// </summary>
+        /// <param name="key">
+        /// 해제된 키
+        /// </param>
+        public void HandlePanTiltKeyUp(
+            Key key)
+        {
+            _keyboardPtzController
+                .HandleKeyUp();
+
+            switch (key)
+            {
+                case Key.Left:
+                    _isKeyboardPanLeftPressed =
+                        false;
+                    break;
+
+                case Key.Right:
+                    _isKeyboardPanRightPressed =
+                        false;
+                    break;
+
+                case Key.Up:
+                    _isKeyboardTiltUpPressed =
+                        false;
+                    break;
+
+                case Key.Down:
+                    _isKeyboardTiltDownPressed =
+                        false;
+                    break;
+
+                default:
+                    return;
+            }
+            UpdateKeyboardPanTiltMove();
+        }
+
+        /// <summary>
+        /// [Keyboard] Pan / Tilt 이동 상태 갱신
+        /// 
+        /// 현재 눌려 있는 방향키 상태를 기준으로
+        /// Pan 축과 Tilt 축의 연속 이동 / 정지 명령을 각각 처리한다.
+        /// </summary>
+        private void UpdateKeyboardPanTiltMove()
+        {
+            if (_mcbConnectionState != ConnectionState.Connected ||
+                _isHomePositionMoving)
+            {
+                return;
+            }
+
+            // [Pan] 이동 방향 결정
+            //
+            // Left / Right가 동시에 눌린 경우에는
+            // 상쇄 입력으로 판단하여 Pan 축을 정지한다.
+            if (_isKeyboardPanLeftPressed &&
+                !_isKeyboardPanRightPressed)
+            {
+                StartPanLeftMove();
+            }
+            else if (_isKeyboardPanRightPressed &&
+                     !_isKeyboardPanLeftPressed)
+            {
+                StartPanRightMove();
+            }
+            else
+            {
+                StopPanMove();
+            }
+
+            // [Tilt] 이동 방향 결정
+            //
+            // Up / Down이 동시에 눌린 경우에는
+            // 상쇄 입력으로 판단하여 Tilt 축을 정지한다.
+            if (_isKeyboardTiltUpPressed &&
+                !_isKeyboardTiltDownPressed)
+            {
+                StartTiltUpMove();
+            }
+            else if (_isKeyboardTiltDownPressed &&
+                     !_isKeyboardTiltUpPressed)
+            {
+                StartTiltDownMove();
+            }
+            else
+            {
+                StopTiltMove();
+            }
+
+        }
+        #endregion
+
+
+        #region [MQ Methods]
+
+        /// <summary>
+        /// [RabbitMQ] 연결 상태 반영
+        /// </summary>
+        /// <param name="connectionState">
+        /// [RabbitMQ] 연결 상태
+        /// </param>
+        private void SetRabbitMqConnectionState(
+            ConnectionState connectionState)
+        {
+            // [RabbitMQ] 연결 상태 저장
+            //
+            // [RabbitMQ] 수신 시작 / 중지 여부를
+            // 내부 상태값에 반영한다.
+            _rabbitMqConnectionState =
+                connectionState;
+
+            // [RabbitMQ] 연결 상태 UI 갱신
+            //
+            // 연결 상태 텍스트 및
+            // 상태 표시 색상을 갱신한다.
+            OnPropertyChanged(nameof(RabbitMqConnectionStatusText));
+            OnPropertyChanged(nameof(RabbitMqConnectionStatusBrush));
+
+            // [RabbitMQ 수신 시작] 버튼 활성화 상태 갱신
+            //
+            // [RabbitMQ] 수신 상태에 따라
+            // [MQ START] 버튼 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsRabbitMqStartButtonEnabled));
+
+            // [RabbitMQ 수신 중지] 버튼 활성화 상태 갱신
+            //
+            // [RabbitMQ] 수신 상태에 따라
+            // [MQ STOP] 버튼 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsRabbitMqStopButtonEnabled));
+
+            // [RabbitMQ 통신 설정] 입력 가능 상태 갱신
+            //
+            // [MCB] / [SCB] 연결 상태 및
+            // [RabbitMQ] 수신 상태에 따라
+            // RabbitMQ Host / Port 입력칸 활성 / 비활성 상태를 갱신한다.
+            OnPropertyChanged(nameof(IsRabbitMqConnectionSettingEnabled));
+        }
+
+        /// <summary>
+        /// [RabbitMQ] 수신 시작
+        /// 
+        /// 화면에서 입력한 [RabbitMQ Host] / [Port]를 기준으로
+        /// CSE 명령 JSON 수신을 시작한다.
+        /// </summary>
+        private async void StartRabbitMqReceive()
+        {
+            if (_isCseMqReceiveStarted ||
+                _rabbitMqConnectionState == ConnectionState.Connected ||
+                _rabbitMqConnectionState == ConnectionState.Connecting)
+            {
+                ConsoleLogHelper.PrintLine();
+
+                Console.WriteLine(
+                    "[CSE][MQ] Start Ignored : Already Started");
+
+                Console.WriteLine();
+
+                return;
+            }
+
+            _isCseMqReceiveStarted =
+                true;
+
+            SetRabbitMqConnectionState(
+                ConnectionState.Connecting);
+
+            ControllerResult result =
+                await _rabbitMqController
+                    .StartReceiveAsync();
+
+            if (result.IsSuccess)
+            {
+                SetRabbitMqConnectionState(
+                    ConnectionState.Connected);
+            }
+            else
+            {
+                _isCseMqReceiveStarted =
+                    false;
+
+                SetRabbitMqConnectionState(
+                    ConnectionState.Disconnected);
+            }
+
+            MqStatusText =
+                result.Message;
+        }
+
+        /// <summary>
+        /// [RabbitMQ] 수신 중지
+        /// 
+        /// 현재 실행 중인 RabbitMQ CSE 명령 수신을 중지한다.
+        /// </summary>
+        private void StopRabbitMqReceive()
+        {
+            if (_rabbitMqConnectionState != ConnectionState.Connected)
+            {
+                ConsoleLogHelper.PrintLine();
+                Console.WriteLine("[CSE][MQ] Stop Ignored : Not Started");
+                Console.WriteLine();
+
+                return;
+            }
+
+            ControllerResult result =
+                _rabbitMqController
+                    .StopReceive();
+
+            if (result.IsSuccess)
+            {
+                _isCseMqReceiveStarted =
+                    false;
+
+                SetRabbitMqConnectionState(
+                    ConnectionState.Disconnected);
+            }
+
+            MqStatusText =
+                result.Message;
+        }
+        #endregion
+
+
+        #region [INotifyPropertyChanged]
+
+        /// <summary>
+        /// [Property] 변경 이벤트
+        /// 
+        /// [XAML] 바인딩 속성 갱신 시 사용한다.
+        /// </summary>
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        /// <summary>
+        /// [XAML] 바인딩 갱신 알림
+        /// </summary>
+        /// <param name="propertyName">
+        /// 변경된 [Property] 이름
+        /// </param>
+        private void OnPropertyChanged(
+            [CallerMemberName] string propertyName = null)
+        {
+            PropertyChanged?.Invoke(
+                this,
+                new PropertyChangedEventArgs(propertyName));
+        }
+        #endregion
+
+
+        #region [Position Input Initialize Methods]
+
+        /// <summary>
+        /// [위치 제어] 입력값 초기화
+        /// 
+        /// [Pan] / [Tilt] / [Zoom] / [Focus] 위치 제어 입력칸을
+        /// 기본값으로 초기화한다.
+        /// 
+        /// [Zoom Ratio]는 최소 배율 [1x] 기준으로 초기화하고,
+        /// 실제 장비 위치값은 변경하지 않는다.
+        /// </summary>
+        private void ResetPositionInput()
+        {
+            PanAbsoluteValue =
+                0;
+
+            TiltAbsoluteValue =
+                0;
+
+            PanRelativeValue =
+                0;
+
+            TiltRelativeValue =
+                0;
+
+            ZoomPositionValue =
+                0;
+
+            ZoomRatioValue =
+                1;
+
+            FocusPositionValue =
+                0;
+
+            ConsoleLogHelper.PrintLine();
+            Console.WriteLine("[UI][POSITION] Input Reset");
+            ConsoleLogHelper.PrintLine();
+        }
+        #endregion
+
+
+        #region [Network Properties]
+
+        /// <summary>
+        /// [MCB] 연결 대상 [IP]
+        /// </summary>
+        public string McbIpAddress
+        {
+            get => _mcbIpAddress;
+            set
+            {
+                if (_mcbIpAddress != value)
+                {
+                    _mcbIpAddress = value;
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [MCB] 연결 대상 [Port]
+        /// </summary>
+        public int McbPort
+        {
+            get => _mcbPort;
+            set
+            {
+                if (_mcbPort != value)
+                {
+                    _mcbPort = value;
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [SCB] 연결 대상 [IP]
+        /// </summary>
+        public string ScbIpAddress
+        {
+            get => _scbIpAddress;
+            set
+            {
+                if (_scbIpAddress != value)
+                {
+                    _scbIpAddress = value;
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [SCB] 연결 대상 [Port]
+        /// </summary>
+        public int ScbPort
+        {
+            get => _scbPort;
+            set
+            {
+                if (_scbPort != value)
+                {
+                    _scbPort = value;
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [Radar] UDP 수신 대상 [IP]
+        /// </summary>
+        public string RadarUdpIpAddress
+        {
+            get => _radarUdpIpAddress;
+            set
+            {
+                if (_radarUdpIpAddress != value)
+                {
+                    _radarUdpIpAddress = value;
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [Radar] UDP 수신 [Port]
+        /// </summary>
+        public int RadarUdpLocalPort
+        {
+            get => _radarUdpLocalPort;
+            set
+            {
+                if (_radarUdpLocalPort != value)
+                {
+                    _radarUdpLocalPort = value;
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [MQ] 연결 대상 [Host]
+        /// </summary>
+        public string MqHostName
+        {
+            get => _mqHostName;
+            set
+            {
+                if (_mqHostName != value)
+                {
+                    _mqHostName = value;
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [MQ] 연결 대상 [Port]
+        /// </summary>
+        public int MqPort
+        {
+            get => _mqPort;
+            set
+            {
+                if (_mqPort != value)
+                {
+                    _mqPort = value;
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        #endregion
+
+        #region [MQ Properties]
+
+        /// <summary>
+        /// [MQ] 연결 상태 표시 문자열
+        /// </summary>
+        public string MqStatusText
+        {
+            get => _mqStatusText;
+            private set
+            {
+                if (_mqStatusText != value)
+                {
+                    _mqStatusText = value;
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// 마지막 [MQ] 수신 메시지 표시 문자열
+        /// </summary>
+        public string LastMqMessageText
+        {
+            get => _lastMqMessageText;
+            private set
+            {
+                if (_lastMqMessageText != value)
+                {
+                    _lastMqMessageText = value;
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        #endregion
+
+        #region [Connection Status Properties]
+
+        /// <summary>
+        /// [MCB] 연결 상태 표시 문자열
+        /// </summary>
+        public string McbConnectionStatusText
+        {
+            get
+            {
+                switch (_mcbConnectionState)
+                {
+                    case ConnectionState.Connected:
+                        return "● Connected";
+
+                    case ConnectionState.Connecting:
+                        return "● Connecting";
+
+                    default:
+                        return "● Disconnected";
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [MCB] 연결 상태 표시 색상
+        /// </summary>
+        public Brush McbConnectionStatusBrush
+        {
+            get
+            {
+                switch (_mcbConnectionState)
+                {
+                    case ConnectionState.Connected:
+                        return Brushes.LimeGreen;
+
+                    case ConnectionState.Connecting:
+                        return Brushes.Gold;
+
+                    default:
+                        return Brushes.IndianRed;
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [SCB] 연결 상태 표시 문자열
+        /// </summary>
+        public string ScbConnectionStatusText
+        {
+            get
+            {
+                switch (_scbConnectionState)
+                {
+                    case ConnectionState.Connected:
+                        return "● Connected";
+
+                    case ConnectionState.Connecting:
+                        return "● Connecting";
+
+                    default:
+                        return "● Disconnected";
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [SCB] 연결 상태 표시 색상
+        /// </summary>
+        public Brush ScbConnectionStatusBrush
+        {
+            get
+            {
+                switch (_scbConnectionState)
+                {
+                    case ConnectionState.Connected:
+                        return Brushes.LimeGreen;
+
+                    case ConnectionState.Connecting:
+                        return Brushes.Gold;
+
+                    default:
+                        return Brushes.IndianRed;
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [Radar] UDP 수신 상태 표시 문자열
+        /// </summary>
+        public string RadarUdpConnectionStatusText
+        {
+            get
+            {
+                switch (_radarUdpConnectionState)
+                {
+                    case ConnectionState.Connected:
+                        return "● Connected";
+
+                    case ConnectionState.Connecting:
+                        return "● Connecting";
+
+                    default:
+                        return "● Disconnected";
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [Radar] UDP 수신 상태 표시 색상
+        /// </summary>
+        public Brush RadarUdpConnectionStatusBrush
+        {
+            get
+            {
+                switch (_radarUdpConnectionState)
+                {
+                    case ConnectionState.Connected:
+                        return Brushes.LimeGreen;
+
+                    case ConnectionState.Connecting:
+                        return Brushes.Gold;
+
+                    default:
+                        return Brushes.IndianRed;
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [RabbitMQ] 연결 상태 표시 문자열
+        /// </summary>
+        public string RabbitMqConnectionStatusText
+        {
+            get
+            {
+                switch (_rabbitMqConnectionState)
+                {
+                    case ConnectionState.Connected:
+                        return "● Connected";
+
+                    case ConnectionState.Connecting:
+                        return "● Connecting";
+
+                    default:
+                        return "● Disconnected";
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [RabbitMQ] 연결 상태 표시 색상
+        /// </summary>
+        public Brush RabbitMqConnectionStatusBrush
+        {
+            get
+            {
+                switch (_rabbitMqConnectionState)
+                {
+                    case ConnectionState.Connected:
+                        return Brushes.LimeGreen;
+
+                    case ConnectionState.Connecting:
+                        return Brushes.Gold;
+
+                    default:
+                        return Brushes.IndianRed;
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// 장비 제어 가능 여부
+        /// 
+        /// [MCB] / [SCB] 중 하나 이상 연결된 경우
+        /// [PTZ] / [Zoom] / [Focus] 제어 영역을 활성화한다.
+        /// 
+        /// 단, Home Position 이동 중에는
+        /// Pan / Tilt 제어 명령이 중복 송신되지 않도록
+        /// 장비 제어 영역을 비활성화한다.
+        /// </summary>
+        public bool IsDeviceControlEnabled
+        {
+            get
+            {
+                return (_mcbConnectionState == ConnectionState.Connected ||
+                        _scbConnectionState == ConnectionState.Connected) &&
+                       !_isDeviceConnecting &&
+                       !_isDeviceDisconnecting &&
+                       !_isHomePositionMoving;
+            }
+
+        }
+
+        /// <summary>
+        /// 장비 통신 설정 입력 가능 여부
+        /// 
+        /// [MCB] / [SCB] 연결 전 상태에서만
+        /// IP / Port 입력값을 수정할 수 있도록 한다.
+        /// 
+        /// 연결 중 또는 연결 완료 상태에서는
+        /// 통신 대상 정보 변경을 방지한다.
+        /// </summary>
+        public bool IsDeviceConnectionSettingEnabled
+        {
+            get
+            {
+                return _mcbConnectionState == ConnectionState.Disconnected &&
+                       _scbConnectionState == ConnectionState.Disconnected &&
+                       !_isDeviceConnecting &&
+                       !_isDeviceDisconnecting &&
+                       !_isHomePositionMoving;
+            }
+
+        }
+
+        /// <summary>
+        /// 장비 제어 탭 활성화 여부
+        /// 
+        /// Home Position 이동 중에는
+        /// 통신 설정 / 운용 제어 / 이동 제어 탭을 비활성화하여
+        /// 장비 설정 변경 및 제어 명령 입력을 막는다.
+        /// </summary>
+        public bool IsDeviceControlTabEnabled
+        {
+            get
+            {
+                return !_isHomePositionMoving;
+            }
+
+        }
+
+        /// <summary>
+        /// [Pan / Tilt Speed] 설정 가능 여부
+        /// 
+        /// [MCB] 연결 상태에서만 Pan / Tilt Speed 설정을 허용한다.
+        /// 
+        /// 단, Home Position 이동 중에는
+        /// 장비 내부 Home Script가 실행 중이므로
+        /// Pan / Tilt Speed 설정을 비활성화한다.
+        /// </summary>
+        public bool IsPanTiltSpeedEnabled
+        {
+            get
+            {
+                return _mcbConnectionState == ConnectionState.Connected &&
+                       !_isHomePositionMoving;
+            }
+
+        }
+
+        /// <summary>
+        /// 장비 연결 버튼 활성화 여부
+        /// 
+        /// 장비 연결 처리 중이거나, Home Position 이동 중인 경우
+        /// [장비 연결] 버튼을 비활성화한다.
+        /// </summary>
+        public bool IsDeviceConnectButtonEnabled
+        {
+            get
+            {
+                return !_isDeviceConnecting &&
+                       !_isDeviceDisconnecting &&
+                       !_isHomePositionMoving;
+            }
+
+        }
+
+        /// <summary>
+        /// 장비 연결 해제 버튼 활성화 여부
+        /// 
+        /// [MCB] / [SCB] 중 하나 이상 연결된 경우
+        /// [연결 해제] 버튼을 활성화한다.
+        /// 
+        /// 단, Home Position 이동 중에는
+        /// 장비 내부 Home Script가 실행 중일 수 있으므로
+        /// 통신 연결 해제를 막는다.
+        /// </summary>
+        public bool IsDeviceDisconnectButtonEnabled
+        {
+            get
+            {
+                return (_mcbConnectionState == ConnectionState.Connected ||
+                        _scbConnectionState == ConnectionState.Connected) &&
+                       !_isDeviceDisconnecting &&
+                       !_isHomePositionMoving;
+            }
+
+        }
+
+        /// <summary>
+        /// [Radar UDP 수신 시작] 버튼 활성화 여부
+        /// </summary>
+        public bool IsRadarUdpStartButtonEnabled
+        {
+            get
+            {
+                return _mcbConnectionState == ConnectionState.Connected &&
+                       _scbConnectionState == ConnectionState.Connected &&
+                       _radarUdpConnectionState != ConnectionState.Connected;
+            }
+
+        }
+
+        /// <summary>
+        /// [Radar UDP 수신 중지] 버튼 활성화 여부
+        /// </summary>
+        public bool IsRadarUdpStopButtonEnabled
+        {
+            get
+            {
+                return _mcbConnectionState == ConnectionState.Connected &&
+                       _scbConnectionState == ConnectionState.Connected &&
+                       _radarUdpConnectionState == ConnectionState.Connected;
+            }
+
+        }
+
+        /// <summary>
+        /// [Radar UDP 통신 설정] 입력 가능 여부
+        /// </summary>
+        public bool IsRadarUdpConnectionSettingEnabled
+        {
+            get
+            {
+                return _mcbConnectionState == ConnectionState.Connected &&
+                       _scbConnectionState == ConnectionState.Connected &&
+                       _radarUdpConnectionState == ConnectionState.Disconnected;
+            }
+
+        }
+
+        /// <summary>
+        /// [RabbitMQ 수신 시작] 버튼 활성화 여부
+        /// </summary>
+        public bool IsRabbitMqStartButtonEnabled
+        {
+            get
+            {
+                return _mcbConnectionState == ConnectionState.Connected &&
+                       _scbConnectionState == ConnectionState.Connected &&
+                       _rabbitMqConnectionState != ConnectionState.Connected &&
+                       _rabbitMqConnectionState != ConnectionState.Connecting;
+            }
+
+        }
+
+        /// <summary>
+        /// [RabbitMQ 수신 중지] 버튼 활성화 여부
+        /// </summary>
+        public bool IsRabbitMqStopButtonEnabled
+        {
+            get
+            {
+                return _mcbConnectionState == ConnectionState.Connected &&
+                       _scbConnectionState == ConnectionState.Connected &&
+                       _rabbitMqConnectionState == ConnectionState.Connected;
+            }
+
+        }
+
+        /// <summary>
+        /// [RabbitMQ 통신 설정] 입력 가능 여부
+        /// </summary>
+        public bool IsRabbitMqConnectionSettingEnabled
+        {
+            get
+            {
+                return _mcbConnectionState == ConnectionState.Connected &&
+                       _scbConnectionState == ConnectionState.Connected &&
+                       _rabbitMqConnectionState == ConnectionState.Disconnected;
+            }
+
+        }
+
+        #endregion
+
+        #region [Main Status Properties]
+
+        /// <summary>
+        /// 프로그램 전체 상태 표시 문자열
+        /// </summary>
+        public string MainStatusText
+        {
+            get => _mainStatusText;
+            private set
+            {
+                if (_mainStatusText != value)
+                {
+                    _mainStatusText = value;
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// 현재 운용 모드 표시 문자열
+        /// </summary>
+        public string OperationModeText
+        {
+            get => _operationModeText;
+            private set
+            {
+                if (_operationModeText != value)
+                {
+                    _operationModeText = value;
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// 현재 [PTZ] 제어 모드 표시 문자열
+        /// </summary>
+        public string PtzControlModeText
+        {
+            get => _ptzControlModeText;
+            private set
+            {
+                if (_ptzControlModeText != value)
+                {
+                    _ptzControlModeText = value;
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        #endregion
+
+        #region [Camera Status Properties]
+
+        /// <summary>
+        /// 현재 [Pan] 위치값
+        /// </summary>
+        public double CurrentPan
+        {
+            get => _currentPan;
+            private set
+            {
+                if (_currentPan != value)
+                {
+                    _currentPan = value;
+
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(CurrentPanDisplayText));
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// 현재 [Tilt] 위치값
+        /// </summary>
+        public double CurrentTilt
+        {
+            get => _currentTilt;
+            private set
+            {
+                if (_currentTilt != value)
+                {
+                    _currentTilt = value;
+
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(CurrentTiltDisplayText));
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [Pan] 현재 위치 표시 문자열
+        /// 
+        /// 장비 실제 Pan 위치값에서
+        /// UI Zero Offset 값을 보정한 후,
+        /// 소수점 둘째 자리까지 표시한다.
+        /// 
+        /// 사용자가 [Pan Zero]를 설정한 경우,
+        /// 해당 위치가 화면 기준 [0.00]으로 표시된다.
+        /// </summary>
+        public string CurrentPanDisplayText
+        {
+            get
+            {
+                return GetUiCurrentPan()
+                    .ToString("F2");
+            }
+
+        }
+
+        /// <summary>
+        /// [Tilt] 현재 위치 표시 문자열
+        /// 
+        /// 장비 실제 Tilt 위치값에서
+        /// UI Zero Offset 값을 보정한 후,
+        /// 소수점 둘째 자리까지 표시한다.
+        /// 
+        /// 사용자가 [Tilt Zero]를 설정한 경우,
+        /// 해당 위치가 화면 기준 [0.00]으로 표시된다.
+        /// </summary>
+        public string CurrentTiltDisplayText
+        {
+            get
+            {
+                return GetUiCurrentTilt()
+                    .ToString("F2");
+            }
+
+        }
+
+        /// <summary>
+        /// 현재 [Pan] / [Tilt] 제어 속도
+        /// 
+        /// [ADS1000] [Pan] / [Tilt] 이동 시 사용할
+        /// 제어 속도를 설정하고 화면에 표시한다.
+        /// 
+        /// Pan / Tilt 이동 중 속도값이 변경된 경우에는
+        /// 현재 이동 중인 축에 속도 갱신 명령을 송신하여
+        /// 장비 실제 이동 속도에도 변경값이 반영되도록 한다.
+        /// </summary>
+        public double PanTiltSpeedLevel
+        {
+            get => _ads1000CameraControlService.PanTiltSpeedLevel;
+            set
+            {
+                if (_ads1000CameraControlService.PanTiltSpeedLevel != value)
+                {
+                    Console.WriteLine(
+                        "[UI][PTZ] Pan / Tilt Speed Value Changed : "
+                        + _ads1000CameraControlService.PanTiltSpeedLevel.ToString("F0")
+                        + " -> "
+                        + value.ToString("F0"));
+
+                    Console.WriteLine();
+
+                    _ads1000CameraControlService.PanTiltSpeedLevel =
+                        value;
+
+                    OnPropertyChanged();
+
+                    ApplyCurrentPanTiltMoveSpeed();
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// 현재 [Zoom] 위치값
+        /// </summary>
+        public double CurrentZoom
+        {
+            get => _currentZoom;
+            private set
+            {
+                if (Math.Abs(_currentZoom - value) > 0.001)
+                {
+                    _currentZoom =
+                        value;
+
+                    OnPropertyChanged();
+
+                    OnPropertyChanged(nameof(CurrentZoomDisplayText));
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// 현재 [Zoom] 배율 값
+        /// </summary>
+        public double CurrentZoomRatio
+        {
+            get => _currentZoomRatio;
+            private set
+            {
+                if (Math.Abs(_currentZoomRatio - value) > 0.001)
+                {
+                    _currentZoomRatio =
+                        value;
+
+                    OnPropertyChanged();
+
+                    OnPropertyChanged(nameof(CurrentZoomDisplayText));
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// 현재 [Zoom] 표시 문자열
+        /// 
+        /// Zoom 위치값 [0 ~ 1000]과
+        /// 실제 배율값 [x1.0 ~ x66.0]을 함께 표시한다.
+        /// </summary>
+        public string CurrentZoomDisplayText
+        {
+            get
+            {
+                return CurrentZoom.ToString("F0")
+                       + " (x"
+                       + CurrentZoomRatio.ToString("F1")
+                       + ")";
+            }
+
+        }
+
+        /// <summary>
+        /// 현재 [Focus] 위치값
+        /// </summary>
+        public double CurrentFocus
+        {
+            get => _currentFocus;
+            private set
+            {
+                if (_currentFocus != value)
+                {
+                    _currentFocus = value;
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        #endregion
+
+        #region [Camera Control Input Properties]
+
+        /// <summary>
+        /// [Pan] [Via 0] 선회 모드 선택 여부
+        /// 
+        /// [Pan Absolute] 이동 시
+        /// 현재 위치에서 목표 위치까지
+        /// 단거리 보정 없이 이동하도록 설정한다.
+        /// </summary>
+        public bool IsPanTurnViaZeroMode
+        {
+            get
+            {
+                return _panTurnMode == Ads1000PanTurnMode.ViaZero;
+            }
+            set
+            {
+                if (value &&
+                    _panTurnMode != Ads1000PanTurnMode.ViaZero)
+                {
+                    _panTurnMode =
+                        Ads1000PanTurnMode.ViaZero;
+
+                    // [Camera 상태] Pan 선회 모드 갱신
+                    //
+                    // UI에서 변경한 선회 모드를
+                    // CSE / MQ 명령 처리에서도 동일하게 사용할 수 있도록 저장한다.
+                    _cameraStateProvider
+                        .UpdatePanTurnMode(
+                            _panTurnMode);
+
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(IsPanTurnShortMode));
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [Pan] [Short] 선회 모드 선택 여부
+        /// 
+        /// [Pan Absolute] 이동 시
+        /// 현재 위치에서 목표 위치까지
+        /// 가장 가까운 방향으로 이동하도록 설정한다.
+        /// </summary>
+        public bool IsPanTurnShortMode
+        {
+            get
+            {
+                return _panTurnMode == Ads1000PanTurnMode.Short;
+            }
+            set
+            {
+                if (value &&
+                    _panTurnMode != Ads1000PanTurnMode.Short)
+                {
+                    _panTurnMode =
+                        Ads1000PanTurnMode.Short;
+
+                    // [Camera 상태] Pan 선회 모드 갱신
+                    //
+                    // UI에서 변경한 선회 모드를
+                    // CSE / MQ 명령 처리에서도 동일하게 사용할 수 있도록 저장한다.
+                    _cameraStateProvider
+                        .UpdatePanTurnMode(
+                            _panTurnMode);
+
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(IsPanTurnViaZeroMode));
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [Pan] Absolute 이동 입력값
+        /// 
+        /// ADS3000 Offset 저장 기준과 동일하게
+        /// 소수점 둘째 자리까지의 각도값만 사용한다.
+        /// </summary>
+        public double? PanAbsoluteValue
+        {
+            get => _panAbsoluteValue;
+            set
+            {
+                double? roundedValue =
+                    value.HasValue
+                        ? RoundAngleToProtocolScale(
+                            value.Value)
+                        : value;
+
+                if (_panAbsoluteValue != roundedValue)
+                {
+                    _panAbsoluteValue =
+                        roundedValue;
+
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [Tilt] Absolute 이동 입력값
+        /// 
+        /// ADS3000 Offset 저장 기준과 동일하게
+        /// 소수점 둘째 자리까지의 각도값만 사용한다.
+        /// </summary>
+        public double? TiltAbsoluteValue
+        {
+            get => _tiltAbsoluteValue;
+            set
+            {
+                double? roundedValue =
+                    value.HasValue
+                        ? RoundAngleToProtocolScale(
+                            value.Value)
+                        : value;
+
+                if (_tiltAbsoluteValue != roundedValue)
+                {
+                    _tiltAbsoluteValue =
+                        roundedValue;
+
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [Pan] Relative 이동 입력값
+        /// 
+        /// ADS3000 Offset 저장 기준과 동일하게
+        /// 소수점 둘째 자리까지의 각도값만 사용한다.
+        /// </summary>
+        public double? PanRelativeValue
+        {
+            get => _panRelativeValue;
+            set
+            {
+                double? roundedValue =
+                    value.HasValue
+                        ? RoundAngleToProtocolScale(
+                            value.Value)
+                        : value;
+
+                if (_panRelativeValue != roundedValue)
+                {
+                    _panRelativeValue =
+                        roundedValue;
+
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [Tilt] Relative 이동 입력값
+        /// 
+        /// ADS3000 Offset 저장 기준과 동일하게
+        /// 소수점 둘째 자리까지의 각도값만 사용한다.
+        /// </summary>
+        public double? TiltRelativeValue
+        {
+            get => _tiltRelativeValue;
+            set
+            {
+                double? roundedValue =
+                    value.HasValue
+                        ? RoundAngleToProtocolScale(
+                            value.Value)
+                        : value;
+
+                if (_tiltRelativeValue != roundedValue)
+                {
+                    _tiltRelativeValue =
+                        roundedValue;
+
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [Zoom] 위치 이동 입력값
+        /// </summary>
+        public int? ZoomPositionValue
+        {
+            get => _zoomPositionValue;
+            set
+            {
+                if (_zoomPositionValue != value)
+                {
+                    _zoomPositionValue = value;
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [Zoom] 배율 이동 입력값
+        /// 
+        /// 실제 카메라 배율 기준으로 입력한다.
+        /// 예)
+        /// 2.0  = 2배 Zoom
+        /// 33.0 = 33배 Zoom
+        /// 66.0 = 66배 Zoom
+        /// </summary>
+        public double? ZoomRatioValue
+        {
+            get => _zoomRatioValue;
+            set
+            {
+                if (_zoomRatioValue != value)
+                {
+                    _zoomRatioValue = value;
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        /// <summary>
+        /// [Focus] 위치 이동 입력값
+        /// </summary>
+        public int? FocusPositionValue
+        {
+            get => _focusPositionValue;
+            set
+            {
+                if (_focusPositionValue != value)
+                {
+                    _focusPositionValue = value;
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+
+        #endregion
+
+        #region [Image Properties]
+
+        /// <summary>
+        /// [EO] 영상 출력용 [Image]
+        /// </summary>
+        public BitmapSource EOCameraImage
+        {
+            get => _eoCameraImage;
+            private set
+            {
+                if (_eoCameraImage != value)
+                {
+                    _eoCameraImage = value;
+                    OnPropertyChanged();
+                }
+
+            }
+
+        }
+        #endregion
+
+
+        #region [Camera Absolute Control Methods]
+
+        /// <summary>
+        /// [Pan] 절대 위치 이동
+        /// 
+        /// 입력된 [Pan Absolute] 목표값을
+        /// UI Zero 기준 [0 ~ 360] 범위로 보정한 후,
+        /// 장비 실제 Target 값으로 변환하여 이동 명령을 송신한다.
+        /// 
+        /// 사용자가 [Pan Zero]를 설정한 경우,
+        /// UI Target [0.00]은 Zero 설정 당시의 실제 Pan 위치로 변환된다.
+        /// 
+        /// 단, [360] 입력은 [0]과 표시 위치는 같지만,
+        /// 사용자가 한 바퀴 이동을 의도한 값으로 보고 별도로 처리한다.
+        /// </summary>
+        private void MovePanAbsolute()
+        {
+            PtzControllerResult result =
+                _ptzAbsoluteController
+                    .MovePanAbsolute(
+                        PanAbsoluteValue,
+                        GetUiCurrentPan(),
+                        GetCurrentPanCommandAngle(),
+                        _panUiZeroOffset,
+                        _panTurnMode);
+
+            MainStatusText =
+                result.Message;
+        }
+
+        /// <summary>
+        /// [Tilt] 절대 위치 이동
+        /// 
+        /// 입력된 [Tilt Absolute] 값을
+        /// UI Zero 기준 [-90 ~ 90] 범위로 보정한 후,
+        /// 장비 실제 Target 값으로 변환하여 이동 명령을 송신한다.
+        /// 
+        /// 사용자가 [Tilt Zero]를 설정한 경우,
+        /// UI Target [0.00]은 Zero 설정 당시의 실제 Tilt 위치로 변환된다.
+        /// </summary>
+        private void MoveTiltAbsolute()
+        {
+            PtzControllerResult result =
+                _ptzAbsoluteController
+                    .MoveTiltAbsolute(
+                        TiltAbsoluteValue,
+                        _tiltUiZeroOffset);
+
+            MainStatusText =
+                result.Message;
+        }
+        #endregion
+
+
+        #region [Camera Continuous Control Methods]
+
+        /// <summary>
+        /// [Pan / Tilt] 연속 이동 속도 재적용
+        /// 
+        /// ADS1000 장비는 이동 중에도 [JV] 속도 명령을 다시 수신하면
+        /// 현재 이동 속도를 갱신할 수 있으므로,
+        /// 별도 정지 명령 없이 현재 이동 중인 Pan / Tilt 방향 명령을 재송신한다.
+        /// 
+        /// 대각선 이동 중에는 Pan / Tilt 두 축에 모두 변경된 속도를 반영한다.
+        /// </summary>
+        private void ApplyCurrentPanTiltContinuousMoveSpeed()
+        {
+            if (!_isUiContinuousMoveStarted)
+            {
+                return;
+            }
+
+            if (!_isPanContinuousMoving &&
+                !_isTiltContinuousMoving)
+            {
+                return;
+            }
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan / Tilt Continuous Speed Changed : "
+                + PanTiltSpeedLevel.ToString("F0"));
+
+            switch (_currentPanContinuousMoveDirection)
+            {
+                case PanTiltContinuousMoveDirection.PanLeft:
+                    _ads1000CameraControlService
+                        .PanLeft();
+                    break;
+
+                case PanTiltContinuousMoveDirection.PanRight:
+                    _ads1000CameraControlService
+                        .PanRight();
+                    break;
+
+                default:
+                    break;
+            }
+
+            switch (_currentTiltContinuousMoveDirection)
+            {
+                case PanTiltContinuousMoveDirection.TiltUp:
+                    _ads1000CameraControlService
+                        .TiltUp();
+                    break;
+
+                case PanTiltContinuousMoveDirection.TiltDown:
+                    _ads1000CameraControlService
+                        .TiltDown();
+                    break;
+
+                default:
+                    break;
+            }
+
+        }
+
+        /// <summary>
+        /// [Pan / Tilt] 이동 속도 재적용
+        /// 
+        /// UI에서 Pan / Tilt 이동 중 [Pan / Tilt Speed] 값이 변경된 경우,
+        /// 현재 이동 중인 축에 속도 갱신 명령을 송신하여
+        /// 장비 실제 이동 속도에 변경값을 반영한다.
+        /// 
+        /// Absolute 이동은 [SP=속도;BG;] 형식으로 속도 변경을 반영하고,
+        /// Relative 이동은 기존 [PR] 상대 이동량이 다시 실행되지 않도록
+        /// [SP=속도;] 형식으로만 송신한다.
+        /// </summary>
+        private void ApplyCurrentPanTiltMoveSpeed()
+        {
+            if (_isHomePositionMoving)
+            {
+                Console.WriteLine(
+                    "[UI][PTZ] Pan / Tilt Speed Apply Ignored : Home Position Moving");
+
+                return;
+            }
+
+            if (_currentPanTiltMoveType == PanTiltMoveType.Continuous)
+            {
+                ApplyCurrentPanTiltContinuousMoveSpeed();
+
+                return;
+            }
+
+            if (_currentPanTiltMoveAxis == PanTiltMoveAxis.None ||
+                _currentPanTiltMoveType == PanTiltMoveType.None)
+            {
+                Console.WriteLine(
+                    "[UI][PTZ] Pan / Tilt Speed Apply Ignored : Pan / Tilt Move State None");
+
+                return;
+            }
+
+            bool includeBeginCommand =
+                _currentPanTiltMoveType == PanTiltMoveType.Absolute;
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan / Tilt Speed Apply : "
+                + PanTiltSpeedLevel.ToString("F0")
+                + " / "
+                + _currentPanTiltMoveAxis
+                + " / "
+                + _currentPanTiltMoveType
+                + " / BG="
+                + includeBeginCommand);
+
+            switch (_currentPanTiltMoveAxis)
+            {
+                case PanTiltMoveAxis.Pan:
+                    _ads1000CameraControlService
+                        .UpdatePanMoveSpeed(
+                            includeBeginCommand);
+
+                    break;
+
+                case PanTiltMoveAxis.Tilt:
+                    _ads1000CameraControlService
+                        .UpdateTiltMoveSpeed(
+                            includeBeginCommand);
+
+                    break;
+
+                default:
+                    break;
+            }
+
+        }
+
+        /// <summary>
+        /// [Pan] 왼쪽 연속 이동 시작
+        /// 
+        /// 화면 버튼 [MouseDown] 또는 키보드 방향키 입력 시
+        /// [Pan] 왼쪽 연속 이동 명령을 송신한다.
+        /// 
+        /// 이미 동일 방향으로 이동 중인 경우에는
+        /// 키 반복 입력에 의한 중복 Packet 송신을 방지한다.
+        /// </summary>
+        public void StartPanLeftMove()
+        {
+            PtzControllerResult result =
+                _ptzContinuousController
+                    .StartPanLeftMove();
+
+            _isPanContinuousMoving =
+                result.IsMoving == true;
+
+            _currentPanContinuousMoveDirection =
+                PanTiltContinuousMoveDirection.PanLeft;
+
+            MainStatusText =
+                result.Message;
+        }
+
+        /// <summary>
+        /// [Pan] 오른쪽 연속 이동 시작
+        /// 
+        /// 화면 버튼 [MouseDown] 또는 키보드 방향키 입력 시
+        /// [Pan] 오른쪽 연속 이동 명령을 송신한다.
+        /// 
+        /// 이미 동일 방향으로 이동 중인 경우에는
+        /// 키 반복 입력에 의한 중복 Packet 송신을 방지한다.
+        /// </summary>
+        public void StartPanRightMove()
+        {
+            PtzControllerResult result =
+                _ptzContinuousController
+                    .StartPanRightMove();
+
+            _isPanContinuousMoving =
+                result.IsMoving == true;
+
+            _currentPanContinuousMoveDirection =
+                PanTiltContinuousMoveDirection.PanRight;
+
+            MainStatusText =
+                result.Message;
+        }
+
+        /// <summary>
+        /// [Tilt] 위쪽 연속 이동 시작
+        /// 
+        /// 화면 버튼 [MouseDown] 또는 키보드 방향키 입력 시
+        /// [Tilt] 위쪽 연속 이동 명령을 송신한다.
+        /// 
+        /// 이미 동일 방향으로 이동 중인 경우에는
+        /// 키 반복 입력에 의한 중복 Packet 송신을 방지한다.
+        /// </summary>
+        public void StartTiltUpMove()
+        {
+            PtzControllerResult result =
+                _ptzContinuousController
+                    .StartTiltUpMove();
+
+            _isTiltContinuousMoving =
+                result.IsMoving == true;
+
+            _currentTiltContinuousMoveDirection =
+                PanTiltContinuousMoveDirection.TiltUp;
+
+            MainStatusText =
+                result.Message;
+        }
+
+        /// <summary>
+        /// [Tilt] 아래쪽 연속 이동 시작
+        /// 
+        /// 화면 버튼 [MouseDown] 또는 키보드 방향키 입력 시
+        /// [Tilt] 아래쪽 연속 이동 명령을 송신한다.
+        /// 
+        /// 이미 동일 방향으로 이동 중인 경우에는
+        /// 키 반복 입력에 의한 중복 Packet 송신을 방지한다.
+        /// </summary>
+        public void StartTiltDownMove()
+        {
+            PtzControllerResult result =
+                _ptzContinuousController
+                    .StartTiltDownMove();
+
+            _isTiltContinuousMoving =
+                result.IsMoving == true;
+
+            _currentTiltContinuousMoveDirection =
+                PanTiltContinuousMoveDirection.TiltDown;
+
+            MainStatusText =
+                result.Message;
+        }
+
+        /// <summary>
+        /// [Pan Left] / [Tilt Up] 대각선 연속 이동 시작
+        /// </summary>
+        public void StartPanLeftTiltUpMove()
+        {
+            StartPanLeftMove();
+
+            StartTiltUpMove();
+        }
+
+        /// <summary>
+        /// [Pan Right] / [Tilt Up] 대각선 연속 이동 시작
+        /// </summary>
+        public void StartPanRightTiltUpMove()
+        {
+            StartPanRightMove();
+
+            StartTiltUpMove();
+        }
+
+        /// <summary>
+        /// [Pan Left] / [Tilt Down] 대각선 연속 이동 시작
+        /// </summary>
+        public void StartPanLeftTiltDownMove()
+        {
+            StartPanLeftMove();
+
+            StartTiltDownMove();
+        }
+
+        /// <summary>
+        /// [Pan Right] / [Tilt Down] 대각선 연속 이동 시작
+        /// </summary>
+        public void StartPanRightTiltDownMove()
+        {
+            StartPanRightMove();
+
+            StartTiltDownMove();
+        }
+
+        /// <summary>
+        /// [Zoom] 확대 연속 이동 시작
+        /// 
+        /// 화면 버튼 [MouseDown] 시
+        /// [Zoom] 확대 연속 이동 명령을 송신한다.
+        /// </summary>
+        public void StartZoomInMove()
+        {
+            PtzControllerResult result =
+                _ptzContinuousController
+                    .StartZoomInMove();
+
+            _isUiContinuousMoveStarted =
+                result.IsMoving == true;
+
+            _currentPanTiltMoveAxis =
+                PanTiltMoveAxis.None;
+
+            _currentPanTiltMoveType =
+                PanTiltMoveType.None;
+
+            MainStatusText =
+                result.Message;
+        }
+
+        /// <summary>
+        /// [Zoom] 축소 연속 이동 시작
+        /// 
+        /// 화면 버튼 [MouseDown] 시
+        /// [Zoom] 축소 연속 이동 명령을 송신한다.
+        /// </summary>
+        public void StartZoomOutMove()
+        {
+            PtzControllerResult result =
+                _ptzContinuousController
+                    .StartZoomOutMove();
+
+            _isUiContinuousMoveStarted =
+                result.IsMoving == true;
+
+            _currentPanTiltMoveAxis =
+                PanTiltMoveAxis.None;
+
+            _currentPanTiltMoveType =
+                PanTiltMoveType.None;
+
+            MainStatusText =
+                result.Message;
+        }
+
+        /// <summary>
+        /// [Focus] Near 연속 이동 시작
+        /// 
+        /// 화면 버튼 [MouseDown] 시
+        /// [Focus] Near 연속 이동 명령을 송신한다.
+        /// </summary>
+        public void StartFocusNearMove()
+        {
+            PtzControllerResult result =
+                _ptzContinuousController
+                    .StartFocusNearMove();
+
+            _isUiContinuousMoveStarted =
+                result.IsMoving == true;
+
+            _currentPanTiltMoveAxis =
+                PanTiltMoveAxis.None;
+
+            _currentPanTiltMoveType =
+                PanTiltMoveType.None;
+
+            MainStatusText =
+                result.Message;
+        }
+
+        /// <summary>
+        /// [Focus] Far 연속 이동 시작
+        /// 
+        /// 화면 버튼 [MouseDown] 시
+        /// [Focus] Far 연속 이동 명령을 송신한다.
+        /// </summary>
+        public void StartFocusFarMove()
+        {
+            PtzControllerResult result =
+                _ptzContinuousController
+                    .StartFocusFarMove();
+
+            _isUiContinuousMoveStarted =
+                result.IsMoving == true;
+
+            _currentPanTiltMoveAxis =
+                PanTiltMoveAxis.None;
+
+            _currentPanTiltMoveType =
+                PanTiltMoveType.None;
+
+            MainStatusText =
+                result.Message;
+        }
+
+        /// <summary>
+        /// [Auto Focus] 실행
+        /// </summary>
+        private void AutoFocus()
+        {
+            PtzControllerResult result =
+                _ptzContinuousController
+                    .AutoFocus();
+
+            MainStatusText =
+                result.Message;
+        }
+
+        /// <summary>
+        /// [Pan] 연속 이동 정지
+        /// 
+        /// 키보드 방향키 조합 제어 중
+        /// Pan 축 입력이 해제된 경우 Pan 축만 정지한다.
+        /// </summary>
+        private void StopPanMove()
+        {
+            PtzControllerResult result =
+                _ptzContinuousController
+                    .StopPanMove();
+
+            _isPanContinuousMoving =
+                false;
+
+            _currentPanContinuousMoveDirection =
+                PanTiltContinuousMoveDirection.None;
+
+            MainStatusText =
+                result.Message;
+        }
+
+        /// <summary>
+        /// [Tilt] 연속 이동 정지
+        /// 
+        /// 키보드 방향키 조합 제어 중
+        /// Tilt 축 입력이 해제된 경우 Tilt 축만 정지한다.
+        /// </summary>
+        private void StopTiltMove()
+        {
+            PtzControllerResult result =
+                _ptzContinuousController
+                    .StopTiltMove();
+
+            _isTiltContinuousMoving =
+                false;
+
+            _currentTiltContinuousMoveDirection =
+                PanTiltContinuousMoveDirection.None;
+
+            MainStatusText =
+                result.Message;
+        }
+
+        /// <summary>
+        /// [UI] 장비 이동 정지
+        /// 
+        /// 화면 버튼을 통해 시작된
+        /// [Pan] / [Tilt] / [Zoom] / [Focus] 연속 이동뿐만 아니라,
+        /// [Pan] / [Tilt] Absolute / Relative 위치 이동 중에도
+        /// 정지 명령을 송신한다.
+        /// 
+        /// STOP 명령은 장비 이동 상태를 강제로 정지시키는 용도이므로,
+        /// UI 내부 이동 상태값만 기준으로 차단하지 않고
+        /// 장비가 연결된 상태라면 정지 명령을 송신한다.
+        /// </summary>
+        public void StopContinuousMove()
+        {
+            PtzControllerResult result =
+                _ptzContinuousController
+                    .StopContinuousMove();
+
+            _isPanContinuousMoving =
+                false;
+
+            _isTiltContinuousMoving =
+                false;
+
+            _currentPanContinuousMoveDirection =
+                PanTiltContinuousMoveDirection.None;
+
+            _currentTiltContinuousMoveDirection =
+                PanTiltContinuousMoveDirection.None;
+
+            MainStatusText =
+                result.Message;
+        }
+        #endregion
+
+
+        #region [Camera Home / Zero Control Methods]
+
+        /// <summary>
+        /// [Home Position] 이동
+        /// 
+        /// 사용자가 [HOME POSITION] 버튼을 누른 경우,
+        /// 장비 기준 Home Position으로 이동한다.
+        /// 
+        /// Home Position 이동 중에는
+        /// 다른 운용 제어 / 이동 제어 명령이 중복 송신되지 않도록
+        /// 장비 제어 영역을 비활성화한다.
+        /// </summary>
+        private async Task MoveHomePositionAsync()
+        {
+            await MoveHomePositionWithControlLockAsync(
+                "[UI][PTZ] Home Position");
+        }
+        /// <summary>
+        /// [Home Position] 이동 공통 처리
+        /// 
+        /// Home Position 이동 시작 시
+        /// 장비 연결 / 해제 버튼 및 운용 제어 / 이동 제어 영역을 비활성화하고,
+        /// 문서 기준 [Pan Home] / [Tilt Home] 명령을 송신한다.
+        /// 
+        /// Home Position 완료 응답을 별도로 판단하지 않고,
+        /// 현재 Pan / Tilt 상태값이 [0] 부근으로 일정 시간 안정화되었는지 확인하여
+        /// Home Position 이동 완료 여부를 판단한다.
+        /// </summary>
+        /// <param name="logPrefix">
+        /// 로그 출력 구분 문자열
+        /// </param>
+        private async Task MoveHomePositionWithControlLockAsync(
+            string logPrefix)
+        {
+            if (_isHomePositionMoving)
+            {
+                ConsoleLogHelper.PrintBlock(
+                    logPrefix + " Ignored : Home Position Moving");
+
+                return;
+            }
+
+            if (_mcbConnectionState != ConnectionState.Connected ||
+                _scbConnectionState != ConnectionState.Connected)
+            {
+                ConsoleLogHelper.PrintBlock(
+                    logPrefix + " Skipped : Device Not Fully Connected");
+
+                return;
+            }
+
+            PtzControllerResult result =
+                null;
+
+            try
+            {
+                SetHomePositionMovingState(
+                    true);
+
+                MainStatusText =
+                    "HOME POSITION MOVING...";
+
+                // [Home Position] 이동 명령 송신
+                //
+                // Controller는 명령 송신 결과만 반환하므로,
+                // 실제 장비 이동 완료 여부는 상태 안정화 대기 로직에서 판단한다.
+                result =
+                    await _ptzHomeZeroController
+                        .MoveHomePositionAsync();
+
+                if (result != null &&
+                    !result.IsSuccess)
+                {
+                    MainStatusText =
+                        result.Message;
+
+                    return;
+                }
+
+                bool isCompleted =
+                    await WaitHomePositionCompletedAsync();
+
+                if (!isCompleted)
+                {
+                    MainStatusText =
+                        "HOME POSITION WAIT TIMEOUT";
+
+                    return;
+                }
+
+                ResetPanAccumulatedStatus();
+
+                MainStatusText =
+                    "HOME POSITION COMPLETE";
+            }
+            catch (Exception ex)
+            {
+                ConsoleLogHelper.PrintBlock(
+                    logPrefix + " Failed : " + ex.Message);
+
+                MainStatusText =
+                    "HOME POSITION FAILED";
+            }
+            finally
+            {
+                SetHomePositionMovingState(
+                    false);
+            }
+        }
+
+
+        /// <summary>
+        /// [Pan] 현재 위치를 UI / 장비 Script 기준 [0] 위치로 저장
+        /// 
+        /// 현재 [Pan] 위치값을 장비 Offset 저장 프로토콜로 송신하고,
+        /// 프로그램 화면에서도 현재 위치가 [0.00]으로 표시되도록
+        /// UI Zero Offset을 저장한다.
+        /// </summary>
+        private void SetPanZero()
+        {
+            PtzControllerResult result =
+                _ptzHomeZeroController
+                    .SetPanZero(
+                        CurrentPan);
+
+            if (result.PanUiZeroOffset.HasValue)
+            {
+                _panUiZeroOffset =
+                    result.PanUiZeroOffset.Value;
+
+                OnPropertyChanged(nameof(CurrentPanDisplayText));
+            }
+
+            MainStatusText =
+                result.Message;
+        }
+
+        /// <summary>
+        /// [Tilt] 현재 위치를 UI / 장비 Script 기준 [0] 위치로 저장
+        /// 
+        /// 현재 [Tilt] 위치값을 장비 Offset 저장 프로토콜로 송신하고,
+        /// 프로그램 화면에서도 현재 위치가 [0.00]으로 표시되도록
+        /// UI Zero Offset을 저장한다.
+        /// </summary>
+        private void SetTiltZero()
+        {
+            PtzControllerResult result =
+                _ptzHomeZeroController
+                    .SetTiltZero(
+                        CurrentTilt);
+
+            if (result.TiltUiZeroOffset.HasValue)
+            {
+                _tiltUiZeroOffset =
+                    result.TiltUiZeroOffset.Value;
+
+                OnPropertyChanged(nameof(CurrentTiltDisplayText));
+            }
+
+            MainStatusText =
+                result.Message;
+        }
+        /// <summary>
+        /// [Home Position] 이동 완료 대기
+        /// 
+        /// Home Position 명령 송신 후,
+        /// 현재 Pan / Tilt 상태값이 [0] 부근으로 일정 시간 안정화될 때까지 대기한다.
+        /// 
+        /// 장비 Home Script 수행 중 Pan / Tilt 상태값이 일시적으로 [0] 부근에 먼저 도달할 수 있으므로,
+        /// 단일 상태값만으로 완료 판단하지 않고 연속 안정 상태와 추가 안정화 시간을 확인한다.
+        /// </summary>
+        /// <returns>
+        /// Home Position 완료 여부
+        /// </returns>
+        private async Task<bool> WaitHomePositionCompletedAsync()
+        {
+            const int MIN_WAIT_MILLISECONDS =
+                1500;
+
+            const int CHECK_INTERVAL_MILLISECONDS =
+                200;
+
+            const int POST_STABLE_WAIT_MILLISECONDS =
+                1000;
+
+            const int TIMEOUT_MILLISECONDS =
+                20000;
+
+            const int REQUIRED_STABLE_COUNT =
+                5;
+
+            const double PAN_TOLERANCE_DEGREES =
+                0.5;
+
+            const double TILT_TOLERANCE_DEGREES =
+                0.5;
+
+            // [Home Position] 최소 대기
+            //
+            // Home Position 명령 송신 직후에는
+            // 장비 상태값이 아직 이동 전 위치로 들어올 수 있으므로
+            // 안정 상태 판단 전 최소 대기 시간을 둔다.
+            await Task.Delay(
+                MIN_WAIT_MILLISECONDS);
+
+            int stableCount =
+                0;
+
+            int elapsedMilliseconds =
+                MIN_WAIT_MILLISECONDS;
+
+            while (elapsedMilliseconds < TIMEOUT_MILLISECONDS)
+            {
+                if (_mcbConnectionState != ConnectionState.Connected ||
+                    _scbConnectionState != ConnectionState.Connected)
+                {
+                    ConsoleLogHelper.PrintBlock(
+                        "[DEVICE] Home Position Wait Canceled : Device Disconnected");
+
+                    return false;
+                }
+
+                double currentPan =
+                    CameraCommandService.NormalizePanStatus(
+                        CurrentPan);
+
+                double currentTilt =
+                    NormalizeTiltStatus(
+                        CurrentTilt);
+
+                bool isPanHome =
+                    currentPan <= PAN_TOLERANCE_DEGREES ||
+                    currentPan >= 360.0 - PAN_TOLERANCE_DEGREES;
+
+                bool isTiltHome =
+                    Math.Abs(
+                        currentTilt) <= TILT_TOLERANCE_DEGREES;
+
+                if (isPanHome &&
+                    isTiltHome)
+                {
+                    stableCount++;
+
+                    Console.WriteLine(
+                        "[DEVICE] Home Position Stable Check : "
+                        + stableCount
+                        + " / "
+                        + REQUIRED_STABLE_COUNT
+                        + " Pan="
+                        + currentPan.ToString("F2")
+                        + ", Tilt="
+                        + currentTilt.ToString("F2"));
+
+                    if (stableCount >= REQUIRED_STABLE_COUNT)
+                    {
+                        // [Home Position] 완료 후 안정화 대기
+                        //
+                        // 장비 상태값이 [0] 부근에 도달한 뒤에도
+                        // 내부 Home Script / 감속 동작이 짧게 남을 수 있으므로
+                        // 제어 활성화 전 추가 안정화 시간을 둔다.
+                        await Task.Delay(
+                            POST_STABLE_WAIT_MILLISECONDS);
+
+                        ConsoleLogHelper.PrintBlock(
+                            "[DEVICE] Home Position Completed");
+
+                        return true;
+                    }
+
+                }
+                else
+                {
+                    stableCount =
+                        0;
+                }
+
+                await Task.Delay(
+                    CHECK_INTERVAL_MILLISECONDS);
+
+                elapsedMilliseconds +=
+                    CHECK_INTERVAL_MILLISECONDS;
+            }
+
+            ConsoleLogHelper.PrintBlock(
+                "[DEVICE] Home Position Wait Timeout");
+
+            return false;
+        }
+
+        #endregion
+
+
+        #region [PTZ Control Mode Methods]
+
+        /// <summary>
+        /// [PTZ] [AUTO] 모드 설정
+        /// 
+        /// 화면 버튼을 통해 [PTZ] 제어 모드를 [AUTO]로 변경한다.
+        /// 
+        /// 현재 단계에서는 실제 자동 추적 제어를 수행하지 않고,
+        /// 이후 탐지 / 레이다 연동 시 자동 제어 허용 상태값으로 사용한다.
+        /// </summary>
+        private void SetPtzAutoMode()
+        {
+            ControllerResult result =
+                _ptzModeController
+                    .SetAutoMode();
+
+            SetPtzControlMode(
+                "AUTO");
+
+            MainStatusText =
+                result.Message;
+        }
+
+        /// <summary>
+        /// [PTZ] [MANUAL] 모드 설정
+        /// 
+        /// 화면 버튼을 통해 [PTZ] 제어 모드를 [MANUAL]로 변경한다.
+        /// 
+        /// 수동 버튼 기반 [Pan] / [Tilt] / [Zoom] / [Focus]
+        /// 제어를 기본 운용 모드로 사용한다.
+        /// </summary>
+        private void SetPtzManualMode()
+        {
+            ControllerResult result =
+                _ptzModeController
+                    .SetManualMode();
+
+            SetPtzControlMode(
+                "MANUAL");
+
+            MainStatusText =
+                result.Message;
+        }
+
+        /// <summary>
+        /// [PTZ] 제어 모드 설정
+        /// 
+        /// [AUTO] / [MANUAL] 값을 [CameraStateProvider]에 저장하고,
+        /// 화면 표시값과 로그를 갱신한다.
+        /// </summary>
+        /// <param name="mode">
+        /// 설정할 [PTZ] 제어 모드
+        /// </param>
+        private void SetPtzControlMode(
+            string mode)
+        {
+            if (string.IsNullOrWhiteSpace(
+                mode))
+            {
+                Console.WriteLine("[UI][PTZ_MODE] Set Failed : Mode is empty");
+                return;
+            }
+
+            string normalizedMode =
+                mode.Trim().ToUpper();
+
+            if (normalizedMode != "AUTO" &&
+                normalizedMode != "MANUAL")
+            {
+                Console.WriteLine("[UI][PTZ_MODE] Set Failed : Unsupported Mode : " + mode);
+                return;
+            }
+
+            ConsoleLogHelper.PrintLine();
+            Console.WriteLine("[UI][PTZ_MODE] Set Request");
+            Console.WriteLine("[UI][PTZ_MODE] Mode : " + normalizedMode);
+            ConsoleLogHelper.PrintLine();
+
+            _cameraStateProvider.UpdatePtzControlMode(
+                normalizedMode);
+        }
+
+        /// <summary>
+        /// [PTZ] 제어 모드 변경 처리
+        /// 
+        /// [CameraStateProvider]에서 [AUTO] / [MANUAL] 모드가 변경되면
+        /// [XAML] 바인딩 속성을 갱신한다.
+        /// </summary>
+        /// <param name="mode">
+        /// 변경된 [PTZ] 제어 모드
+        /// </param>
+        private void OnPtzControlModeChanged(
+            string mode)
+        {
+            App.Current.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                PtzControlModeText =
+                    mode;
+
+                Console.WriteLine("[UI][PTZ_MODE] Current Mode : " + PtzControlModeText);
+            }));
+
+        }
+
+        #endregion
+
+        #region [Camera Relative Control Methods]
+
+        /// <summary>
+        /// [Pan] 상대 위치 이동
+        /// 
+        /// 입력된 [Pan Relative] 값을 기준으로
+        /// UI Zero 기준 현재 Pan 위치에서 상대 이동량을 더한
+        /// 최종 목표 위치를 계산한 후,
+        /// [ADS1000] 장비에는 절대 위치 이동 명령으로 송신한다.
+        /// 
+        /// 장비의 [PR] 상대 이동 명령은 이동 중 속도 변경 시
+        /// [SP] 단독 갱신이 즉시 반영되지 않고,
+        /// [BG] 재송신 시 상대 이동량이 재실행될 수 있으므로,
+        /// UI 상대 이동은 내부적으로 [PA] 절대 이동으로 변환하여 처리한다.
+        /// </summary>
+        private void MovePanRelative()
+        {
+            PtzControllerResult result =
+                _ptzRelativeController
+                    .MovePanRelative(
+                        PanRelativeValue);
+
+            MainStatusText =
+                result.Message;
+        }
+
+        /// <summary>
+        /// [Tilt] 상대 위치 이동
+        /// 
+        /// 입력된 [Tilt Relative] 값을 기준으로
+        /// UI Zero 기준 현재 Tilt 위치에서 상대 이동량을 더한
+        /// 최종 목표 위치를 계산한 후,
+        /// [ADS1000] 장비에는 절대 위치 이동 명령으로 송신한다.
+        /// 
+        /// 장비의 [PR] 상대 이동 명령은 이동 중 속도 변경 시
+        /// [SP] 단독 갱신이 즉시 반영되지 않고,
+        /// [BG] 재송신 시 상대 이동량이 재실행될 수 있으므로,
+        /// UI 상대 이동은 내부적으로 [PA] 절대 이동으로 변환하여 처리한다.
+        /// </summary>
+        private void MoveTiltRelative()
+        {
+            PtzControllerResult result =
+                _ptzRelativeController
+                    .MoveTiltRelative(
+                        TiltRelativeValue);
+
+            MainStatusText =
+                result.Message;
+        }
+        #endregion
+
+
+        #region [UDP Connection Methods]
+
+        /// <summary>
+        /// [Radar] UDP 연결 상태 반영
+        /// </summary>
+        /// <param name="connectionState">
+        /// [Radar] UDP 연결 상태
+        /// </param>
+        private void SetRadarUdpConnectionState(
+            ConnectionState connectionState)
+        {
+            // [Radar UDP] 연결 상태 저장
+            //
+            // [Radar UDP] 수신 시작 / 중지 여부를
+            // 내부 상태값에 반영한다.
+            _radarUdpConnectionState =
+                connectionState;
+
+            // [Radar UDP] 연결 상태 UI 갱신
+            OnPropertyChanged(nameof(RadarUdpConnectionStatusText));
+            OnPropertyChanged(nameof(RadarUdpConnectionStatusBrush));
+
+            // [Radar UDP] 버튼 / 설정 입력 상태 갱신
+            OnPropertyChanged(nameof(IsRadarUdpStartButtonEnabled));
+            OnPropertyChanged(nameof(IsRadarUdpStopButtonEnabled));
+            OnPropertyChanged(nameof(IsRadarUdpConnectionSettingEnabled));
+        }
+
+        /// <summary>
+        /// [Radar] UDP 수신 시작
+        /// 
+        /// Controller에서 UDP 수신 시작 기능을 수행하고,
+        /// 반환된 결과를 기준으로 화면 상태를 갱신한다.
+        /// </summary>
+        private async void StartRadarUdpReceive()
+        {
+            if (_mcbConnectionState != ConnectionState.Connected ||
+                _scbConnectionState != ConnectionState.Connected)
+            {
+                ConsoleLogHelper.PrintLine();
+                Console.WriteLine("[RADAR][UDP] Start Failed : MCB / SCB Not Connected");
+                Console.WriteLine();
+
+                return;
+            }
+
+            if (_radarUdpConnectionState == ConnectionState.Connected ||
+                _radarUdpConnectionState == ConnectionState.Connecting)
+            {
+                ConsoleLogHelper.PrintLine();
+                Console.WriteLine("[RADAR][UDP] Start Ignored : Already Started");
+                Console.WriteLine();
+
+                return;
+            }
+
+            SetRadarUdpConnectionState(
+                ConnectionState.Connecting);
+
+            ControllerResult result =
+                await _radarUdpController
+                    .StartReceiveAsync(
+                        RadarUdpLocalPort);
+
+            if (result.IsSuccess)
+            {
+                SetRadarUdpConnectionState(
+                    ConnectionState.Connected);
+            }
+            else
+            {
+                SetRadarUdpConnectionState(
+                    ConnectionState.Disconnected);
+            }
+
+            MainStatusText =
+                result.Message;
+        }
+
+        /// <summary>
+        /// [Radar] UDP 수신 중지
+        /// 
+        /// Controller에서 UDP 수신 중지 기능을 수행하고,
+        /// 반환된 결과를 기준으로 화면 상태를 갱신한다.
+        /// </summary>
+        private void StopRadarUdpReceive()
+        {
+            if (_radarUdpConnectionState != ConnectionState.Connected)
+            {
+                ConsoleLogHelper.PrintLine();
+                Console.WriteLine("[RADAR][UDP] Stop Ignored : Not Started");
+                Console.WriteLine();
+
+                return;
+            }
+
+            ControllerResult result =
+                _radarUdpController
+                    .StopReceive();
+
+            if (result.IsSuccess)
+            {
+                SetRadarUdpConnectionState(
+                    ConnectionState.Disconnected);
+            }
+
+            MainStatusText =
+                result.Message;
+        }
+
+        #endregion
+
+        #region [Receive Event Methods]
+
+        /// <summary>
+        /// [MCB] 수신 데이터 처리
+        /// 
+        /// [TcpClientService]에서 [MCB] 수신 데이터가 들어오면 호출된다.
+        /// 실제 파싱은 [Ads1000StatusService]에서 처리한다.
+        /// </summary>
+        /// <param name="packet">
+        /// [MCB] 수신 [Packet]
+        /// </param>
+        /// <param name="receivedTime">
+        /// 수신 시간
+        /// </param>
+        private void OnMcbMessageReceived(
+            byte[] packet,
+            DateTime receivedTime)
+        {
+            ProcessReceivedPacket(
+                "MCB",
+                packet);
+        }
+
+        /// <summary>
+        /// [SCB] 수신 데이터 처리
+        /// 
+        /// [TcpClientService]에서 [SCB] 수신 데이터가 들어오면 호출된다.
+        /// 실제 파싱은 [Ads1000StatusService]에서 처리한다.
+        /// </summary>
+        /// <param name="packet">
+        /// [SCB] 수신 [Packet]
+        /// </param>
+        /// <param name="receivedTime">
+        /// 수신 시간
+        /// </param>
+        private void OnScbMessageReceived(
+            byte[] packet,
+            DateTime receivedTime)
+        {
+            ProcessReceivedPacket(
+                "SCB",
+                packet);
+        }
+
+        /// <summary>
+        /// [ADS1000] 수신 [Packet] 처리 결과 화면 반영
+        /// </summary>
+        /// <param name="deviceName">
+        /// 수신 장비 이름
+        /// </param>
+        /// <param name="packet">
+        /// 수신 [Packet]
+        /// </param>
+        private void ProcessReceivedPacket(
+            string deviceName,
+            byte[] packet)
+        {
+            Ads1000ReceiveControllerResult result =
+                _ads1000ReceiveController
+                    .ProcessReceivedPacket(
+                        deviceName,
+                        packet);
+
+            if (!result.IsSuccess)
+            {
+                Console.WriteLine(
+                    "[" + deviceName + "][RECEIVE] " + result.Message);
+
+                return;
+            }
+
+            App.Current.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                foreach (Ads1000ParsedPacket parsedPacket in result.ParsedPackets)
+                {
+                    ApplyParsedStatusValue(
+                        parsedPacket);
+                }
+
+            }));
+
+        }
+
+        #endregion
+
+        #region [Status Apply Methods]
+
+        /// <summary>
+        /// [ADS1000] 파싱 상태값 화면 반영
+        /// 
+        /// 수신 [Packet]에서 추출된
+        /// [Pan] / [Tilt] / [Zoom] / [Focus] 값을
+        /// 화면 표시용 속성과 [CameraStateProvider]에 반영한다.
+        /// </summary>
+        /// <param name="parsedPacket">
+        /// [ADS1000] 파싱 [Packet]
+        /// </param>
+        private void ApplyParsedStatusValue(
+            Ads1000ParsedPacket parsedPacket)
+        {
+            Ads1000StatusApplyControllerResult result =
+                _ads1000StatusApplyController
+                    .Apply(
+                        parsedPacket);
+
+            if (!result.IsSuccess)
+            {
+                return;
+            }
+
+            if (result.CurrentPan.HasValue)
+            {
+                CurrentPan =
+                    CameraCommandService.NormalizePanStatus(
+                        result.CurrentPan.Value);
+
+                UpdatePanAccumulatedStatus(
+                    result.CurrentPan.Value);
+            }
+
+            if (result.CurrentTilt.HasValue)
+            {
+                CurrentTilt =
+                    NormalizeTiltStatus(
+                        result.CurrentTilt.Value);
+            }
+
+            if (result.CurrentZoom.HasValue)
+            {
+                CurrentZoom =
+                    NormalizeRangePosition(
+                        result.CurrentZoom.Value,
+                        0,
+                        1000);
+
+                CurrentZoomRatio =
+                    ConvertZoomPositionToRatio(
+                        CurrentZoom);
+            }
+
+            if (result.CurrentFocus.HasValue)
+            {
+                CurrentFocus =
+                    NormalizeRangePosition(
+                        result.CurrentFocus.Value,
+                        0,
+                        1000);
+            }
+
+        }
+        #endregion
+
+
+        #region [Zoom / Focus Position Control Methods]
+
+        /// <summary>
+        /// [Zoom] 지정 위치 이동
+        /// 
+        /// 입력된 [Zoom Position] 값을
+        /// [0 ~ 1000] 범위로 보정한 후
+        /// [ADS1000] 장비에 위치 이동 명령을 전송한다.
+        /// </summary>
+        private void SetZoomPosition()
+        {
+            PtzControllerResult result =
+                _zoomFocusPositionController
+                    .SetZoomPosition(
+                        ZoomPositionValue);
+
+            MainStatusText =
+                result.Message;
+        }
+
+        /// <summary>
+        /// [Zoom] 배율 기준 위치 이동
+        /// 
+        /// 입력된 [Zoom Ratio] 값을
+        /// 실제 배율 기준으로 보정한 후,
+        /// [ADS1000] 장비 위치값 [0 ~ 1000]으로 변환하여 전송한다.
+        /// 
+        /// 장비 스펙 기준 최대 배율을 [66x] 기준으로 구현한다.
+        /// </summary>
+        private void SetZoomRatio()
+        {
+            PtzControllerResult result =
+                _zoomFocusPositionController
+                    .SetZoomRatio(
+                        ZoomRatioValue);
+
+            MainStatusText =
+                result.Message;
+        }
+
+        /// <summary>
+        /// [Zoom] 위치값을 배율로 변환
+        /// 
+        /// ADS1000 장비 상태값 [0 ~ 1000]을
+        /// 화면 표시용 [Zoom] 배율값 [x1.0 ~ x66.0]으로 변환한다.
+        /// 
+        /// 변환 기준:
+        /// [0]    = [1.0x]
+        /// [1000] = [66.0x]
+        /// 
+        /// 화면 표시 기준으로 소수점 첫째 자리까지 반올림한다.
+        /// </summary>
+        /// <param name="zoomPosition">
+        /// ADS1000 Zoom 위치값
+        /// </param>
+        /// <returns>
+        /// Zoom 배율
+        /// </returns>
+        private double ConvertZoomPositionToRatio(
+            double zoomPosition)
+        {
+            const double MIN_ZOOM_POSITION =
+                0.0;
+
+            const double MAX_ZOOM_POSITION =
+                1000.0;
+
+            const double MIN_ZOOM_RATIO =
+                1.0;
+
+            const double MAX_ZOOM_RATIO =
+                66.0;
+
+            double clampedZoomPosition =
+                CameraCommandService.Clamp(
+                    zoomPosition,
+                    MIN_ZOOM_POSITION,
+                    MAX_ZOOM_POSITION);
+
+            double zoomRatio =
+                MIN_ZOOM_RATIO
+                + (clampedZoomPosition - MIN_ZOOM_POSITION)
+                / (MAX_ZOOM_POSITION - MIN_ZOOM_POSITION)
+                * (MAX_ZOOM_RATIO - MIN_ZOOM_RATIO);
+
+            return Math.Round(
+                zoomRatio,
+                1);
+        }
+
+        /// <summary>
+        /// [Focus] 지정 위치 이동
+        /// 
+        /// 입력된 [Focus Position] 값을
+        /// [0 ~ 1000] 범위로 보정한 후
+        /// [ADS1000] 장비에 위치 이동 명령을 전송한다.
+        /// </summary>
+        private void SetFocusPosition()
+        {
+            PtzControllerResult result =
+                _zoomFocusPositionController
+                    .SetFocusPosition(
+                        FocusPositionValue);
+
+            MainStatusText =
+                result.Message;
         }
         #endregion
     }

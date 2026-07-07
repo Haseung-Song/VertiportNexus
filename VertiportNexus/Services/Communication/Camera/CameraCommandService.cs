@@ -874,14 +874,15 @@ namespace VertiportNexus.Services.Command
         #endregion
 
         #region [Zoom Convert Methods]
-
         /// <summary>
         /// [Zoom] 배율을 [ADS1000] 위치값으로 변환
         /// 
-        /// [IF-GUIS-CSE-004]의 [zoom] 값은 실제 배율 기준이고,
-        /// [ADS1000] 장비 제어는 [0 ~ 1000] 위치값 기준으로 수행한다.
+        /// [UI] 또는 [ICD]에서 사용하는 [Zoom] 배율값을
+        /// [ADS1000] 제어용 [0 ~ 1000] 위치값으로 변환한다.
         /// 
-        /// 장비 스펙 기준으로 최대 배율을 [66x] 기준으로 구현한다.
+        /// 변환 기준:
+        /// [1x]  = 0
+        /// [66x] = 1000
         /// </summary>
         /// <param name="zoomRatio">
         /// Zoom 배율
@@ -889,7 +890,7 @@ namespace VertiportNexus.Services.Command
         /// <returns>
         /// ADS1000 Zoom 위치값
         /// </returns>
-        private ushort ConvertZoomRatioToPosition(
+        internal static ushort ConvertZoomRatioToPosition(
             double zoomRatio)
         {
             const double MIN_ZOOM_RATIO =
@@ -912,6 +913,7 @@ namespace VertiportNexus.Services.Command
             return (ushort)Math.Round(
                 zoomPosition);
         }
+
 
         #endregion
 
@@ -965,7 +967,6 @@ namespace VertiportNexus.Services.Command
                 PTZ_MODE_AUTO,
                 StringComparison.OrdinalIgnoreCase);
         }
-
         /// <summary>
         /// [Pan] 이동 각도 계산
         /// 
@@ -985,9 +986,9 @@ namespace VertiportNexus.Services.Command
         /// Pan 선회 모드
         /// </param>
         /// <returns>
-        /// Pan 이동 각도
+        /// 장비로 송신할 Pan 이동 각도
         /// </returns>
-        private double CalculatePanMoveAngle(
+        internal static double CalculatePanMoveAngle(
             double currentPan,
             double targetPan,
             Ads1000PanTurnMode panTurnMode)
@@ -1012,6 +1013,7 @@ namespace VertiportNexus.Services.Command
                 normalizedTargetPan);
         }
 
+
         /// <summary>
         /// [Pan] 최단 이동 각도 계산
         /// 
@@ -1029,7 +1031,7 @@ namespace VertiportNexus.Services.Command
         /// <returns>
         /// 최단 이동 각도
         /// </returns>
-        private double CalculateShortestPanDelta(
+        private static double CalculateShortestPanDelta(
             double currentPan,
             double targetPan)
         {
@@ -1066,7 +1068,7 @@ namespace VertiportNexus.Services.Command
         /// <returns>
         /// Via 0 기준 이동 각도
         /// </returns>
-        private double CalculateViaZeroPanDelta(
+        private static double CalculateViaZeroPanDelta(
             double currentPan,
             double targetPan)
         {
@@ -1076,23 +1078,22 @@ namespace VertiportNexus.Services.Command
             return NormalizeZeroAngle(
                 delta);
         }
-
         /// <summary>
         /// [Pan] 상태값 범위 정규화
         /// 
-        /// Pan 값을 [0 ~ 360] 범위로 변환한다.
+        /// ADS1000 상태 Packet에서 수신한 Pan 값을
+        /// [0 ~ 360] 범위로 변환한다.
         /// 
-        /// 장비 Encoder 오차로 인해
-        /// [0] 근처 또는 [360] 근처의 미세 오차가 발생하는 경우,
-        /// [0]으로 보정한다.
+        /// Pan 값이 360도를 초과하면 0도부터 다시 시작하고,
+        /// 0도 미만이면 360도 기준으로 순환 처리한다.
         /// </summary>
         /// <param name="pan">
-        /// Pan 원본 값
+        /// Pan 원본 상태값
         /// </param>
         /// <returns>
-        /// [0 ~ 360] 범위로 정규화된 Pan 값
+        /// [0 ~ 360] 범위로 정규화된 Pan 상태값
         /// </returns>
-        private double NormalizePanStatus(
+        internal static double NormalizePanStatus(
             double pan)
         {
             const double FULL_ROTATION_DEGREES =
@@ -1115,9 +1116,10 @@ namespace VertiportNexus.Services.Command
             {
                 return 0.0;
             }
-            return normalizedPan;
-        }
 
+            return NormalizePosition(
+                normalizedPan);
+        }
         /// <summary>
         /// [각도] 미세 오차 보정
         /// 
@@ -1130,7 +1132,46 @@ namespace VertiportNexus.Services.Command
         /// <returns>
         /// 미세 오차가 보정된 각도
         /// </returns>
-        private double NormalizeZeroAngle(
+        /// <summary>
+        /// [위치 상태값] 미세 오차 보정
+        /// 
+        /// 장비 Encoder 또는 위치 응답에서 발생하는
+        /// [0] 근처 또는 정수 위치 근처의 미세 오차를
+        /// 화면 표시 및 상태 응답 기준에서 보정한다.
+        /// </summary>
+        /// <param name="value">
+        /// 원본 위치값
+        /// </param>
+        /// <returns>
+        /// 미세 오차가 보정된 위치값
+        /// </returns>
+        private static double NormalizePosition(
+            double value)
+        {
+            const double ZERO_EPSILON =
+                0.001;
+
+            const double INTEGER_EPSILON =
+                0.001;
+
+            if (Math.Abs(value) <= ZERO_EPSILON)
+            {
+                return 0.0;
+            }
+
+            double roundedValue =
+                Math.Round(
+                    value);
+
+            if (Math.Abs(value - roundedValue) <= INTEGER_EPSILON)
+            {
+                return roundedValue;
+            }
+
+            return value;
+        }
+
+        private static double NormalizeZeroAngle(
             double angle)
         {
             const double ZERO_EPSILON =
@@ -1140,8 +1181,10 @@ namespace VertiportNexus.Services.Command
             {
                 return 0.0;
             }
+
             return angle;
         }
+
 
         /// <summary>
         /// [Pan / Tilt] 방향 명령 여부 확인
@@ -1164,11 +1207,25 @@ namespace VertiportNexus.Services.Command
                    command == PTZ_COMMAND_LEFT_DOWN ||
                    command == PTZ_COMMAND_RIGHT_DOWN;
         }
-
         /// <summary>
-        /// 입력값을 지정 범위 안으로 제한
+        /// 입력값 범위 제한
+        /// 
+        /// 입력값이 지정된 최소 / 최대 범위를 벗어난 경우
+        /// 최소 / 최대값으로 보정한다.
         /// </summary>
-        private double Clamp(
+        /// <param name="value">
+        /// 원본 값
+        /// </param>
+        /// <param name="min">
+        /// 최소 허용값
+        /// </param>
+        /// <param name="max">
+        /// 최대 허용값
+        /// </param>
+        /// <returns>
+        /// 범위 제한이 적용된 값
+        /// </returns>
+        internal static double Clamp(
             double value,
             double min,
             double max)
@@ -1185,6 +1242,7 @@ namespace VertiportNexus.Services.Command
 
             return value;
         }
+
         #endregion
     }
 
