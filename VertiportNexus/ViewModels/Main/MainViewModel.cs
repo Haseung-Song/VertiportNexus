@@ -5725,7 +5725,15 @@ namespace VertiportNexus.ViewModels.Main
                     Math.Abs(
                         currentTilt - previousTilt);
 
+                bool isNearHome =
+                    IsNearZeroAngle(
+                        currentPan,
+                        PAN_STABLE_TOLERANCE_DEGREES) &&
+                    Math.Abs(
+                        currentTilt) <= TILT_STABLE_TOLERANCE_DEGREES;
+
                 bool isStable =
+                    isNearHome &&
                     panDelta <= PAN_STABLE_TOLERANCE_DEGREES &&
                     tiltDelta <= TILT_STABLE_TOLERANCE_DEGREES;
 
@@ -5771,6 +5779,32 @@ namespace VertiportNexus.ViewModels.Main
                 "[DEVICE] Home Position Wait Timeout");
 
             return false;
+        }
+
+        /// <summary>
+        /// [각도] Home 기준 근접 여부 확인
+        /// 
+        /// [0] 또는 [360] 근처 값을 Home 기준으로 판단한다.
+        /// </summary>
+        /// <param name="angle">
+        /// 확인할 각도값
+        /// </param>
+        /// <param name="tolerance">
+        /// 허용 오차
+        /// </param>
+        /// <returns>
+        /// Home 기준 근접 여부
+        /// </returns>
+        private bool IsNearZeroAngle(
+            double angle,
+            double tolerance)
+        {
+            double normalizedAngle =
+                CameraCommandService.NormalizePanStatus(
+                    angle);
+
+            return normalizedAngle <= tolerance ||
+                   normalizedAngle >= 360.0 - tolerance;
         }
 
         /// <summary>
