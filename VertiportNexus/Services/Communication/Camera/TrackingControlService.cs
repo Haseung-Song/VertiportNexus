@@ -32,15 +32,27 @@ namespace VertiportNexus.Services.Camera
 
         /// <summary>
         /// X축 중심 오차 허용 범위 [Pixel]
+        /// 
+        /// 탐지 객체 중심점과 영상 중심점의 X축 차이가
+        /// 해당 값 이하이면 중앙 근처로 판단하여 Pan 보정을 수행하지 않는다.
+        /// 
+        /// 작은 오차까지 계속 보정하면서 발생할 수 있는
+        /// 카메라 떨림 / 헌팅 현상을 방지하기 위해 사용한다.
         /// </summary>
         private const double DEAD_ZONE_X_PIXEL =
-            320.0;
+            100.0;
 
         /// <summary>
         /// Y축 중심 오차 허용 범위 [Pixel]
+        /// 
+        /// 탐지 객체 중심점과 영상 중심점의 Y축 차이가
+        /// 해당 값 이하이면 중앙 근처로 판단하여 Tilt 보정을 수행하지 않는다.
+        /// 
+        /// 작은 오차까지 계속 보정하면서 발생할 수 있는
+        /// 카메라 떨림 / 헌팅 현상을 방지하기 위해 사용한다.
         /// </summary>
         private const double DEAD_ZONE_Y_PIXEL =
-            180.0;
+            60.0;
 
         /// <summary>
         /// 자동 추적 명령 처리 제한 시간 [ms]
@@ -318,24 +330,28 @@ namespace VertiportNexus.Services.Camera
         }
 
         /// <summary>
-        /// 중심 오차가 허용 범위 안에 있는지 확인
+        /// [Tracking] Dead Zone 여부 확인
+        /// 
+        /// 탐지 객체 중심점이 영상 중심점 기준 Dead Zone 내부에 있는지 확인한다.
+        /// 
+        /// Pan / Tilt 오차가 모두 허용 범위 안에 들어온 경우에만
+        /// 추적 보정이 필요 없는 상태로 판단한다.
         /// </summary>
         /// <param name="errorX">
-        /// X축 중심 오차 [Pixel]
+        /// 영상 중심 기준 X축 Pixel 오차
         /// </param>
         /// <param name="errorY">
-        /// Y축 중심 오차 [Pixel]
+        /// 영상 중심 기준 Y축 Pixel 오차
         /// </param>
         /// <returns>
-        /// 중심 허용 범위 포함 여부
+        /// Dead Zone 내부 여부
         /// </returns>
         private bool IsInDeadZone(
             double errorX,
             double errorY)
         {
-            return
-                Math.Abs(errorX) <= DEAD_ZONE_X_PIXEL &&
-                Math.Abs(errorY) <= DEAD_ZONE_Y_PIXEL;
+            return Math.Abs(errorX) <= DEAD_ZONE_X_PIXEL &&
+                   Math.Abs(errorY) <= DEAD_ZONE_Y_PIXEL;
         }
 
         #endregion

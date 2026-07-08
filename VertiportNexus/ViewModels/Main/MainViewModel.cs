@@ -1,12 +1,14 @@
-﻿using System.ComponentModel;
+﻿using System;
+using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
-using System.Windows.Media.Imaging;
 using System.Windows.Media;
-using System;
+using System.Windows.Media.Imaging;
 using VertiportNexus.Common;
 using VertiportNexus.Models.ADS1000;
+using VertiportNexus.Models.Camera;
 using VertiportNexus.Models.Vertiport;
 using VertiportNexus.Services.ADS1000;
 using VertiportNexus.Services.Camera;
@@ -408,14 +410,6 @@ namespace VertiportNexus.ViewModels.Main
         private string _lastMqMessageText = string.Empty;
 
         /// <summary>
-        /// [CSE] [MQ] 수신 시작 여부
-        /// 
-        /// [RabbitMQ] 서버 연결 실패 또는 중복 시작으로 인해
-        /// 프로그램 실행 흐름이 영향을 받지 않도록 상태를 관리한다.
-        /// </summary>
-        private bool _isCseMqReceiveStarted;
-
-        /// <summary>
         /// 장비 연결 진행 여부
         /// 
         /// 현재 [MCB] / [SCB] [TCP Connect] 수행 중이면
@@ -436,6 +430,52 @@ namespace VertiportNexus.ViewModels.Main
         /// 장비 연결 해제 진행 여부
         /// </summary>
         private bool _isDeviceDisconnecting;
+
+        /// <summary>
+        /// [Dummy Tracking] 테스트 취소 토큰
+        /// 
+        /// 실제 탐지 객체 수신 전,
+        /// 더미 Bounding Box를 주기적으로 생성하여
+        /// AUTO Tracking 흐름을 검증하기 위해 사용한다.
+        /// </summary>
+        private CancellationTokenSource _dummyTrackingCancellationTokenSource;
+
+        /// <summary>
+        /// [Dummy Tracking] 테스트 실행 여부
+        /// </summary>
+        private bool _isDummyTrackingRunning;
+
+        /// <summary>
+        /// [Dummy Tracking] 최신 탐지 객체 동기화 객체
+        /// </summary>
+        private readonly object _dummyTrackingTargetLock =
+            new object();
+
+        /// <summary>
+        /// [Dummy Tracking] 최신 탐지 객체 정보
+        /// 
+        /// 30Hz로 수신되는 더미 Bounding Box 중
+        /// 가장 마지막 값을 저장한다.
+        /// </summary>
+        private DetectionBoundingBox _latestDummyTrackingBoundingBox;
+
+        /// <summary>
+        /// [Dummy Tracking] 최신 탐지 객체 수신 시간
+        /// </summary>
+        private DateTime _latestDummyTrackingReceivedTime;
+
+        /// <summary>
+        /// [Dummy Tracking] 최신 탐지 객체 Frame 번호
+        /// </summary>
+        private int _latestDummyTrackingFrameId;
+
+        /// <summary>
+        /// [Dummy Tracking] 마지막 처리 Frame 번호
+        /// 
+        /// 동일 Frame을 중복 처리하지 않기 위해 사용한다.
+        /// </summary>
+        private int _lastProcessedDummyTrackingFrameId =
+            -1;
 
         /// <summary>
         /// [MCB] 연결 상태
@@ -478,6 +518,15 @@ namespace VertiportNexus.ViewModels.Main
         /// 화면 버튼 조작으로 설정된 [AUTO] / [MANUAL] 값을 표시한다.
         /// </summary>
         private string _ptzControlModeText;
+
+        /// <summary>
+        /// [Home Position] 이동 중 CURRENT STATUS 표시 모드
+        /// 
+        /// Home Position 이동 중에는
+        /// 사용자가 설정한 UI Zero Offset 기준이 아니라,
+        /// 장비 Home 기준 Raw 상태값이 [0]으로 수렴하는 흐름을 표시하기 위해 사용한다.
+        /// </summary>
+        private bool _isHomePositionStatusDisplayMode;
 
         #endregion
 
@@ -877,6 +926,16 @@ namespace VertiportNexus.ViewModels.Main
         /// [Radar] UDP 수신 중지 요청 [Command]
         /// </summary>
         public ICommand StopRadarUdpReceiveCommand { get; }
+
+        /// <summary>
+        /// [Dummy Tracking] 테스트 시작 요청 [Command]
+        /// </summary>
+        public ICommand StartDummyTrackingTestCommand { get; }
+
+        /// <summary>
+        /// [Dummy Tracking] 테스트 중지 요청 [Command]
+        /// </summary>
+        public ICommand StopDummyTrackingTestCommand { get; }
 
         #endregion
 
@@ -1324,6 +1383,14 @@ namespace VertiportNexus.ViewModels.Main
             StopRadarUdpReceiveCommand =
                 new RelayCommand(
                     StopRadarUdpReceive);
+
+            StartDummyTrackingTestCommand =
+                new AsyncRelayCommand(
+                    StartDummyTrackingTestAsync);
+
+            StopDummyTrackingTestCommand =
+                new RelayCommand(
+                    StopDummyTrackingTest);
 
             #endregion
 
@@ -2220,17 +2287,447 @@ namespace VertiportNexus.ViewModels.Main
 
         #endregion
 
+        #region [Dummy Tracking Test Methods]
+
+        /// <summary>
+        /// [Dummy Tracking] 더미 탐지 좌표 입력 주기 [Hz]
+        /// 
+        /// ICD 기준 탐지 좌표가 초당 30회 들어오는 상황을 모사한다.
+        /// </summary>
+        private const int DUMMY_DETECTION_HZ =
+            30;
+
+        /// <summary>
+        /// [Dummy Tracking] 추적 처리 주기 [Hz]
+        /// 
+        /// 최신 탐지 좌표를 기준으로 TrackingControlService를 호출한다.
+        /// </summary>
+        private const int DUMMY_TRACKING_HZ =
+            30;
+
+        /// <summary>
+        /// [Dummy Tracking] 테스트 시작
+        /// 
+        /// 실제 드론 / AI 탐지 결과가 없는 상태에서
+        /// 30Hz 더미 Bounding Box 입력을 생성하고,
+        /// 최신 탐지값 기준으로 AUTO Tracking 흐름을 검증한다.
+        /// </summary>
+        /// <returns>
+        /// 비동기 작업
+        /// </returns>
+        private Task StartDummyTrackingTestAsync()
+        {
+            if (_isDummyTrackingRunning)
+            {
+                ConsoleLogHelper.PrintBlock(
+                    "[DUMMY TRACKING] Start Ignored : Already Running");
+
+                return Task.CompletedTask;
+            }
+
+            if (_mcbConnectionState != ConnectionState.Connected ||
+                _scbConnectionState != ConnectionState.Connected)
+            {
+                ConsoleLogHelper.PrintBlock(
+                    "[DUMMY TRACKING] Start Skipped : Device Not Fully Connected");
+
+                return Task.CompletedTask;
+            }
+
+            _isDummyTrackingRunning =
+                true;
+
+            _lastProcessedDummyTrackingFrameId =
+                -1;
+
+            _dummyTrackingCancellationTokenSource =
+                new CancellationTokenSource();
+
+            CancellationToken cancellationToken =
+                _dummyTrackingCancellationTokenSource.Token;
+
+            ConsoleLogHelper.PrintBlock(
+                "[DUMMY TRACKING] Start");
+
+            Console.WriteLine(
+                "[DUMMY TRACKING] Detection Input Hz : "
+                + DUMMY_DETECTION_HZ);
+
+            Console.WriteLine(
+                "[DUMMY TRACKING] Tracking Process Hz : "
+                + DUMMY_TRACKING_HZ);
+
+            _ =
+                Task.Run(
+                    async () =>
+                    {
+                        await RunDummyDetectionInputLoopAsync(
+                            cancellationToken);
+                    },
+                    cancellationToken);
+
+            _ =
+                Task.Run(
+                    async () =>
+                    {
+                        await RunDummyLatestTrackingLoopAsync(
+                            cancellationToken);
+                    },
+                    cancellationToken);
+
+            return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// [Dummy Tracking] 더미 탐지 좌표 입력 Loop
+        /// 
+        /// ICD 기준 30Hz 탐지 좌표 수신 상황을 모사한다.
+        /// 생성된 Bounding Box는 즉시 처리하지 않고,
+        /// 최신 탐지값으로만 저장한다.
+        /// </summary>
+        /// <param name="cancellationToken">
+        /// 취소 토큰
+        /// </param>
+        /// <returns>
+        /// 비동기 작업
+        /// </returns>
+        private async Task RunDummyDetectionInputLoopAsync(
+            CancellationToken cancellationToken)
+        {
+            int frameId =
+                0;
+
+            int delayMilliseconds =
+                1000 / DUMMY_DETECTION_HZ;
+
+            try
+            {
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    DetectionBoundingBox boundingBox =
+                        CreateSmoothDummyTrackingBoundingBox(
+                            frameId);
+
+                    lock (_dummyTrackingTargetLock)
+                    {
+                        _latestDummyTrackingBoundingBox =
+                            boundingBox;
+
+                        _latestDummyTrackingFrameId =
+                            frameId;
+
+                        _latestDummyTrackingReceivedTime =
+                            DateTime.Now;
+                    }
+
+                    if (frameId % DUMMY_DETECTION_HZ == 0)
+                    {
+                        Console.WriteLine(
+                            "[DUMMY TRACKING][INPUT] 30Hz Latest Frame : "
+                            + frameId
+                            + ", CenterX="
+                            + boundingBox.CenterX
+                            + ", CenterY="
+                            + boundingBox.CenterY);
+                    }
+
+                    frameId++;
+
+                    await Task.Delay(
+                            delayMilliseconds,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                }
+            }
+            catch (TaskCanceledException)
+            {
+            }
+        }
+
+        /// <summary>
+        /// [Dummy Tracking] 최신 탐지값 기준 추적 Loop
+        /// 
+        /// 30Hz로 갱신되는 탐지 좌표 중
+        /// 가장 마지막 Bounding Box 값을 기준으로 AUTO Tracking을 수행한다.
+        /// </summary>
+        /// <param name="cancellationToken">
+        /// 취소 토큰
+        /// </param>
+        /// <returns>
+        /// 비동기 작업
+        /// </returns>
+        private async Task RunDummyLatestTrackingLoopAsync(
+            CancellationToken cancellationToken)
+        {
+            int delayMilliseconds =
+                1000 / DUMMY_TRACKING_HZ;
+
+            try
+            {
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    DetectionBoundingBox latestBoundingBox =
+                        null;
+
+                    int latestFrameId =
+                        -1;
+
+                    DateTime latestReceivedTime =
+                        DateTime.MinValue;
+
+                    lock (_dummyTrackingTargetLock)
+                    {
+                        latestBoundingBox =
+                            _latestDummyTrackingBoundingBox;
+
+                        latestFrameId =
+                            _latestDummyTrackingFrameId;
+
+                        latestReceivedTime =
+                            _latestDummyTrackingReceivedTime;
+                    }
+
+                    if (latestBoundingBox == null)
+                    {
+                        await Task.Delay(
+                                delayMilliseconds,
+                                cancellationToken)
+                            .ConfigureAwait(false);
+
+                        continue;
+                    }
+
+                    if (latestFrameId == _lastProcessedDummyTrackingFrameId)
+                    {
+                        await Task.Delay(
+                                delayMilliseconds,
+                                cancellationToken)
+                            .ConfigureAwait(false);
+
+                        continue;
+                    }
+
+                    _lastProcessedDummyTrackingFrameId =
+                        latestFrameId;
+
+                    double elapsedMilliseconds =
+                        (DateTime.Now - latestReceivedTime)
+                            .TotalMilliseconds;
+
+                    if (latestFrameId % DUMMY_TRACKING_HZ == 0)
+                    {
+                        Console.WriteLine(
+                            "[DUMMY TRACKING][PROCESS] Latest Frame : "
+                            + latestFrameId
+                            + ", ElapsedMs="
+                            + elapsedMilliseconds.ToString("F1")
+                            + ", CenterX="
+                            + latestBoundingBox.CenterX
+                            + ", CenterY="
+                            + latestBoundingBox.CenterY);
+                    }
+
+                    double currentZoom =
+                        CurrentZoom;
+
+                    _trackingControlService
+                        .ProcessTracking(
+                            latestBoundingBox,
+                            currentZoom);
+
+                    await Task.Delay(
+                            delayMilliseconds,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                }
+            }
+            catch (TaskCanceledException)
+            {
+                ConsoleLogHelper.PrintBlock(
+                    "[DUMMY TRACKING] Canceled");
+            }
+            catch (Exception ex)
+            {
+                ConsoleLogHelper.PrintBlock(
+                    "[DUMMY TRACKING] Failed");
+
+                Console.WriteLine(
+                    ex);
+            }
+            finally
+            {
+                _isDummyTrackingRunning =
+                    false;
+
+                _dummyTrackingCancellationTokenSource =
+                    null;
+
+                ConsoleLogHelper.PrintBlock(
+                    "[DUMMY TRACKING] Stop");
+            }
+        }
+
+        /// <summary>
+        /// [Dummy Tracking] 테스트 중지
+        /// 
+        /// 실행 중인 더미 Bounding Box 주입 Loop를 중지한다.
+        /// </summary>
+        private void StopDummyTrackingTest()
+        {
+            if (!_isDummyTrackingRunning)
+            {
+                ConsoleLogHelper.PrintBlock(
+                    "[DUMMY TRACKING] Stop Ignored : Not Running");
+
+                return;
+            }
+
+            _dummyTrackingCancellationTokenSource
+                ?.Cancel();
+        }
+
+        /// <summary>
+        /// [Dummy Tracking] 부드러운 더미 Bounding Box 생성
+        /// 
+        /// 30Hz 탐지 좌표 입력 상황에서
+        /// 탐지 객체 중심점이 화면 외곽에서 중앙으로
+        /// 점진적으로 수렴하는 형태를 생성한다.
+        /// </summary>
+        /// <param name="frameId">
+        /// 더미 탐지 Frame 번호
+        /// </param>
+        /// <returns>
+        /// 더미 탐지 객체 영역 정보
+        /// </returns>
+        private DetectionBoundingBox CreateSmoothDummyTrackingBoundingBox(
+            int frameId)
+        {
+            const double FRAME_WIDTH =
+                1920.0;
+
+            const double FRAME_HEIGHT =
+                1080.0;
+
+            const double BOX_WIDTH =
+                120.0;
+
+            const double BOX_HEIGHT =
+                80.0;
+
+            const int FRAMES_PER_SCENARIO =
+                DUMMY_DETECTION_HZ * 3;
+
+            const double MAX_OFFSET_X =
+                250.0;
+
+            const double MAX_OFFSET_Y =
+                150.0;
+
+            double frameCenterX =
+                FRAME_WIDTH / 2.0;
+
+            double frameCenterY =
+                FRAME_HEIGHT / 2.0;
+
+            int scenarioIndex =
+                frameId / FRAMES_PER_SCENARIO;
+
+            int scenarioFrame =
+                frameId % FRAMES_PER_SCENARIO;
+
+            double approachRatio =
+                1.0 - ((double)scenarioFrame / (FRAMES_PER_SCENARIO - 1));
+
+            double offsetX =
+                0.0;
+
+            double offsetY =
+                0.0;
+
+            switch (scenarioIndex % 5)
+            {
+                case 0:
+                    // [오른쪽 → 중앙]
+                    offsetX =
+                        MAX_OFFSET_X * approachRatio;
+                    break;
+
+                case 1:
+                    // [왼쪽 → 중앙]
+                    offsetX =
+                        -MAX_OFFSET_X * approachRatio;
+                    break;
+
+                case 2:
+                    // [위쪽 → 중앙]
+                    offsetY =
+                        -MAX_OFFSET_Y * approachRatio;
+                    break;
+
+                case 3:
+                    // [아래쪽 → 중앙]
+                    offsetY =
+                        MAX_OFFSET_Y * approachRatio;
+                    break;
+
+                default:
+                    // [우상단 → 중앙]
+                    offsetX =
+                        MAX_OFFSET_X * approachRatio;
+
+                    offsetY =
+                        -MAX_OFFSET_Y * approachRatio;
+                    break;
+            }
+
+            double centerX =
+                frameCenterX + offsetX;
+
+            double centerY =
+                frameCenterY + offsetY;
+
+            return new DetectionBoundingBox
+            {
+                FrameId =
+                    frameId,
+
+                X1 =
+                    centerX - BOX_WIDTH / 2.0,
+
+                Y1 =
+                    centerY - BOX_HEIGHT / 2.0,
+
+                X2 =
+                    centerX + BOX_WIDTH / 2.0,
+
+                Y2 =
+                    centerY + BOX_HEIGHT / 2.0,
+
+                ClassId =
+                    1,
+
+                Confidence =
+                    1.0
+            };
+        }
+
+        #endregion
+
         #region [Utility Methods]
 
         /// <summary>
         /// [Pan] 누적 상태값 갱신
         /// 
         /// 장비 상태 Packet에서 수신한 [Pan] 원본 각도값을 기준으로
-        /// 장비 제어용 누적 위치값을 갱신한다.
+        /// 내부 누적 상태값을 갱신한다.
         /// 
         /// 화면 표시용 [Pan] 값은 [0 ~ 360] 범위로 정규화하지만,
         /// 장비 상태 Packet의 [Pan] 원본값은 한 바퀴 이상 회전한
         /// 누적 각도 정보를 포함할 수 있으므로 정규화하지 않고 보관한다.
+        /// 
+        /// 단, 목표 [Pan] 위치 이동 계산 시에는
+        /// 해당 누적값을 직접 [0]으로 회귀시키지 않고,
+        /// 현재 누적값에 최단 이동각을 더한 Target을 사용한다.
         /// </summary>
         /// <param name="panStatus">
         /// 장비에서 수신한 Pan 원본 각도값
@@ -2580,34 +3077,51 @@ namespace VertiportNexus.ViewModels.Main
                 case Key.Left:
                     _isKeyboardPanLeftPressed =
                         false;
+
+                    StopPanMove();
+
+                    UpdateKeyboardTiltMove();
+
                     break;
 
                 case Key.Right:
                     _isKeyboardPanRightPressed =
                         false;
+
+                    StopPanMove();
+
+                    UpdateKeyboardTiltMove();
+
                     break;
 
                 case Key.Up:
                     _isKeyboardTiltUpPressed =
                         false;
+
+                    StopTiltMove();
+
+                    UpdateKeyboardPanMove();
+
                     break;
 
                 case Key.Down:
                     _isKeyboardTiltDownPressed =
                         false;
+
+                    StopTiltMove();
+
+                    UpdateKeyboardPanMove();
+
                     break;
 
                 default:
                     return;
             }
-            UpdateKeyboardPanTiltMove();
+
         }
 
         /// <summary>
         /// [Keyboard] Pan / Tilt 이동 상태 갱신
-        /// 
-        /// 현재 눌려 있는 방향키 상태를 기준으로
-        /// Pan 축과 Tilt 축의 연속 이동 / 정지 명령을 각각 처리한다.
         /// </summary>
         private void UpdateKeyboardPanTiltMove()
         {
@@ -2617,10 +3131,21 @@ namespace VertiportNexus.ViewModels.Main
                 return;
             }
 
-            // [Pan] 이동 방향 결정
-            //
-            // Left / Right가 동시에 눌린 경우에는
-            // 상쇄 입력으로 판단하여 Pan 축을 정지한다.
+            UpdateKeyboardPanMove();
+            UpdateKeyboardTiltMove();
+        }
+
+        /// <summary>
+        /// [Keyboard] Pan 이동 상태 갱신
+        /// </summary>
+        private void UpdateKeyboardPanMove()
+        {
+            if (_mcbConnectionState != ConnectionState.Connected ||
+                _isHomePositionMoving)
+            {
+                return;
+            }
+
             if (_isKeyboardPanLeftPressed &&
                 !_isKeyboardPanRightPressed)
             {
@@ -2631,15 +3156,20 @@ namespace VertiportNexus.ViewModels.Main
             {
                 StartPanRightMove();
             }
-            else
+
+        }
+
+        /// <summary>
+        /// [Keyboard] Tilt 이동 상태 갱신
+        /// </summary>
+        private void UpdateKeyboardTiltMove()
+        {
+            if (_mcbConnectionState != ConnectionState.Connected ||
+                _isHomePositionMoving)
             {
-                StopPanMove();
+                return;
             }
 
-            // [Tilt] 이동 방향 결정
-            //
-            // Up / Down이 동시에 눌린 경우에는
-            // 상쇄 입력으로 판단하여 Tilt 축을 정지한다.
             if (_isKeyboardTiltUpPressed &&
                 !_isKeyboardTiltDownPressed)
             {
@@ -2650,14 +3180,10 @@ namespace VertiportNexus.ViewModels.Main
             {
                 StartTiltDownMove();
             }
-            else
-            {
-                StopTiltMove();
-            }
 
         }
-        #endregion
 
+        #endregion
 
         #region [MQ Methods]
 
@@ -2673,7 +3199,7 @@ namespace VertiportNexus.ViewModels.Main
             // [RabbitMQ] 연결 상태 저장
             //
             // [RabbitMQ] 수신 시작 / 중지 여부를
-            // 내부 상태값에 반영한다.
+            // 단일 상태값으로 관리한다.
             _rabbitMqConnectionState =
                 connectionState;
 
@@ -2712,8 +3238,7 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         private async void StartRabbitMqReceive()
         {
-            if (_isCseMqReceiveStarted ||
-                _rabbitMqConnectionState == ConnectionState.Connected ||
+            if (_rabbitMqConnectionState == ConnectionState.Connected ||
                 _rabbitMqConnectionState == ConnectionState.Connecting)
             {
                 ConsoleLogHelper.PrintLine();
@@ -2726,32 +3251,41 @@ namespace VertiportNexus.ViewModels.Main
                 return;
             }
 
-            _isCseMqReceiveStarted =
-                true;
-
-            SetRabbitMqConnectionState(
-                ConnectionState.Connecting);
-
-            ControllerResult result =
-                await _rabbitMqController
-                    .StartReceiveAsync();
-
-            if (result.IsSuccess)
+            try
             {
+                SetRabbitMqConnectionState(
+                    ConnectionState.Connecting);
+
+                // [RabbitMQ] 연결 상태 표시 지연
+                //
+                // RabbitMQ 수신 시작 처리가 빠르게 완료되는 경우
+                // 화면에서 [Connecting] 상태가 너무 빠르게 지나가지 않도록
+                // 짧은 표시 지연을 둔다.
+                await Task.Delay(
+                    500);
+
+                _cseCommandReceiveService
+                    .StartReceive();
+
                 SetRabbitMqConnectionState(
                     ConnectionState.Connected);
             }
-            else
+            catch (Exception ex)
             {
-                _isCseMqReceiveStarted =
-                    false;
-
                 SetRabbitMqConnectionState(
                     ConnectionState.Disconnected);
+
+                ConsoleLogHelper.PrintLine();
+
+                Console.WriteLine(
+                    "[CSE][MQ] Start Failed");
+
+                Console.WriteLine(
+                    ex.Message);
+
+                Console.WriteLine();
             }
 
-            MqStatusText =
-                result.Message;
         }
 
         /// <summary>
@@ -2764,28 +3298,48 @@ namespace VertiportNexus.ViewModels.Main
             if (_rabbitMqConnectionState != ConnectionState.Connected)
             {
                 ConsoleLogHelper.PrintLine();
-                Console.WriteLine("[CSE][MQ] Stop Ignored : Not Started");
+
+                Console.WriteLine(
+                    "[CSE][MQ] Stop Ignored : Not Started");
+
                 Console.WriteLine();
 
                 return;
             }
 
-            ControllerResult result =
-                _rabbitMqController
-                    .StopReceive();
-
-            if (result.IsSuccess)
+            try
             {
-                _isCseMqReceiveStarted =
-                    false;
+                // [카메라 상태] 주기 송신 중지
+                //
+                // RabbitMQ 수신 중지 시,
+                // 실행 중인 [q.status.res] 상태 송신 Loop도 함께 종료한다.
+                _cseCommandHandler
+                    .StopCameraStatusPublishService();
+
+                _mqReceiver
+                    .StopReceive();
 
                 SetRabbitMqConnectionState(
                     ConnectionState.Disconnected);
             }
+            catch (Exception ex)
+            {
+                SetRabbitMqConnectionState(
+                    ConnectionState.Disconnected);
 
-            MqStatusText =
-                result.Message;
+                ConsoleLogHelper.PrintLine();
+
+                Console.WriteLine(
+                    "[CSE][MQ] Stop Failed");
+
+                Console.WriteLine(
+                    ex.Message);
+
+                Console.WriteLine();
+            }
+
         }
+
         #endregion
 
 
@@ -3590,18 +4144,24 @@ namespace VertiportNexus.ViewModels.Main
             get => _ads1000CameraControlService.PanTiltSpeedLevel;
             set
             {
-                if (_ads1000CameraControlService.PanTiltSpeedLevel != value)
+                double clampedValue =
+                    CameraCommandService.Clamp(
+                        value,
+                        5,
+                        50);
+
+                if (_ads1000CameraControlService.PanTiltSpeedLevel != clampedValue)
                 {
                     Console.WriteLine(
                         "[UI][PTZ] Pan / Tilt Speed Value Changed : "
                         + _ads1000CameraControlService.PanTiltSpeedLevel.ToString("F0")
                         + " -> "
-                        + value.ToString("F0"));
+                        + clampedValue.ToString("F0"));
 
                     Console.WriteLine();
 
                     _ads1000CameraControlService.PanTiltSpeedLevel =
-                        value;
+                        clampedValue;
 
                     OnPropertyChanged();
 
@@ -3987,17 +4547,123 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         private void MovePanAbsolute()
         {
-            PtzControllerResult result =
-                _ptzAbsoluteController
-                    .MovePanAbsolute(
-                        PanAbsoluteValue,
-                        GetUiCurrentPan(),
-                        GetCurrentPanCommandAngle(),
-                        _panUiZeroOffset,
+            const double PAN_POSITION_EPSILON =
+                0.001;
+
+            if (!PanAbsoluteValue.HasValue)
+            {
+                Console.WriteLine(
+                    "[UI][PTZ] Pan Absolute Failed : Value is empty");
+
+                return;
+            }
+
+            double currentPanCommandAngle =
+                GetCurrentPanCommandAngle();
+
+            double currentPan =
+                GetUiCurrentPan();
+
+            double inputPan =
+                RoundAngleToProtocolScale(
+                    PanAbsoluteValue.Value);
+
+            double targetPan =
+                CameraCommandService.Clamp(
+                    inputPan,
+                    0,
+                    360);
+
+            bool isFullTurnTarget =
+                Math.Abs(targetPan - 360.0) <= PAN_POSITION_EPSILON;
+
+            double panMoveAngle;
+
+            if (isFullTurnTarget)
+            {
+                panMoveAngle =
+                    360.0 - currentPan;
+            }
+            else
+            {
+                panMoveAngle =
+                    CameraCommandService.CalculatePanMoveAngle(
+                        currentPan,
+                        targetPan,
                         _panTurnMode);
+            }
+
+            if (!isFullTurnTarget &&
+                Math.Abs(panMoveAngle) <= PAN_POSITION_EPSILON)
+            {
+                Console.WriteLine(
+                    "[UI][PTZ] Pan Absolute Ignored : Already Target Position");
+
+                Console.WriteLine(
+                    "[UI][PTZ] Pan Absolute Current : "
+                    + currentPan.ToString("F2"));
+
+                Console.WriteLine(
+                    "[UI][PTZ] Pan Absolute Target : "
+                    + targetPan.ToString("F2"));
+
+                Console.WriteLine(
+                    "[UI][PTZ] Pan UI Zero Offset : "
+                    + _panUiZeroOffset.ToString("F2"));
+
+                return;
+            }
+
+            double panCommandTarget =
+                currentPanCommandAngle + panMoveAngle;
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Absolute Input : "
+                + inputPan.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Absolute Mode : "
+                + _panTurnMode);
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Absolute Current : "
+                + currentPan.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Absolute Accumulated Current : "
+                + currentPanCommandAngle.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan UI Zero Offset : "
+                + _panUiZeroOffset.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Absolute Target : "
+                + targetPan.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Absolute Move Angle : "
+                + panMoveAngle.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Absolute Command Target Raw : "
+                + panCommandTarget.ToString("F2"));
+
+            _currentPanTiltMoveAxis =
+                PanTiltMoveAxis.Pan;
+
+            _currentPanTiltMoveType =
+                PanTiltMoveType.Absolute;
+
+            _isUiContinuousMoveStarted =
+                false;
+
+            _ads1000CameraControlService
+                .MovePanAbsolute(
+                    panCommandTarget);
 
             MainStatusText =
-                result.Message;
+                "PAN ABSOLUTE MOVE";
         }
 
         /// <summary>
@@ -4012,14 +4678,93 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         private void MoveTiltAbsolute()
         {
-            PtzControllerResult result =
-                _ptzAbsoluteController
-                    .MoveTiltAbsolute(
-                        TiltAbsoluteValue,
-                        _tiltUiZeroOffset);
+            if (!TiltAbsoluteValue.HasValue)
+            {
+                Console.WriteLine(
+                    "[UI][PTZ] Tilt Absolute Failed : Value is empty");
+
+                return;
+            }
+
+            double currentTilt =
+                GetUiCurrentTilt();
+
+            double inputTilt =
+                RoundAngleToProtocolScale(
+                    TiltAbsoluteValue.Value);
+
+            double targetTilt =
+                CameraCommandService.Clamp(
+                    inputTilt,
+                    -90,
+                    90);
+
+            double deviceTargetTilt =
+                ConvertUiTiltTargetToDeviceTarget(
+                    targetTilt);
+
+            double tiltMoveAngle =
+                targetTilt - currentTilt;
+
+            if (Math.Abs(tiltMoveAngle) <= 0.001)
+            {
+                Console.WriteLine(
+                    "[UI][PTZ] Tilt Absolute Ignored : Already Target Position");
+
+                Console.WriteLine(
+                    "[UI][PTZ] Tilt Absolute Current : "
+                    + currentTilt.ToString("F2"));
+
+                Console.WriteLine(
+                    "[UI][PTZ] Tilt Absolute Target : "
+                    + targetTilt.ToString("F2"));
+
+                Console.WriteLine(
+                    "[UI][PTZ] Tilt UI Zero Offset : "
+                    + _tiltUiZeroOffset.ToString("F2"));
+
+                return;
+            }
+
+            Console.WriteLine(
+                "[UI][PTZ] Tilt Absolute Input : "
+                + inputTilt.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Tilt Absolute Current : "
+                + currentTilt.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Tilt UI Zero Offset : "
+                + _tiltUiZeroOffset.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Tilt Absolute Target : "
+                + targetTilt.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Tilt Absolute Move Angle : "
+                + tiltMoveAngle.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Tilt Absolute Command Target : "
+                + deviceTargetTilt.ToString("F2"));
+
+            _currentPanTiltMoveAxis =
+                PanTiltMoveAxis.Tilt;
+
+            _currentPanTiltMoveType =
+                PanTiltMoveType.Absolute;
+
+            _isUiContinuousMoveStarted =
+                false;
+
+            _ads1000CameraControlService
+                .MoveTiltAbsolute(
+                    deviceTargetTilt);
 
             MainStatusText =
-                result.Message;
+                "TILT ABSOLUTE MOVE";
         }
         #endregion
 
@@ -4176,6 +4921,15 @@ namespace VertiportNexus.ViewModels.Main
             _isPanContinuousMoving =
                 result.IsMoving == true;
 
+            _isUiContinuousMoveStarted =
+                result.IsMoving == true;
+
+            _currentPanTiltMoveAxis =
+                PanTiltMoveAxis.Pan;
+
+            _currentPanTiltMoveType =
+                PanTiltMoveType.Continuous;
+
             _currentPanContinuousMoveDirection =
                 PanTiltContinuousMoveDirection.PanLeft;
 
@@ -4200,6 +4954,15 @@ namespace VertiportNexus.ViewModels.Main
 
             _isPanContinuousMoving =
                 result.IsMoving == true;
+
+            _isUiContinuousMoveStarted =
+                result.IsMoving == true;
+
+            _currentPanTiltMoveAxis =
+                PanTiltMoveAxis.Pan;
+
+            _currentPanTiltMoveType =
+                PanTiltMoveType.Continuous;
 
             _currentPanContinuousMoveDirection =
                 PanTiltContinuousMoveDirection.PanRight;
@@ -4226,6 +4989,15 @@ namespace VertiportNexus.ViewModels.Main
             _isTiltContinuousMoving =
                 result.IsMoving == true;
 
+            _isUiContinuousMoveStarted =
+                result.IsMoving == true;
+
+            _currentPanTiltMoveAxis =
+                PanTiltMoveAxis.Tilt;
+
+            _currentPanTiltMoveType =
+                PanTiltMoveType.Continuous;
+
             _currentTiltContinuousMoveDirection =
                 PanTiltContinuousMoveDirection.TiltUp;
 
@@ -4250,6 +5022,15 @@ namespace VertiportNexus.ViewModels.Main
 
             _isTiltContinuousMoving =
                 result.IsMoving == true;
+
+            _isUiContinuousMoveStarted =
+                result.IsMoving == true;
+
+            _currentPanTiltMoveAxis =
+                PanTiltMoveAxis.Tilt;
+
+            _currentPanTiltMoveType =
+                PanTiltMoveType.Continuous;
 
             _currentTiltContinuousMoveDirection =
                 PanTiltContinuousMoveDirection.TiltDown;
@@ -4417,7 +5198,10 @@ namespace VertiportNexus.ViewModels.Main
         /// 키보드 방향키 조합 제어 중
         /// Pan 축 입력이 해제된 경우 Pan 축만 정지한다.
         /// </summary>
-        private void StopPanMove()
+        /// <returns>
+        /// Pan 이동 정지 처리 결과
+        /// </returns>
+        private PtzControllerResult StopPanMove()
         {
             PtzControllerResult result =
                 _ptzContinuousController
@@ -4429,8 +5213,23 @@ namespace VertiportNexus.ViewModels.Main
             _currentPanContinuousMoveDirection =
                 PanTiltContinuousMoveDirection.None;
 
+            if (!_isPanContinuousMoving &&
+                !_isTiltContinuousMoving)
+            {
+                _isUiContinuousMoveStarted =
+                    false;
+
+                _currentPanTiltMoveAxis =
+                    PanTiltMoveAxis.None;
+
+                _currentPanTiltMoveType =
+                    PanTiltMoveType.None;
+            }
+
             MainStatusText =
                 result.Message;
+
+            return result;
         }
 
         /// <summary>
@@ -4439,7 +5238,10 @@ namespace VertiportNexus.ViewModels.Main
         /// 키보드 방향키 조합 제어 중
         /// Tilt 축 입력이 해제된 경우 Tilt 축만 정지한다.
         /// </summary>
-        private void StopTiltMove()
+        /// <returns>
+        /// Tilt 이동 정지 처리 결과
+        /// </returns>
+        private PtzControllerResult StopTiltMove()
         {
             PtzControllerResult result =
                 _ptzContinuousController
@@ -4451,8 +5253,23 @@ namespace VertiportNexus.ViewModels.Main
             _currentTiltContinuousMoveDirection =
                 PanTiltContinuousMoveDirection.None;
 
+            if (!_isPanContinuousMoving &&
+                !_isTiltContinuousMoving)
+            {
+                _isUiContinuousMoveStarted =
+                    false;
+
+                _currentPanTiltMoveAxis =
+                    PanTiltMoveAxis.None;
+
+                _currentPanTiltMoveType =
+                    PanTiltMoveType.None;
+            }
+
             MainStatusText =
                 result.Message;
+
+            return result;
         }
 
         /// <summary>
@@ -4485,6 +5302,15 @@ namespace VertiportNexus.ViewModels.Main
             _currentTiltContinuousMoveDirection =
                 PanTiltContinuousMoveDirection.None;
 
+            _isUiContinuousMoveStarted =
+                false;
+
+            _currentPanTiltMoveAxis =
+                PanTiltMoveAxis.None;
+
+            _currentPanTiltMoveType =
+                PanTiltMoveType.None;
+
             MainStatusText =
                 result.Message;
         }
@@ -4508,6 +5334,7 @@ namespace VertiportNexus.ViewModels.Main
             await MoveHomePositionWithControlLockAsync(
                 "[UI][PTZ] Home Position");
         }
+
         /// <summary>
         /// [Home Position] 이동 공통 처리
         /// 
@@ -4516,8 +5343,12 @@ namespace VertiportNexus.ViewModels.Main
         /// 문서 기준 [Pan Home] / [Tilt Home] 명령을 송신한다.
         /// 
         /// Home Position 완료 응답을 별도로 판단하지 않고,
-        /// 현재 Pan / Tilt 상태값이 [0] 부근으로 일정 시간 안정화되었는지 확인하여
+        /// Pan / Tilt 상태값이 일정 시간 안정화되었는지 확인하여
         /// Home Position 이동 완료 여부를 판단한다.
+        /// 
+        /// Home Position 완료 후에는
+        /// 장비가 실제로 도착한 현재 Pan / Tilt 위치를
+        /// UI 기준 [0] 위치로 다시 저장한다.
         /// </summary>
         /// <param name="logPrefix">
         /// 로그 출력 구분 문자열
@@ -4555,8 +5386,8 @@ namespace VertiportNexus.ViewModels.Main
 
                 // [Home Position] 이동 명령 송신
                 //
-                // Controller는 명령 송신 결과만 반환하므로,
-                // 실제 장비 이동 완료 여부는 상태 안정화 대기 로직에서 판단한다.
+                // Controller는 장비 내부 Home Script 실행 명령만 송신한다.
+                // 실제 이동 완료 여부는 상태 안정화 대기 로직에서 판단한다.
                 result =
                     await _ptzHomeZeroController
                         .MoveHomePositionAsync();
@@ -4581,7 +5412,22 @@ namespace VertiportNexus.ViewModels.Main
                     return;
                 }
 
-                ResetPanAccumulatedStatus();
+                // [Home Position] 완료 후 UI 기준 [0] 재설정
+                //
+                // 장비가 실제 Home 위치에 도착한 시점의
+                // Pan / Tilt 값을 UI Zero Offset으로 저장하여,
+                // 화면 CURRENT STATUS가 [0.00] 기준으로 표시되도록 한다.
+                ApplyHomePositionUiZeroStatus();
+
+                MainStatusText =
+                    "HOME POSITION STATUS SYNC...";
+
+                // [UI] 표시 반영 대기
+                //
+                // CURRENT STATUS가 [0.00] 기준으로 갱신된 뒤
+                // 버튼 Lock이 해제되도록 짧게 대기한다.
+                await Task.Delay(
+                    150);
 
                 MainStatusText =
                     "HOME POSITION COMPLETE";
@@ -4599,8 +5445,69 @@ namespace VertiportNexus.ViewModels.Main
                 SetHomePositionMovingState(
                     false);
             }
+
         }
 
+        /// <summary>
+        /// [Home Position] 완료 후 UI 기준 위치 초기화
+        /// 
+        /// Home Position 이동 완료 후
+        /// 장비가 실제로 도착한 현재 Pan / Tilt 위치를
+        /// UI 기준 [0] 위치로 다시 저장한다.
+        /// 
+        /// 장비 Encoder 값을 변경하는 것이 아니라,
+        /// 화면 표시 및 이후 UI Target 계산 기준만 재설정한다.
+        /// </summary>
+        private void ApplyHomePositionUiZeroStatus()
+        {
+            double currentPan =
+                RoundAngleToProtocolScale(
+                    CameraCommandService.NormalizePanStatus(
+                        CurrentPan));
+
+            double currentTilt =
+                RoundAngleToProtocolScale(
+                    CurrentTilt);
+
+            _panUiZeroOffset =
+                currentPan;
+
+            _tiltUiZeroOffset =
+                currentTilt;
+
+            PanAbsoluteValue =
+                0;
+
+            TiltAbsoluteValue =
+                0;
+
+            PanRelativeValue =
+                0;
+
+            TiltRelativeValue =
+                0;
+
+            _currentPanTiltMoveAxis =
+                PanTiltMoveAxis.None;
+
+            _currentPanTiltMoveType =
+                PanTiltMoveType.None;
+
+            ResetPanAccumulatedStatus();
+
+            OnPropertyChanged(nameof(CurrentPan));
+            OnPropertyChanged(nameof(CurrentTilt));
+            OnPropertyChanged(nameof(CurrentPanDisplayText));
+            OnPropertyChanged(nameof(CurrentTiltDisplayText));
+
+            Console.WriteLine(
+                "[UI][PTZ] Home UI Zero Pan Offset : "
+                + _panUiZeroOffset.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Home UI Zero Tilt Offset : "
+                + _tiltUiZeroOffset.ToString("F2"));
+        }
 
         /// <summary>
         /// [Pan] 현재 위치를 UI / 장비 Script 기준 [0] 위치로 저장
@@ -4611,21 +5518,67 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         private void SetPanZero()
         {
+            double currentPan =
+                RoundAngleToProtocolScale(
+                    CameraCommandService.NormalizePanStatus(
+                        CurrentPan));
+
+            int offsetValue =
+                Convert.ToInt32(
+                    Math.Round(
+                        currentPan * 100.0,
+                        MidpointRounding.AwayFromZero));
+
+            ConsoleLogHelper.PrintLine();
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Zero Offset Request");
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Zero Current : "
+                + currentPan.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Zero Offset Value : "
+                + offsetValue);
+
             PtzControllerResult result =
                 _ptzHomeZeroController
                     .SetPanZero(
-                        CurrentPan);
+                        currentPan);
 
-            if (result.PanUiZeroOffset.HasValue)
+            if (!result.IsSuccess)
             {
-                _panUiZeroOffset =
-                    result.PanUiZeroOffset.Value;
+                MainStatusText =
+                    result.Message;
 
-                OnPropertyChanged(nameof(CurrentPanDisplayText));
+                Console.WriteLine(
+                    "[UI][PTZ] Pan Zero Failed : "
+                    + result.Message);
+
+                ConsoleLogHelper.PrintLine();
+
+                return;
             }
+
+            _panUiZeroOffset =
+                currentPan;
+
+            PanAbsoluteValue =
+                0;
+
+            PanRelativeValue =
+                0;
+
+            ResetPanAccumulatedStatus();
+
+            OnPropertyChanged(nameof(CurrentPanDisplayText));
+            OnPropertyChanged(nameof(CurrentPan));
 
             MainStatusText =
                 result.Message;
+
+            ConsoleLogHelper.PrintLine();
         }
 
         /// <summary>
@@ -4637,30 +5590,73 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         private void SetTiltZero()
         {
+            double currentTilt =
+                RoundAngleToProtocolScale(
+                    CurrentTilt);
+
+            int offsetValue =
+                Convert.ToInt32(
+                    Math.Round(
+                        currentTilt * 100.0,
+                        MidpointRounding.AwayFromZero));
+
+            ConsoleLogHelper.PrintLine();
+
+            Console.WriteLine(
+                "[UI][PTZ] Tilt Zero Offset Request");
+
+            Console.WriteLine(
+                "[UI][PTZ] Tilt Zero Current : "
+                + currentTilt.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Tilt Zero Offset Value : "
+                + offsetValue);
+
             PtzControllerResult result =
                 _ptzHomeZeroController
                     .SetTiltZero(
-                        CurrentTilt);
+                        currentTilt);
 
-            if (result.TiltUiZeroOffset.HasValue)
+            if (!result.IsSuccess)
             {
-                _tiltUiZeroOffset =
-                    result.TiltUiZeroOffset.Value;
+                MainStatusText =
+                    result.Message;
 
-                OnPropertyChanged(nameof(CurrentTiltDisplayText));
+                Console.WriteLine(
+                    "[UI][PTZ] Tilt Zero Failed : "
+                    + result.Message);
+
+                ConsoleLogHelper.PrintLine();
+
+                return;
             }
+
+            _tiltUiZeroOffset =
+                currentTilt;
+
+            TiltAbsoluteValue =
+                0;
+
+            TiltRelativeValue =
+                0;
+
+            OnPropertyChanged(nameof(CurrentTiltDisplayText));
+            OnPropertyChanged(nameof(CurrentTilt));
 
             MainStatusText =
                 result.Message;
+
+            ConsoleLogHelper.PrintLine();
         }
+
         /// <summary>
         /// [Home Position] 이동 완료 대기
         /// 
         /// Home Position 명령 송신 후,
-        /// 현재 Pan / Tilt 상태값이 [0] 부근으로 일정 시간 안정화될 때까지 대기한다.
-        /// 
-        /// 장비 Home Script 수행 중 Pan / Tilt 상태값이 일시적으로 [0] 부근에 먼저 도달할 수 있으므로,
-        /// 단일 상태값만으로 완료 판단하지 않고 연속 안정 상태와 추가 안정화 시간을 확인한다.
+        /// Pan / Tilt 상태값이 특정 좌표 [0]에 도달했는지가 아니라
+        /// 일정 시간 동안 위치 변화가 거의 없는지 확인하여
+        /// 이동 완료 여부를 판단한다.
         /// </summary>
         /// <returns>
         /// Home Position 완료 여부
@@ -4673,26 +5669,18 @@ namespace VertiportNexus.ViewModels.Main
             const int CHECK_INTERVAL_MILLISECONDS =
                 200;
 
-            const int POST_STABLE_WAIT_MILLISECONDS =
-                1000;
-
             const int TIMEOUT_MILLISECONDS =
                 20000;
 
             const int REQUIRED_STABLE_COUNT =
                 5;
 
-            const double PAN_TOLERANCE_DEGREES =
-                0.5;
+            const double PAN_STABLE_TOLERANCE_DEGREES =
+                0.2;
 
-            const double TILT_TOLERANCE_DEGREES =
-                0.5;
+            const double TILT_STABLE_TOLERANCE_DEGREES =
+                0.2;
 
-            // [Home Position] 최소 대기
-            //
-            // Home Position 명령 송신 직후에는
-            // 장비 상태값이 아직 이동 전 위치로 들어올 수 있으므로
-            // 안정 상태 판단 전 최소 대기 시간을 둔다.
             await Task.Delay(
                 MIN_WAIT_MILLISECONDS);
 
@@ -4701,6 +5689,13 @@ namespace VertiportNexus.ViewModels.Main
 
             int elapsedMilliseconds =
                 MIN_WAIT_MILLISECONDS;
+
+            double previousPan =
+                CameraCommandService.NormalizePanStatus(
+                    CurrentPan);
+
+            double previousTilt =
+                CurrentTilt;
 
             while (elapsedMilliseconds < TIMEOUT_MILLISECONDS)
             {
@@ -4718,24 +5713,28 @@ namespace VertiportNexus.ViewModels.Main
                         CurrentPan);
 
                 double currentTilt =
-                    NormalizeTiltStatus(
-                        CurrentTilt);
+                    CurrentTilt;
 
-                bool isPanHome =
-                    currentPan <= PAN_TOLERANCE_DEGREES ||
-                    currentPan >= 360.0 - PAN_TOLERANCE_DEGREES;
-
-                bool isTiltHome =
+                double panDelta =
                     Math.Abs(
-                        currentTilt) <= TILT_TOLERANCE_DEGREES;
+                        CalculateShortestPanDelta(
+                            previousPan,
+                            currentPan));
 
-                if (isPanHome &&
-                    isTiltHome)
+                double tiltDelta =
+                    Math.Abs(
+                        currentTilt - previousTilt);
+
+                bool isStable =
+                    panDelta <= PAN_STABLE_TOLERANCE_DEGREES &&
+                    tiltDelta <= TILT_STABLE_TOLERANCE_DEGREES;
+
+                if (isStable)
                 {
                     stableCount++;
 
                     Console.WriteLine(
-                        "[DEVICE] Home Position Stable Check : "
+                        "[DEVICE] Home Position Motion Stable Check : "
                         + stableCount
                         + " / "
                         + REQUIRED_STABLE_COUNT
@@ -4746,26 +5745,20 @@ namespace VertiportNexus.ViewModels.Main
 
                     if (stableCount >= REQUIRED_STABLE_COUNT)
                     {
-                        // [Home Position] 완료 후 안정화 대기
-                        //
-                        // 장비 상태값이 [0] 부근에 도달한 뒤에도
-                        // 내부 Home Script / 감속 동작이 짧게 남을 수 있으므로
-                        // 제어 활성화 전 추가 안정화 시간을 둔다.
-                        await Task.Delay(
-                            POST_STABLE_WAIT_MILLISECONDS);
-
-                        ConsoleLogHelper.PrintBlock(
-                            "[DEVICE] Home Position Completed");
-
                         return true;
                     }
-
                 }
                 else
                 {
                     stableCount =
                         0;
                 }
+
+                previousPan =
+                    currentPan;
+
+                previousTilt =
+                    currentTilt;
 
                 await Task.Delay(
                     CHECK_INTERVAL_MILLISECONDS);
@@ -4778,6 +5771,47 @@ namespace VertiportNexus.ViewModels.Main
                 "[DEVICE] Home Position Wait Timeout");
 
             return false;
+        }
+
+        /// <summary>
+        /// [Pan] 표시 각도 기준 최단 변화량 계산
+        /// 
+        /// [0 ~ 360] 범위로 정규화된 이전 Pan 값과 현재 Pan 값을 기준으로
+        /// 한 바퀴 경계값을 고려하여 최단 변화량을 계산한다.
+        /// 
+        /// 예)
+        /// 이전 [359] / 현재 [1]   => [+2]
+        /// 이전 [1]   / 현재 [359] => [-2]
+        /// </summary>
+        /// <param name="previousPan">
+        /// 이전 Pan 표시 각도값
+        /// </param>
+        /// <param name="currentPan">
+        /// 현재 Pan 표시 각도값
+        /// </param>
+        /// <returns>
+        /// Pan 최단 변화량
+        /// </returns>
+        private double CalculateShortestPanDelta(
+            double previousPan,
+            double currentPan)
+        {
+            double delta =
+                currentPan - previousPan;
+
+            if (delta > 180.0)
+            {
+                delta -=
+                    360.0;
+            }
+
+            if (delta < -180.0)
+            {
+                delta +=
+                    360.0;
+            }
+
+            return delta;
         }
 
         #endregion
@@ -4906,13 +5940,73 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         private void MovePanRelative()
         {
-            PtzControllerResult result =
-                _ptzRelativeController
-                    .MovePanRelative(
-                        PanRelativeValue);
+            if (!PanRelativeValue.HasValue)
+            {
+                Console.WriteLine(
+                    "[UI][PTZ] Pan Relative Failed : Value is empty");
+
+                return;
+            }
+
+            double currentPan =
+                GetUiCurrentPan();
+
+            double movePan =
+                RoundAngleToProtocolScale(
+                    PanRelativeValue.Value);
+
+            double targetPan =
+                CameraCommandService.NormalizePanStatus(
+                    currentPan + movePan);
+
+            double panMoveAngle =
+                CameraCommandService.CalculatePanMoveAngle(
+                    currentPan,
+                    targetPan,
+                    _panTurnMode);
+
+            double panCommandTarget =
+                GetCurrentPanCommandAngle() + panMoveAngle;
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Relative Input : "
+                + movePan.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Relative Current : "
+                + currentPan.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan UI Zero Offset : "
+                + _panUiZeroOffset.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Relative Move Angle : "
+                + panMoveAngle.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Relative Expected Display : "
+                + targetPan.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Relative Command Target Raw : "
+                + panCommandTarget.ToString("F2"));
+
+            _currentPanTiltMoveAxis =
+                PanTiltMoveAxis.Pan;
+
+            _currentPanTiltMoveType =
+                PanTiltMoveType.Absolute;
+
+            _isUiContinuousMoveStarted =
+                false;
+
+            _ads1000CameraControlService
+                .MovePanAbsolute(
+                    panCommandTarget);
 
             MainStatusText =
-                result.Message;
+                "PAN RELATIVE MOVE";
         }
 
         /// <summary>
@@ -4930,13 +6024,70 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         private void MoveTiltRelative()
         {
-            PtzControllerResult result =
-                _ptzRelativeController
-                    .MoveTiltRelative(
-                        TiltRelativeValue);
+            if (!TiltRelativeValue.HasValue)
+            {
+                Console.WriteLine(
+                    "[UI][PTZ] Tilt Relative Failed : Value is empty");
+
+                return;
+            }
+
+            double currentTilt =
+                GetUiCurrentTilt();
+
+            double moveTilt =
+                RoundAngleToProtocolScale(
+                    TiltRelativeValue.Value);
+
+            double targetTilt =
+                CameraCommandService.Clamp(
+                    currentTilt + moveTilt,
+                    -90,
+                    90);
+
+            double deviceTargetTilt =
+                ConvertUiTiltTargetToDeviceTarget(
+                    targetTilt);
+
+            Console.WriteLine(
+                "[UI][PTZ] Tilt Relative Input : "
+                + moveTilt.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Tilt Relative Current : "
+                + currentTilt.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Tilt UI Zero Offset : "
+                + _tiltUiZeroOffset.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Tilt Relative Move Angle : "
+                + moveTilt.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Tilt Relative Expected Display : "
+                + targetTilt.ToString("F2"));
+
+            Console.WriteLine(
+                "[UI][PTZ] Tilt Relative Command Target : "
+                + deviceTargetTilt.ToString("F2"));
+
+            _currentPanTiltMoveAxis =
+                PanTiltMoveAxis.Tilt;
+
+            _currentPanTiltMoveType =
+                PanTiltMoveType.Absolute;
+
+            _isUiContinuousMoveStarted =
+                false;
+
+            _ads1000CameraControlService
+                .MoveTiltAbsolute(
+                    deviceTargetTilt);
 
             MainStatusText =
-                result.Message;
+                "TILT RELATIVE MOVE";
         }
         #endregion
 

@@ -52,7 +52,6 @@ namespace VertiportNexus.ViewModels.Main
             return PtzControllerResult.Success("Tilt Down Move Started", isMoving: true);
         }
 
-
         internal PtzControllerResult StartZoomInMove()
         {
             _cameraControlService.ZoomIn();
@@ -82,6 +81,7 @@ namespace VertiportNexus.ViewModels.Main
             _cameraControlService.AutoFocus();
             return PtzControllerResult.Success("Auto Focus Sent");
         }
+
         internal PtzControllerResult StopPanMove()
         {
             _cameraControlService.StopPanMove();
@@ -99,7 +99,7 @@ namespace VertiportNexus.ViewModels.Main
             _cameraControlService.StopMove();
             return PtzControllerResult.Success("Continuous Move Stopped", isMoving: false);
         }
-
         #endregion
     }
+
 }

@@ -18,6 +18,16 @@ namespace VertiportNexus.Services.ADS1000
         #region [Constants]
 
         /// <summary>
+        /// [Pan] / [Tilt] 최소 제어 속도
+        /// </summary>
+        private const double MIN_PAN_TILT_SPEED = 0;
+
+        /// <summary>
+        /// [Pan] / [Tilt] 최대 제어 속도
+        /// </summary>
+        private const double MAX_PAN_TILT_SPEED = 50;
+
+        /// <summary>
         /// [Pan] / [Tilt] 연속 이동 기본 속도
         /// </summary>
         private const double DEFAULT_PAN_TILT_SPEED = 50;
@@ -45,6 +55,13 @@ namespace VertiportNexus.Services.ADS1000
         /// [SCB] [Zoom] / [Focus] [Packet] 생성 객체
         /// </summary>
         private readonly Ads1000ScbPacketBuilder _scbPacketBuilder;
+
+        /// <summary>
+        /// [Pan] / [Tilt] 현재 제어 속도
+        /// </summary>
+        private double _panTiltSpeedLevel =
+            DEFAULT_PAN_TILT_SPEED;
+
         #endregion
 
         #region [Events]
@@ -62,11 +79,23 @@ namespace VertiportNexus.Services.ADS1000
 
         /// <summary>
         /// [Pan] / [Tilt] 현재 제어 속도
+        /// 
+        /// [0] 값이 들어가면 Absolute / Relative 위치 이동 Packet의
+        /// [SP] 값도 [0]이 되어 실제 장비가 움직이지 않을 수 있으므로,
+        /// UI 운용 범위 기준 [5 ~ 50]으로 보정한다.
         /// </summary>
         public double PanTiltSpeedLevel
         {
-            get;
-            set;
+            get
+            {
+                return _panTiltSpeedLevel;
+            }
+            set
+            {
+                _panTiltSpeedLevel =
+                    ClampPanTiltSpeedLevel(
+                        value);
+            }
         }
 
         #endregion
@@ -585,6 +614,39 @@ namespace VertiportNexus.Services.ADS1000
             SendScbPacket(
                 _scbPacketBuilder.BuildVersionQueryPacket(),
                 "SCB Version Query");
+        }
+
+        #endregion
+
+        #region [Utility Methods]
+
+        /// <summary>
+        /// [Pan / Tilt] 제어 속도 범위 보정
+        /// 
+        /// 이동 속도가 [0]으로 설정되면
+        /// Absolute / Relative 위치 이동 명령의 [SP] 값도 [0]이 되어
+        /// 장비가 움직이지 않을 수 있으므로 최소 속도를 보장한다.
+        /// </summary>
+        /// <param name="speed">
+        /// 원본 제어 속도
+        /// </param>
+        /// <returns>
+        /// 보정된 제어 속도
+        /// </returns>
+        private double ClampPanTiltSpeedLevel(
+            double speed)
+        {
+            if (speed < MIN_PAN_TILT_SPEED)
+            {
+                return MIN_PAN_TILT_SPEED;
+            }
+
+            if (speed > MAX_PAN_TILT_SPEED)
+            {
+                return MAX_PAN_TILT_SPEED;
+            }
+
+            return speed;
         }
 
         #endregion

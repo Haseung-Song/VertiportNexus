@@ -20,7 +20,7 @@ namespace VertiportNexus.ViewModels.Main
             return ControllerResult.Success(
                 "Keyboard PTZ Key Up");
         }
-
         #endregion
     }
+
 }

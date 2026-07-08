@@ -77,6 +77,7 @@ namespace VertiportNexus.ViewModels.Main
                 return DeviceConnectionControllerResult.Failed(
                     "MCB / SCB Connect Error : " + ex.Message);
             }
+
         }
 
         /// <summary>
@@ -97,8 +98,9 @@ namespace VertiportNexus.ViewModels.Main
                 return ControllerResult.Failed(
                     "MCB / SCB Disconnect Error : " + ex.Message);
             }
-        }
 
+        }
         #endregion
     }
+
 }

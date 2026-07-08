@@ -339,14 +339,22 @@ namespace VertiportNexus.Services.ADS1000
         /// [Pan] Home Offset 저장 [Packet] 생성
         /// 
         /// 현재 [Pan] 각도값을 장비 Script 내부 Offset 값으로 저장하기 위한
-        /// [Pan Home offset] 명령 Packet을 생성한다.
+        /// [Pan Home Offset] 명령 Packet을 생성한다.
         /// 
-        /// [Pan] 제어는 [LA Local Agent] 기준 표시 좌표와
-        /// [MCB] 모터 명령 좌표의 부호 방향이 반대이므로,
-        /// Offset 저장 시에도 [Pan] 값만 부호를 반전하여 전달한다.
+        /// 주의:
+        /// [Pan] 위치 이동 명령 [PA] / [PR]은 장비 좌표계 차이로 인해
+        /// 부호 반전이 필요할 수 있으나,
+        /// Home Script Offset 값 [ui[6]]은 기존 검증된 방식과 동일하게
+        /// 전달받은 각도값을 그대로 저장한다.
         /// 
         /// 장비는 각도값을 소수점 둘째 자리 기준으로 인식하므로,
         /// 전달받은 각도값에 [100]을 곱한 뒤 [int] 값으로 변환하여 송신한다.
+        /// 
+        /// Data 형식:
+        /// MO=0;
+        /// ui[6]=각도*100;
+        /// sv;
+        /// MO=1;
         /// </summary>
         /// <param name="angle">
         /// 현재 Pan 각도
@@ -585,7 +593,7 @@ namespace VertiportNexus.Services.ADS1000
             double degreePerSecond)
         {
             const double MIN_SPEED =
-                0;
+                5;
 
             const double MAX_SPEED =
                 50;

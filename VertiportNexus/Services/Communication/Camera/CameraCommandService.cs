@@ -478,6 +478,7 @@ namespace VertiportNexus.Services.Command
             {
                 _ads1000CameraControlService.PanLeft();
             }
+
             return true;
         }
 
@@ -654,9 +655,14 @@ namespace VertiportNexus.Services.Command
                         return;
                     }
 
-                    double currentPan =
+                    double currentPanRaw =
+                        _cameraStateProvider
+                            .CurrentPan
+                            .Value;
+
+                    double currentPanDisplay =
                         NormalizePanStatus(
-                            _cameraStateProvider.CurrentPan.Value);
+                            currentPanRaw);
 
                     double targetPan =
                         Clamp(
@@ -666,12 +672,12 @@ namespace VertiportNexus.Services.Command
 
                     double panMoveAngle =
                         CalculatePanMoveAngle(
-                            currentPan,
+                            currentPanRaw,
                             targetPan,
                             _cameraStateProvider.PanTurnMode);
 
                     double panCommandTarget =
-                        currentPan + panMoveAngle;
+                        currentPanRaw + panMoveAngle;
 
                     Console.WriteLine(
                         "[CAMERA][PTZ] Absolute Pan Input : "
@@ -682,11 +688,15 @@ namespace VertiportNexus.Services.Command
                         + _cameraStateProvider.PanTurnMode);
 
                     Console.WriteLine(
-                        "[CAMERA][PTZ] Absolute Pan Current : "
-                        + currentPan.ToString("F2"));
+                        "[CAMERA][PTZ] Absolute Pan Current Raw : "
+                        + currentPanRaw.ToString("F2"));
 
                     Console.WriteLine(
-                        "[CAMERA][PTZ] Absolute Pan Target : "
+                        "[CAMERA][PTZ] Absolute Pan Current Display : "
+                        + currentPanDisplay.ToString("F2"));
+
+                    Console.WriteLine(
+                        "[CAMERA][PTZ] Absolute Pan Target Display : "
                         + targetPan.ToString("F2"));
 
                     Console.WriteLine(
@@ -694,7 +704,7 @@ namespace VertiportNexus.Services.Command
                         + panMoveAngle.ToString("F2"));
 
                     Console.WriteLine(
-                        "[CAMERA][PTZ] Absolute Pan Command Target : "
+                        "[CAMERA][PTZ] Absolute Pan Command Target Raw : "
                         + panCommandTarget.ToString("F2"));
 
                     _ads1000CameraControlService
@@ -967,6 +977,7 @@ namespace VertiportNexus.Services.Command
                 PTZ_MODE_AUTO,
                 StringComparison.OrdinalIgnoreCase);
         }
+
         /// <summary>
         /// [Pan] 이동 각도 계산
         /// 
@@ -1012,7 +1023,6 @@ namespace VertiportNexus.Services.Command
                 normalizedCurrentPan,
                 normalizedTargetPan);
         }
-
 
         /// <summary>
         /// [Pan] 최단 이동 각도 계산
@@ -1242,7 +1252,6 @@ namespace VertiportNexus.Services.Command
 
             return value;
         }
-
         #endregion
     }
 
