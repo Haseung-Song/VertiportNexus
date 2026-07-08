@@ -10,14 +10,8 @@ using VertiportNexus.Common;
 using VertiportNexus.Models.ADS1000;
 using VertiportNexus.Models.Camera;
 using VertiportNexus.Models.Vertiport;
-using VertiportNexus.Services.ADS1000;
-using VertiportNexus.Services.Camera;
 using VertiportNexus.Services.Command;
-using VertiportNexus.Services.Communication.MQ;
-using VertiportNexus.Services.Communication.TCP;
-using VertiportNexus.Services.Communication.UDP;
-using VertiportNexus.Services.Radar;
-using VertiportNexus.Services.Vertiport;
+using VertiportNexus.ViewModels.Main.Composition;
 
 namespace VertiportNexus.ViewModels.Main
 {
@@ -158,190 +152,18 @@ namespace VertiportNexus.ViewModels.Main
 
         #endregion
 
-        #region [Service Fields]
+        #region [Composition Fields]
 
         /// <summary>
-        /// [MCB] [TCP] 통신 서비스
-        /// </summary>
-        private readonly TcpClientService _mcbTcpClientService;
-
-        /// <summary>
-        /// [SCB] [TCP] 통신 서비스
-        /// </summary>
-        private readonly TcpClientService _scbTcpClientService;
-
-        /// <summary>
-        /// [ADS1000] 장비 [TCP] 연결 서비스
-        /// </summary>
-        private readonly Ads1000ConnectionService _ads1000ConnectionService;
-
-        /// <summary>
-        /// [ADS1000] [Camera] 제어 서비스
-        /// </summary>
-        private readonly Ads1000CameraControlService _ads1000CameraControlService;
-
-        /// <summary>
-        /// [ADS1000] 상태 [Packet] 처리 서비스
-        /// </summary>
-        private readonly Ads1000StatusService _ads1000StatusService;
-
-        /// <summary>
-        /// [Camera] 상태 저장 서비스
-        /// </summary>
-        private readonly CameraStateProvider _cameraStateProvider;
-
-        /// <summary>
-        /// [Detection] 상태 저장 서비스
-        /// </summary>
-        private readonly DetectionStateProvider _detectionStateProvider;
-
-        /// <summary>
-        /// [Tracking] 자동 추적 제어 서비스
-        /// </summary>
-        private readonly TrackingControlService _trackingControlService;
-
-        /// <summary>
-        /// [MQ] 수신 서비스
+        /// [MainViewModel] 구성 객체
         /// 
-        /// [Mock MQ] / [RabbitMQ] 수신 서비스를
-        /// 공통 인터페이스로 사용한다.
-        /// </summary>
-        private readonly IMqReceiver _mqReceiver;
-
-        /// <summary>
-        /// [MQ] 송신 서비스
+        /// Service / Controller / Manager 인스턴스를 보관하며,
+        /// [MainViewModel]은 필요한 기능 객체를 해당 Context를 통해 참조한다.
         /// 
-        /// [Mock MQ] / [RabbitMQ] 송신 서비스를
-        /// 공통 인터페이스로 사용한다.
+        /// 현재 단계에서는 기존 개별 Service / Controller 필드를 제거하고,
+        /// 모든 기능 객체 접근을 [Context] 기준으로 통일한다.
         /// </summary>
-        private readonly IMqSender _mqSender;
-
-        /// <summary>
-        /// [CSE] 명령 수신 서비스
-        /// </summary>
-        private readonly CseCommandReceiveService _cseCommandReceiveService;
-
-        /// <summary>
-        /// [CSE] 명령 응답 송신 서비스
-        /// </summary>
-        private readonly CseCommandResponseService _cseCommandResponseService;
-
-        /// <summary>
-        /// [Camera] 내부 명령 처리 서비스
-        /// </summary>
-        private readonly CameraCommandService _cameraCommandService;
-
-        /// <summary>
-        /// [CSE] 명령 처리 서비스
-        /// </summary>
-        private readonly CseCommandHandler _cseCommandHandler;
-
-        /// <summary>
-        /// [Radar] UDP 통신 서비스
-        /// </summary>
-        private readonly UdpClientService _radarUdpClientService;
-
-        /// <summary>
-        /// [Radar] Packet Parser
-        /// </summary>
-        private readonly RadarPacketParser _radarPacketParser;
-
-        /// <summary>
-        /// [Radar] Packet Builder
-        /// </summary>
-        private readonly RadarPacketBuilder _radarPacketBuilder;
-
-        /// <summary>
-        /// [Radar] 상태 저장 서비스
-        /// </summary>
-        private readonly RadarStateProvider _radarStateProvider;
-
-        /// <summary>
-        /// [Radar] Command 처리 서비스
-        /// </summary>
-        private readonly RadarCommandHandler _radarCommandHandler;
-
-        /// <summary>
-        /// [Radar] UDP 연동 서비스
-        /// </summary>
-        private readonly RadarUdpService _radarUdpService;
-
-        /// <summary>
-        /// [Radar] 추적 제어 서비스
-        /// 
-        /// Radar Tracking Request에서 수신한
-        /// 방위각 / 고각 정보를 ADS1000 Pan / Tilt 제어로 연결한다.
-        /// </summary>
-        private readonly RadarTrackingControlService _radarTrackingControlService;
-
-        #endregion
-
-        #region [Controller Fields]
-
-        /// <summary>
-        /// [RabbitMQ] 수신 Controller
-        /// </summary>
-        private readonly RabbitMqController _rabbitMqController;
-
-        /// <summary>
-        /// [Radar] UDP 수신 Controller
-        /// </summary>
-        private readonly RadarUdpController _radarUdpController;
-
-        /// <summary>
-        /// [Device Connection] Controller
-        /// </summary>
-        private readonly DeviceConnectionController _deviceConnectionController;
-
-        /// <summary>
-        /// [EO Camera] Controller
-        /// </summary>
-        private readonly EoCameraController _eoCameraController;
-
-        /// <summary>
-        /// [ADS1000 Receive] Controller
-        /// </summary>
-        private readonly Ads1000ReceiveController _ads1000ReceiveController;
-
-        /// <summary>
-        /// [ADS1000 Status Apply] Controller
-        /// </summary>
-        private readonly Ads1000StatusApplyController _ads1000StatusApplyController;
-
-        /// <summary>
-        /// [PTZ Absolute] Controller
-        /// </summary>
-        private readonly PtzAbsoluteController _ptzAbsoluteController;
-
-        /// <summary>
-        /// [PTZ Relative] Controller
-        /// </summary>
-        private readonly PtzRelativeController _ptzRelativeController;
-
-        /// <summary>
-        /// [PTZ Continuous] Controller
-        /// </summary>
-        private readonly PtzContinuousController _ptzContinuousController;
-
-        /// <summary>
-        /// [PTZ Home / Zero] Controller
-        /// </summary>
-        private readonly PtzHomeZeroController _ptzHomeZeroController;
-
-        /// <summary>
-        /// [Keyboard PTZ] Controller
-        /// </summary>
-        private readonly KeyboardPtzController _keyboardPtzController;
-
-        /// <summary>
-        /// [Zoom / Focus Position] Controller
-        /// </summary>
-        private readonly ZoomFocusPositionController _zoomFocusPositionController;
-
-        /// <summary>
-        /// [PTZ Mode] Controller
-        /// </summary>
-        private readonly PtzModeController _ptzModeController;
+        private readonly MainViewModelContext _context;
 
         #endregion
 
@@ -771,15 +593,6 @@ namespace VertiportNexus.ViewModels.Main
 
         #endregion
 
-        #region [Camera Service Fields]
-
-        /// <summary>
-        /// [EO] [Camera] 영상 서비스
-        /// </summary>
-        private readonly EoCameraService _eoCameraService;
-
-        #endregion
-
         #region [Command Properties]
 
         /// <summary>
@@ -946,451 +759,328 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         public MainViewModel()
         {
-            #region [Service Initialize]
+            #region [Composition Initialize]
 
-            // [MCB] [TCP] 통신 서비스 생성
-            _mcbTcpClientService =
-                new TcpClientService("MCB");
-
-            // [SCB] [TCP] 통신 서비스 생성
-            _scbTcpClientService =
-                new TcpClientService("SCB");
-
-            // [MCB] 수신 이벤트 연결
-            _mcbTcpClientService.MessageReceived +=
-                OnMcbMessageReceived;
-
-            // [SCB] 수신 이벤트 연결
-            _scbTcpClientService.MessageReceived +=
-                OnScbMessageReceived;
-
-            // [ADS1000] 장비 [TCP] 연결 서비스 생성
-            _ads1000ConnectionService =
-                new Ads1000ConnectionService(
-                    _mcbTcpClientService,
-                    _scbTcpClientService);
-
-            // [ADS1000] 장비 연결 상태 변경 이벤트 연결
+            // [MainViewModel] 구성 초기화 객체 생성
             //
-            // [MCB] / [SCB] 연결 결과를 각각 수신하여
-            // 화면 연결 상태를 즉시 갱신한다.
-            _ads1000ConnectionService.ConnectionStateChanged +=
-                OnAds1000ConnectionStateChanged;
+            // Service / Controller / Event 연결 생성 책임을
+            // [MainViewModel] 생성자에서 분리하기 위해 사용한다.
+            MainViewModelBootstrapper bootstrapper =
+                new MainViewModelBootstrapper();
 
-            // [EO] [Camera] 영상 서비스 생성
-            _eoCameraService =
-                new EoCameraService();
-
-            // [EO] 영상 [Frame] 수신 이벤트 연결
-            _eoCameraService.FrameReceived +=
-                OnEoCameraFrameReceived;
-
-            // [EO] 영상 상태 변경 이벤트 연결
-            _eoCameraService.StatusChanged +=
-                OnEoCameraStatusChanged;
-
-            #endregion
-
-            #region [Builder Initialize]
-
-            // [MCB] [Packet Builder] 생성
+            // [MainViewModel] 구성 객체 생성
             //
-            // [Ads1000CameraControlService] 생성 시
-            // Packet 생성 객체로 전달한다.
-            Ads1000McbPacketBuilder mcbPacketBuilder =
-                new Ads1000McbPacketBuilder();
-
-            // [SCB] [Packet Builder] 생성
-            //
-            // [Ads1000CameraControlService] 생성 시
-            // Packet 생성 객체로 전달한다.
-            Ads1000ScbPacketBuilder scbPacketBuilder =
-                new Ads1000ScbPacketBuilder();
-
-            #endregion
-
-            #region [Control Service Initialize]
-
-            // [ADS1000] [Camera] 제어 서비스 생성
-            _ads1000CameraControlService =
-                new Ads1000CameraControlService(
-                    _mcbTcpClientService,
-                    _scbTcpClientService,
-                    mcbPacketBuilder,
-                    scbPacketBuilder);
-
-            // [ADS1000] [Packet] 송신 결과 이벤트 연결
-            _ads1000CameraControlService.SendResultChanged +=
-                OnAds1000SendResultChanged;
-
-            #endregion
-
-            #region [Status Service Initialize]
-
-            // [ADS1000] 상태 [Packet] 처리 서비스 생성
-            _ads1000StatusService =
-                new Ads1000StatusService();
-
-            // [Camera] 상태 저장 서비스 생성
-            //
-            // ADS1000 수신 Packet에서 파싱된
-            // Pan / Tilt / Zoom / Focus 상태와
-            // 현재 PTZ 제어 모드를 보관한다.
-            _cameraStateProvider =
-                new CameraStateProvider();
-
-            // [Detection] 상태 저장 서비스 생성
-            //
-            // 최종 ICD [IF-GUIS-CSE-001] ~ [IF-GUIS-CSE-003] 명령 처리 결과와
-            // 영상처리유닛에서 전달되는 탐지 객체 정보를 보관한다.
-            //
-            // [AUTO] 추적 제어 시
-            // 마지막 탐지 객체 [Bounding Box]를 기준으로
-            // [Pan] / [Tilt] 보정값 계산에 사용한다.
-            _detectionStateProvider =
-                new DetectionStateProvider();
-
-            // [Radar] 상태 저장 서비스 생성
-            //
-            // Radar Tracking Request 수신 상태와
-            // Radar 우선 제어 여부를 보관한다.
-            //
-            // [CSE] detect_cont 처리 시,
-            // Radar Tracking 활성 상태라면 GUI BBOX 기반 추적 제어를 수행하지 않는다.
-            _radarStateProvider =
-                new RadarStateProvider();
-
-            // 내부 [Camera] 명령 처리 서비스 생성
-            //
-            // [CSE] 명령 처리부에서 변환한 [CameraCommand]를 받아
-            // 실제 ADS1000 장비 제어 명령으로 분기한다.
-            //
-            // 현재 [PTZ] 제어 모드가 [AUTO]인 경우
-            // Pan / Tilt 수동 제어를 무시하기 위해 [CameraStateProvider]를 함께 전달한다.
-            _cameraCommandService =
-                new CameraCommandService(
-                    _ads1000CameraControlService,
-                    _cameraStateProvider);
-
-            // [Tracking] 자동 추적 제어 서비스 생성
-            //
-            // 탐지 객체 [Bounding Box] 중심점과
-            // 영상 중심점을 비교하여 자동 추적 보정 방향을 계산한다.
-            _trackingControlService =
-                new TrackingControlService(
-                    _ads1000CameraControlService);
-
-            // [PTZ] 제어 모드 변경 이벤트 연결
-            //
-            // [MQ] 수신으로 [AUTO] / [MANUAL] 모드가 변경된 경우
-            // 화면 표시값을 즉시 갱신한다.
-            _cameraStateProvider.PtzControlModeChanged +=
-                OnPtzControlModeChanged;
-
-            #endregion
-
-            #region [CSE Initialize]
-
-            // [MQ] 수신 서비스 지정
-            //
-            // 실제 [RabbitMQ]의 [q.command.req] / [q.status.req] Queue에서
-            // [CSE] 명령 [JSON]을 수신한다.
-            _mqReceiver =
-                new RabbitMqReceiver(
+            // 기존 생성자에서 직접 생성하던
+            // TCP / ADS1000 / EO Camera / MQ / Radar / Controller 객체를
+            // [Context]로 전달받는다.
+            _context =
+                bootstrapper.Create(
                     MqHostName,
-                    MqPort);
+                    MqPort,
+                    new MainViewModelEventHandlerSet
+                    {
+                        // [MCB] TCP 수신 이벤트 처리기 연결
+                        OnMcbMessageReceived =
+                            OnMcbMessageReceived,
 
-            // [MQ] 송신 서비스 지정
-            //
-            // [CSE] 명령 처리 결과를
-            // 실제 [RabbitMQ] Queue로 송신한다.
-            _mqSender =
-                new RabbitMqSender(
-                    MqHostName,
-                    MqPort);
+                        // [SCB] TCP 수신 이벤트 처리기 연결
+                        OnScbMessageReceived =
+                            OnScbMessageReceived,
 
-            // [CSE] 명령 수신 서비스 생성
-            _cseCommandReceiveService =
-                new CseCommandReceiveService(
-                    _mqReceiver);
+                        // [ADS1000] 장비 연결 상태 변경 이벤트 처리기 연결
+                        OnAds1000ConnectionStateChanged =
+                            OnAds1000ConnectionStateChanged,
 
-            // [CSE] 명령 응답 송신 서비스 생성
-            //
-            // [q.command.res] / [q.status.res] Queue로
-            // 명령 처리 결과와 카메라 상태 응답을 송신한다.
-            _cseCommandResponseService =
-                new CseCommandResponseService(
-                    _mqSender);
+                        // [EO Camera] Frame 수신 이벤트 처리기 연결
+                        OnEoCameraFrameReceived =
+                            OnEoCameraFrameReceived,
 
-            // [CSE] 명령 처리 서비스 생성
-            //
-            // 최종 ICD 기준 [detect_on] / [detect_off] / [detect_cont] /
-            // [ptz_move] / [get_state] 명령을 처리한다.
-            //
-            // Radar Tracking 활성 상태에서는
-            // GUI BBOX 기반 추적보다 Radar 제어를 우선하기 위해
-            // [RadarStateProvider]를 함께 전달한다.
-            _cseCommandHandler =
-                new CseCommandHandler(
-                    _cameraCommandService,
-                    _cseCommandResponseService,
-                    _cameraStateProvider,
-                    _detectionStateProvider,
-                    _trackingControlService,
-                    _radarStateProvider);
+                        // [EO Camera] 상태 변경 이벤트 처리기 연결
+                        OnEoCameraStatusChanged =
+                            OnEoCameraStatusChanged,
 
-            // [CSE] 명령 수신 이벤트 연결
-            _cseCommandReceiveService.CommandReceived +=
-                OnCseCommandReceived;
+                        // [ADS1000] Packet 송신 결과 이벤트 처리기 연결
+                        OnAds1000SendResultChanged =
+                            OnAds1000SendResultChanged,
 
-            // [CSE] 명령 수신은 [MQ START] 버튼을 통해
-            // 사용자가 수동으로 시작한다.
-            //
-            // [RabbitMQ] 서버 연결 실패로 인해
-            // 화면 초기화가 지연되지 않도록 자동 시작하지 않는다.
+                        // [PTZ] 제어 모드 변경 이벤트 처리기 연결
+                        OnPtzControlModeChanged =
+                            OnPtzControlModeChanged,
+
+                        // [CSE] 명령 수신 이벤트 처리기 연결
+                        OnCseCommandReceived =
+                            OnCseCommandReceived
+                    });
 
             #endregion
 
-            #region [Radar Initialize]
 
-            // [Radar] UDP 통신 서비스 생성
-            //
-            // [CSR]에서 CSE로 전달되는 Radar Packet을
-            // UDP로 수신하기 위해 사용한다.
-            _radarUdpClientService =
-                new UdpClientService(
-                    "RADAR");
-
-            // [Radar] Packet Parser 생성
-            //
-            // 수신 byte[] 데이터를 Header / SubData / Tail 구조로 분리하고,
-            // Command별 Payload 모델로 변환한다.
-            _radarPacketParser =
-                new RadarPacketParser();
-
-            // [Radar] Packet Builder 생성
-            //
-            // CSE에서 CSR로 송신할 응답 Packet을 생성한다.
-            _radarPacketBuilder =
-                new RadarPacketBuilder();
-
-            // [Radar] 추적 제어 서비스 생성
-            //
-            // Radar Tracking Request에서 수신한
-            // 방위각 / 고각 정보를 ADS1000 Pan / Tilt 제어로 연결한다.
-            //
-            // 현재 ADS1000 제어 구조는
-            // Pan Absolute / Tilt Absolute 명령을 각각 송신하는 방식이므로,
-            // Radar Tracking 제어도 동일한 방식으로 처리한다.
-            _radarTrackingControlService =
-                new RadarTrackingControlService(
-                    _ads1000CameraControlService);
-
-            // [Radar] Command 처리 서비스 생성
-            //
-            // Radar Packet의 Command를 기준으로
-            // Tracking Request / BIST Request를 분기 처리하고,
-            // Tracking Request 수신 시 Radar 우선 제어 상태를 활성화한다.
-            //
-            // [RadarStateProvider]는 [CSE] 명령 처리 서비스와 공유하여,
-            // Radar Tracking 활성 중에는 GUI BBOX 기반 Tracking 제어를 막는다.
-            _radarCommandHandler =
-                new RadarCommandHandler(
-                    _radarPacketParser,
-                    _radarPacketBuilder,
-                    _radarStateProvider,
-                    _radarTrackingControlService);
-
-            // [Radar] UDP 연동 서비스 생성
-            //
-            // UDP 수신 Packet을 Handler로 전달하고,
-            // 처리 결과 응답 Packet을 송신자에게 반환한다.
-            _radarUdpService =
-                new RadarUdpService(
-                    _radarUdpClientService,
-                    _radarCommandHandler);
-
-            #endregion
-
-            #region [Controller Initialize]
-
-            _rabbitMqController =
-                new RabbitMqController(
-                    _cseCommandReceiveService,
-                    _cseCommandHandler,
-                    _mqReceiver);
-
-            _radarUdpController =
-                new RadarUdpController(
-                    _radarUdpService);
-
-            _deviceConnectionController =
-                new DeviceConnectionController(
-                    _ads1000ConnectionService);
-
-            _eoCameraController =
-                new EoCameraController(
-                    _eoCameraService);
-
-            _ads1000ReceiveController =
-                new Ads1000ReceiveController(
-                    _ads1000StatusService);
-
-            _ads1000StatusApplyController =
-                new Ads1000StatusApplyController(
-                    _cameraStateProvider);
-
-            _ptzAbsoluteController =
-                new PtzAbsoluteController(
-                    _ads1000CameraControlService);
-
-            _ptzRelativeController =
-                new PtzRelativeController(
-                    _ads1000CameraControlService);
-
-            _ptzContinuousController =
-                new PtzContinuousController(
-                    _ads1000CameraControlService);
-
-            _ptzHomeZeroController =
-                new PtzHomeZeroController(
-                    _ads1000CameraControlService);
-
-            _keyboardPtzController =
-                new KeyboardPtzController();
-
-            _zoomFocusPositionController =
-                new ZoomFocusPositionController(
-                    _ads1000CameraControlService);
-
-            _ptzModeController =
-                new PtzModeController();
-
-            #endregion
 
             #region [Command Initialize]
 
+            // [MainViewModel] Command 생성 객체 생성
+            //
+            // RelayCommand / AsyncRelayCommand 생성 책임을
+            // [MainViewModel] 생성자에서 분리하기 위해 사용한다.
+            MainViewModelCommandFactory commandFactory =
+                new MainViewModelCommandFactory();
+
+            // [MainViewModel] Command 목록 생성
+            //
+            // Command 실행 메서드는 기존 [MainViewModel] 메서드를 그대로 연결하고,
+            // Command 객체 생성만 [Factory]에서 처리한다.
+            MainViewModelCommandSet commands =
+                commandFactory.Create(
+                    new MainViewModelCommandHandlerSet
+                    {
+                        // [MQ] 연결 요청 처리기
+                        StartMqReceive =
+                            StartRabbitMqReceive,
+
+                        // [MQ] 연결 해제 요청 처리기
+                        StopMqReceive =
+                            StopRabbitMqReceive,
+
+                        // [TCP] 연결 요청 처리기
+                        ConnectDevicesAsync =
+                            ConnectDevicesAsync,
+
+                        // [TCP] 연결 해제 요청 처리기
+                        DisconnectDevicesAsync =
+                            DisconnectDevicesAsync,
+
+                        // [Pan] 좌측 이동 요청 처리기
+                        StartPanLeftMove =
+                            StartPanLeftMove,
+
+                        // [Pan] 우측 이동 요청 처리기
+                        StartPanRightMove =
+                            StartPanRightMove,
+
+                        // [Tilt] 상향 이동 요청 처리기
+                        StartTiltUpMove =
+                            StartTiltUpMove,
+
+                        // [Tilt] 하향 이동 요청 처리기
+                        StartTiltDownMove =
+                            StartTiltDownMove,
+
+                        // [Pan / Tilt] 정지 요청 처리기
+                        StopContinuousMove =
+                            StopContinuousMove,
+
+                        // [Zoom] 확대 요청 처리기
+                        StartZoomInMove =
+                            StartZoomInMove,
+
+                        // [Zoom] 축소 요청 처리기
+                        StartZoomOutMove =
+                            StartZoomOutMove,
+
+                        // [Focus] Near 요청 처리기
+                        StartFocusNearMove =
+                            StartFocusNearMove,
+
+                        // [Focus] Far 요청 처리기
+                        StartFocusFarMove =
+                            StartFocusFarMove,
+
+                        // [Auto Focus] 요청 처리기
+                        AutoFocus =
+                            AutoFocus,
+
+                        // [Pan] Absolute 이동 요청 처리기
+                        MovePanAbsolute =
+                            MovePanAbsolute,
+
+                        // [Tilt] Absolute 이동 요청 처리기
+                        MoveTiltAbsolute =
+                            MoveTiltAbsolute,
+
+                        // [Pan] Relative 이동 요청 처리기
+                        MovePanRelative =
+                            MovePanRelative,
+
+                        // [Tilt] Relative 이동 요청 처리기
+                        MoveTiltRelative =
+                            MoveTiltRelative,
+
+                        // [Home Position] 이동 요청 처리기
+                        MoveHomePositionAsync =
+                            MoveHomePositionAsync,
+
+                        // [Pan] 현재 위치 [0] 설정 요청 처리기
+                        SetPanZero =
+                            SetPanZero,
+
+                        // [Tilt] 현재 위치 [0] 설정 요청 처리기
+                        SetTiltZero =
+                            SetTiltZero,
+
+                        // 위치 제어 입력값 초기화 요청 처리기
+                        ResetPositionInput =
+                            ResetPositionInput,
+
+                        // [Zoom] 위치 이동 요청 처리기
+                        SetZoomPosition =
+                            SetZoomPosition,
+
+                        // [Zoom] 배율 이동 요청 처리기
+                        SetZoomRatio =
+                            SetZoomRatio,
+
+                        // [Focus] 위치 이동 요청 처리기
+                        SetFocusPosition =
+                            SetFocusPosition,
+
+                        // [PTZ] [AUTO] 모드 설정 요청 처리기
+                        SetPtzAutoMode =
+                            SetPtzAutoMode,
+
+                        // [PTZ] [MANUAL] 모드 설정 요청 처리기
+                        SetPtzManualMode =
+                            SetPtzManualMode,
+
+                        // [Radar] UDP 수신 시작 요청 처리기
+                        StartRadarUdpReceive =
+                            StartRadarUdpReceive,
+
+                        // [Radar] UDP 수신 중지 요청 처리기
+                        StopRadarUdpReceive =
+                            StopRadarUdpReceive,
+
+                        // [Dummy Tracking] 테스트 시작 요청 처리기
+                        StartDummyTrackingTestAsync =
+                            StartDummyTrackingTestAsync,
+
+                        // [Dummy Tracking] 테스트 중지 요청 처리기
+                        StopDummyTrackingTest =
+                            StopDummyTrackingTest
+                    });
+
+            // [MQ] 연결 요청 [Command] 할당
             StartMqReceiveCommand =
-                new RelayCommand(
-                    StartRabbitMqReceive);
+                commands.StartMqReceiveCommand;
 
+            // [MQ] 연결 해제 요청 [Command] 할당
             StopMqReceiveCommand =
-                new RelayCommand(
-                    StopRabbitMqReceive);
+                commands.StopMqReceiveCommand;
 
+            // [TCP] 연결 요청 [Command] 할당
             StartTcpReceiveCommand =
-                new AsyncRelayCommand(ConnectDevicesAsync);
+                commands.StartTcpReceiveCommand;
 
+            // [TCP] 연결 해제 요청 [Command] 할당
             StopTcpReceiveCommand =
-                new AsyncRelayCommand(DisconnectDevicesAsync);
+                commands.StopTcpReceiveCommand;
 
+            // [Pan] 좌측 이동 요청 [Command] 할당
             PanLeftCommand =
-                new RelayCommand(
-                    StartPanLeftMove);
+                commands.PanLeftCommand;
 
+            // [Pan] 우측 이동 요청 [Command] 할당
             PanRightCommand =
-                new RelayCommand(
-                    StartPanRightMove);
+                commands.PanRightCommand;
 
+            // [Tilt] 상향 이동 요청 [Command] 할당
             TiltUpCommand =
-                new RelayCommand(
-                    StartTiltUpMove);
+                commands.TiltUpCommand;
 
+            // [Tilt] 하향 이동 요청 [Command] 할당
             TiltDownCommand =
-                new RelayCommand(
-                    StartTiltDownMove);
+                commands.TiltDownCommand;
 
+            // [Pan / Tilt] 정지 요청 [Command] 할당
             StopMoveCommand =
-                new RelayCommand(
-                    StopContinuousMove);
+                commands.StopMoveCommand;
 
+            // [Zoom] 확대 요청 [Command] 할당
             ZoomInCommand =
-                new RelayCommand(
-                    StartZoomInMove);
+                commands.ZoomInCommand;
 
+            // [Zoom] 축소 요청 [Command] 할당
             ZoomOutCommand =
-                new RelayCommand(
-                    StartZoomOutMove);
+                commands.ZoomOutCommand;
 
+            // [Focus] Near 요청 [Command] 할당
             FocusNearCommand =
-                new RelayCommand(
-                    StartFocusNearMove);
+                commands.FocusNearCommand;
 
+            // [Focus] Far 요청 [Command] 할당
             FocusFarCommand =
-                new RelayCommand(
-                    StartFocusFarMove);
+                commands.FocusFarCommand;
 
+            // [Auto Focus] 요청 [Command] 할당
             AutoFocusCommand =
-                new RelayCommand(
-                    AutoFocus);
+                commands.AutoFocusCommand;
 
+            // [Pan] Absolute 이동 요청 [Command] 할당
             MovePanAbsoluteCommand =
-                new RelayCommand(
-                    MovePanAbsolute);
+                commands.MovePanAbsoluteCommand;
 
+            // [Tilt] Absolute 이동 요청 [Command] 할당
             MoveTiltAbsoluteCommand =
-                new RelayCommand(
-                    MoveTiltAbsolute);
+                commands.MoveTiltAbsoluteCommand;
 
+            // [Pan] Relative 이동 요청 [Command] 할당
             MovePanRelativeCommand =
-                new RelayCommand(
-                    MovePanRelative);
+                commands.MovePanRelativeCommand;
 
+            // [Tilt] Relative 이동 요청 [Command] 할당
             MoveTiltRelativeCommand =
-                new RelayCommand(
-                    MoveTiltRelative);
+                commands.MoveTiltRelativeCommand;
 
+            // [Home Position] 이동 요청 [Command] 할당
             MoveHomePositionCommand =
-                new AsyncRelayCommand(
-                    MoveHomePositionAsync);
+                commands.MoveHomePositionCommand;
 
+            // [Pan] 현재 위치 [0] 설정 요청 [Command] 할당
             SetPanZeroCommand =
-                new RelayCommand(
-                    SetPanZero);
+                commands.SetPanZeroCommand;
 
+            // [Tilt] 현재 위치 [0] 설정 요청 [Command] 할당
             SetTiltZeroCommand =
-                new RelayCommand(
-                    SetTiltZero);
+                commands.SetTiltZeroCommand;
 
+            // 위치 제어 입력값 초기화 요청 [Command] 할당
             ResetPositionInputCommand =
-                new RelayCommand(
-                    ResetPositionInput);
+                commands.ResetPositionInputCommand;
 
+            // [Zoom] 위치 이동 요청 [Command] 할당
             SetZoomPositionCommand =
-                new RelayCommand(
-                    SetZoomPosition);
+                commands.SetZoomPositionCommand;
 
+            // [Zoom] 배율 이동 요청 [Command] 할당
             SetZoomRatioCommand =
-                new RelayCommand(
-                    SetZoomRatio);
+                commands.SetZoomRatioCommand;
 
+            // [Focus] 위치 이동 요청 [Command] 할당
             SetFocusPositionCommand =
-                new RelayCommand(
-                    SetFocusPosition);
+                commands.SetFocusPositionCommand;
 
+            // [PTZ] [AUTO] 모드 설정 요청 [Command] 할당
             SetPtzAutoModeCommand =
-                new RelayCommand(
-                    SetPtzAutoMode);
+                commands.SetPtzAutoModeCommand;
 
+            // [PTZ] [MANUAL] 모드 설정 요청 [Command] 할당
             SetPtzManualModeCommand =
-                new RelayCommand(
-                     SetPtzManualMode);
+                commands.SetPtzManualModeCommand;
 
+            // [Radar] UDP 수신 시작 요청 [Command] 할당
             StartRadarUdpReceiveCommand =
-                new RelayCommand(
-                    StartRadarUdpReceive);
+                commands.StartRadarUdpReceiveCommand;
 
+            // [Radar] UDP 수신 중지 요청 [Command] 할당
             StopRadarUdpReceiveCommand =
-                new RelayCommand(
-                    StopRadarUdpReceive);
+                commands.StopRadarUdpReceiveCommand;
 
+            // [Dummy Tracking] 테스트 시작 요청 [Command] 할당
             StartDummyTrackingTestCommand =
-                new AsyncRelayCommand(
-                    StartDummyTrackingTestAsync);
+                commands.StartDummyTrackingTestCommand;
 
+            // [Dummy Tracking] 테스트 중지 요청 [Command] 할당
             StopDummyTrackingTestCommand =
-                new RelayCommand(
-                    StopDummyTrackingTest);
+                commands.StopDummyTrackingTestCommand;
 
             #endregion
 
@@ -1405,8 +1095,10 @@ namespace VertiportNexus.ViewModels.Main
             InitializeDefaultValues();
 
             ConsoleLogHelper.PrintLine();
+
             Console.WriteLine(
                 "[MAIN] ADS1000 Direct TCP Test Initialize Complete");
+
             ConsoleLogHelper.PrintLine();
 
             #endregion
@@ -1428,7 +1120,7 @@ namespace VertiportNexus.ViewModels.Main
                 "MODE STANDBY";
 
             PtzControlModeText =
-                _cameraStateProvider.PtzControlMode;
+                _context.CameraStateProvider.PtzControlMode;
 
             PanTiltSpeedLevel
                 = 25;
@@ -1476,7 +1168,7 @@ namespace VertiportNexus.ViewModels.Main
             _panTurnMode =
                 Ads1000PanTurnMode.Short;
 
-            _cameraStateProvider
+            _context.CameraStateProvider
                 .UpdatePanTurnMode(
                     _panTurnMode);
 
@@ -1485,7 +1177,6 @@ namespace VertiportNexus.ViewModels.Main
             OnPropertyChanged(nameof(IsPanTurnViaZeroMode));
         }
         #endregion
-
 
         #region [ADS1000 Control Event Methods]
 
@@ -1508,7 +1199,6 @@ namespace VertiportNexus.ViewModels.Main
 
         }
         #endregion
-
 
         #region [TCP Connection Methods]
 
@@ -1556,7 +1246,7 @@ namespace VertiportNexus.ViewModels.Main
             try
             {
                 DeviceConnectionControllerResult result =
-                    await _deviceConnectionController
+                    await _context.DeviceConnectionController
                         .ConnectAsync(
                             McbIpAddress,
                             McbPort,
@@ -1578,7 +1268,7 @@ namespace VertiportNexus.ViewModels.Main
                     _isEoVideoDisplayEnabled =
                         true;
 
-                    _eoCameraController
+                    _context.EoCameraController
                         .Connect(
                             DEFAULT_EO_RTSP_ADDRESS);
 
@@ -1980,7 +1670,7 @@ namespace VertiportNexus.ViewModels.Main
             //
             // [CSE] [Get PTZ State] 응답에서 사용할 수 있도록
             // [MCB] / [SCB] 중 하나 이상 연결된 경우 연결 상태로 판단한다.
-            _cameraStateProvider.UpdateConnectionState(
+            _context.CameraStateProvider.UpdateConnectionState(
                 connectionResult.IsMcbConnected ||
                 connectionResult.IsScbConnected);
         }
@@ -2015,7 +1705,7 @@ namespace VertiportNexus.ViewModels.Main
                 if (_radarUdpConnectionState == ConnectionState.Connected)
                 {
                     ControllerResult radarResult =
-                        _radarUdpController
+                        _context.RadarUdpController
                             .StopReceive();
 
                     SetRadarUdpConnectionState(
@@ -2028,7 +1718,7 @@ namespace VertiportNexus.ViewModels.Main
                 if (_rabbitMqConnectionState == ConnectionState.Connected)
                 {
                     ControllerResult mqResult =
-                        _rabbitMqController
+                        _context.RabbitMqController
                             .StopReceive();
 
                     SetRabbitMqConnectionState(
@@ -2040,11 +1730,11 @@ namespace VertiportNexus.ViewModels.Main
 
                 StopEoRtspReconnect();
 
-                _eoCameraController
+                _context.EoCameraController
                     .Disconnect();
 
                 ControllerResult result =
-                    _deviceConnectionController
+                    _context.DeviceConnectionController
                         .Disconnect();
 
                 SetDeviceConnectionState(
@@ -2072,7 +1762,6 @@ namespace VertiportNexus.ViewModels.Main
         }
         #endregion
 
-
         #region [CSE Receive Event Methods]
 
         /// <summary>
@@ -2087,11 +1776,10 @@ namespace VertiportNexus.ViewModels.Main
         private void OnCseCommandReceived(
             CseCommandMessage message)
         {
-            _cseCommandHandler.HandleCommand(
+            _context.CseCommandHandler.HandleCommand(
                 message);
         }
         #endregion
-
 
         #region [EO Camera Event Methods]
 
@@ -2111,7 +1799,7 @@ namespace VertiportNexus.ViewModels.Main
             BitmapSource bitmap)
         {
             EoCameraControllerResult result =
-                _eoCameraController
+                _context.EoCameraController
                     .CreateFrameResult(
                         bitmap);
 
@@ -2140,7 +1828,7 @@ namespace VertiportNexus.ViewModels.Main
             string statusText)
         {
             EoCameraControllerResult result =
-                _eoCameraController
+                _context.EoCameraController
                     .CreateStatusResult(
                         statusText);
 
@@ -2234,7 +1922,7 @@ namespace VertiportNexus.ViewModels.Main
 
                     ConsoleLogHelper.PrintLine();
 
-                    _eoCameraService.Connect(
+                    _context.EoCameraService.Connect(
                         DEFAULT_EO_RTSP_ADDRESS);
                 }
 
@@ -2530,7 +2218,7 @@ namespace VertiportNexus.ViewModels.Main
                     double currentZoom =
                         CurrentZoom;
 
-                    _trackingControlService
+                    _context.TrackingControlService
                         .ProcessTracking(
                             latestBoundingBox,
                             currentZoom);
@@ -3008,7 +2696,6 @@ namespace VertiportNexus.ViewModels.Main
 
         #endregion
 
-
         #region [Keyboard Control Methods]
 
         /// <summary>
@@ -3026,7 +2713,7 @@ namespace VertiportNexus.ViewModels.Main
         public void HandlePanTiltKeyDown(
             Key key)
         {
-            _keyboardPtzController
+            _context.KeyboardPtzController
                 .HandleKeyDown();
 
             switch (key)
@@ -3069,7 +2756,7 @@ namespace VertiportNexus.ViewModels.Main
         public void HandlePanTiltKeyUp(
             Key key)
         {
-            _keyboardPtzController
+            _context.KeyboardPtzController
                 .HandleKeyUp();
 
             switch (key)
@@ -3264,7 +2951,7 @@ namespace VertiportNexus.ViewModels.Main
                 await Task.Delay(
                     500);
 
-                _cseCommandReceiveService
+                _context.CseCommandReceiveService
                     .StartReceive();
 
                 SetRabbitMqConnectionState(
@@ -3313,10 +3000,10 @@ namespace VertiportNexus.ViewModels.Main
                 //
                 // RabbitMQ 수신 중지 시,
                 // 실행 중인 [q.status.res] 상태 송신 Loop도 함께 종료한다.
-                _cseCommandHandler
+                _context.CseCommandHandler
                     .StopCameraStatusPublishService();
 
-                _mqReceiver
+                _context.MqReceiver
                     .StopReceive();
 
                 SetRabbitMqConnectionState(
@@ -3342,7 +3029,6 @@ namespace VertiportNexus.ViewModels.Main
 
         #endregion
 
-
         #region [INotifyPropertyChanged]
 
         /// <summary>
@@ -3366,7 +3052,6 @@ namespace VertiportNexus.ViewModels.Main
                 new PropertyChangedEventArgs(propertyName));
         }
         #endregion
-
 
         #region [Position Input Initialize Methods]
 
@@ -3407,7 +3092,6 @@ namespace VertiportNexus.ViewModels.Main
             ConsoleLogHelper.PrintLine();
         }
         #endregion
-
 
         #region [Network Properties]
 
@@ -4141,7 +3825,7 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         public double PanTiltSpeedLevel
         {
-            get => _ads1000CameraControlService.PanTiltSpeedLevel;
+            get => _context.Ads1000CameraControlService.PanTiltSpeedLevel;
             set
             {
                 double clampedValue =
@@ -4150,17 +3834,17 @@ namespace VertiportNexus.ViewModels.Main
                         5,
                         50);
 
-                if (_ads1000CameraControlService.PanTiltSpeedLevel != clampedValue)
+                if (_context.Ads1000CameraControlService.PanTiltSpeedLevel != clampedValue)
                 {
                     Console.WriteLine(
                         "[UI][PTZ] Pan / Tilt Speed Value Changed : "
-                        + _ads1000CameraControlService.PanTiltSpeedLevel.ToString("F0")
+                        + _context.Ads1000CameraControlService.PanTiltSpeedLevel.ToString("F0")
                         + " -> "
                         + clampedValue.ToString("F0"));
 
                     Console.WriteLine();
 
-                    _ads1000CameraControlService.PanTiltSpeedLevel =
+                    _context.Ads1000CameraControlService.PanTiltSpeedLevel =
                         clampedValue;
 
                     OnPropertyChanged();
@@ -4281,7 +3965,7 @@ namespace VertiportNexus.ViewModels.Main
                     //
                     // UI에서 변경한 선회 모드를
                     // CSE / MQ 명령 처리에서도 동일하게 사용할 수 있도록 저장한다.
-                    _cameraStateProvider
+                    _context.CameraStateProvider
                         .UpdatePanTurnMode(
                             _panTurnMode);
 
@@ -4318,7 +4002,7 @@ namespace VertiportNexus.ViewModels.Main
                     //
                     // UI에서 변경한 선회 모드를
                     // CSE / MQ 명령 처리에서도 동일하게 사용할 수 있도록 저장한다.
-                    _cameraStateProvider
+                    _context.CameraStateProvider
                         .UpdatePanTurnMode(
                             _panTurnMode);
 
@@ -4529,7 +4213,6 @@ namespace VertiportNexus.ViewModels.Main
         }
         #endregion
 
-
         #region [Camera Absolute Control Methods]
 
         /// <summary>
@@ -4658,7 +4341,7 @@ namespace VertiportNexus.ViewModels.Main
             _isUiContinuousMoveStarted =
                 false;
 
-            _ads1000CameraControlService
+            _context.Ads1000CameraControlService
                 .MovePanAbsolute(
                     panCommandTarget);
 
@@ -4759,7 +4442,7 @@ namespace VertiportNexus.ViewModels.Main
             _isUiContinuousMoveStarted =
                 false;
 
-            _ads1000CameraControlService
+            _context.Ads1000CameraControlService
                 .MoveTiltAbsolute(
                     deviceTargetTilt);
 
@@ -4767,7 +4450,6 @@ namespace VertiportNexus.ViewModels.Main
                 "TILT ABSOLUTE MOVE";
         }
         #endregion
-
 
         #region [Camera Continuous Control Methods]
 
@@ -4800,12 +4482,12 @@ namespace VertiportNexus.ViewModels.Main
             switch (_currentPanContinuousMoveDirection)
             {
                 case PanTiltContinuousMoveDirection.PanLeft:
-                    _ads1000CameraControlService
+                    _context.Ads1000CameraControlService
                         .PanLeft();
                     break;
 
                 case PanTiltContinuousMoveDirection.PanRight:
-                    _ads1000CameraControlService
+                    _context.Ads1000CameraControlService
                         .PanRight();
                     break;
 
@@ -4816,12 +4498,12 @@ namespace VertiportNexus.ViewModels.Main
             switch (_currentTiltContinuousMoveDirection)
             {
                 case PanTiltContinuousMoveDirection.TiltUp:
-                    _ads1000CameraControlService
+                    _context.Ads1000CameraControlService
                         .TiltUp();
                     break;
 
                 case PanTiltContinuousMoveDirection.TiltDown:
-                    _ads1000CameraControlService
+                    _context.Ads1000CameraControlService
                         .TiltDown();
                     break;
 
@@ -4884,14 +4566,14 @@ namespace VertiportNexus.ViewModels.Main
             switch (_currentPanTiltMoveAxis)
             {
                 case PanTiltMoveAxis.Pan:
-                    _ads1000CameraControlService
+                    _context.Ads1000CameraControlService
                         .UpdatePanMoveSpeed(
                             includeBeginCommand);
 
                     break;
 
                 case PanTiltMoveAxis.Tilt:
-                    _ads1000CameraControlService
+                    _context.Ads1000CameraControlService
                         .UpdateTiltMoveSpeed(
                             includeBeginCommand);
 
@@ -4915,7 +4597,7 @@ namespace VertiportNexus.ViewModels.Main
         public void StartPanLeftMove()
         {
             PtzControllerResult result =
-                _ptzContinuousController
+                _context.PtzContinuousController
                     .StartPanLeftMove();
 
             _isPanContinuousMoving =
@@ -4949,7 +4631,7 @@ namespace VertiportNexus.ViewModels.Main
         public void StartPanRightMove()
         {
             PtzControllerResult result =
-                _ptzContinuousController
+                _context.PtzContinuousController
                     .StartPanRightMove();
 
             _isPanContinuousMoving =
@@ -4983,7 +4665,7 @@ namespace VertiportNexus.ViewModels.Main
         public void StartTiltUpMove()
         {
             PtzControllerResult result =
-                _ptzContinuousController
+                _context.PtzContinuousController
                     .StartTiltUpMove();
 
             _isTiltContinuousMoving =
@@ -5017,7 +4699,7 @@ namespace VertiportNexus.ViewModels.Main
         public void StartTiltDownMove()
         {
             PtzControllerResult result =
-                _ptzContinuousController
+                _context.PtzContinuousController
                     .StartTiltDownMove();
 
             _isTiltContinuousMoving =
@@ -5088,7 +4770,7 @@ namespace VertiportNexus.ViewModels.Main
         public void StartZoomInMove()
         {
             PtzControllerResult result =
-                _ptzContinuousController
+                _context.PtzContinuousController
                     .StartZoomInMove();
 
             _isUiContinuousMoveStarted =
@@ -5113,7 +4795,7 @@ namespace VertiportNexus.ViewModels.Main
         public void StartZoomOutMove()
         {
             PtzControllerResult result =
-                _ptzContinuousController
+                _context.PtzContinuousController
                     .StartZoomOutMove();
 
             _isUiContinuousMoveStarted =
@@ -5138,7 +4820,7 @@ namespace VertiportNexus.ViewModels.Main
         public void StartFocusNearMove()
         {
             PtzControllerResult result =
-                _ptzContinuousController
+                _context.PtzContinuousController
                     .StartFocusNearMove();
 
             _isUiContinuousMoveStarted =
@@ -5163,7 +4845,7 @@ namespace VertiportNexus.ViewModels.Main
         public void StartFocusFarMove()
         {
             PtzControllerResult result =
-                _ptzContinuousController
+                _context.PtzContinuousController
                     .StartFocusFarMove();
 
             _isUiContinuousMoveStarted =
@@ -5185,7 +4867,7 @@ namespace VertiportNexus.ViewModels.Main
         private void AutoFocus()
         {
             PtzControllerResult result =
-                _ptzContinuousController
+                _context.PtzContinuousController
                     .AutoFocus();
 
             MainStatusText =
@@ -5204,7 +4886,7 @@ namespace VertiportNexus.ViewModels.Main
         private PtzControllerResult StopPanMove()
         {
             PtzControllerResult result =
-                _ptzContinuousController
+                _context.PtzContinuousController
                     .StopPanMove();
 
             _isPanContinuousMoving =
@@ -5244,7 +4926,7 @@ namespace VertiportNexus.ViewModels.Main
         private PtzControllerResult StopTiltMove()
         {
             PtzControllerResult result =
-                _ptzContinuousController
+                _context.PtzContinuousController
                     .StopTiltMove();
 
             _isTiltContinuousMoving =
@@ -5287,7 +4969,7 @@ namespace VertiportNexus.ViewModels.Main
         public void StopContinuousMove()
         {
             PtzControllerResult result =
-                _ptzContinuousController
+                _context.PtzContinuousController
                     .StopContinuousMove();
 
             _isPanContinuousMoving =
@@ -5315,7 +4997,6 @@ namespace VertiportNexus.ViewModels.Main
                 result.Message;
         }
         #endregion
-
 
         #region [Camera Home / Zero Control Methods]
 
@@ -5389,7 +5070,7 @@ namespace VertiportNexus.ViewModels.Main
                 // Controller는 장비 내부 Home Script 실행 명령만 송신한다.
                 // 실제 이동 완료 여부는 상태 안정화 대기 로직에서 판단한다.
                 result =
-                    await _ptzHomeZeroController
+                    await _context.PtzHomeZeroController
                         .MoveHomePositionAsync();
 
                 if (result != null &&
@@ -5543,7 +5224,7 @@ namespace VertiportNexus.ViewModels.Main
                 + offsetValue);
 
             PtzControllerResult result =
-                _ptzHomeZeroController
+                _context.PtzHomeZeroController
                     .SetPanZero(
                         currentPan);
 
@@ -5614,7 +5295,7 @@ namespace VertiportNexus.ViewModels.Main
                 + offsetValue);
 
             PtzControllerResult result =
-                _ptzHomeZeroController
+                _context.PtzHomeZeroController
                     .SetTiltZero(
                         currentTilt);
 
@@ -5850,7 +5531,6 @@ namespace VertiportNexus.ViewModels.Main
 
         #endregion
 
-
         #region [PTZ Control Mode Methods]
 
         /// <summary>
@@ -5864,7 +5544,7 @@ namespace VertiportNexus.ViewModels.Main
         private void SetPtzAutoMode()
         {
             ControllerResult result =
-                _ptzModeController
+                _context.PtzModeController
                     .SetAutoMode();
 
             SetPtzControlMode(
@@ -5885,7 +5565,7 @@ namespace VertiportNexus.ViewModels.Main
         private void SetPtzManualMode()
         {
             ControllerResult result =
-                _ptzModeController
+                _context.PtzModeController
                     .SetManualMode();
 
             SetPtzControlMode(
@@ -5929,7 +5609,7 @@ namespace VertiportNexus.ViewModels.Main
             Console.WriteLine("[UI][PTZ_MODE] Mode : " + normalizedMode);
             ConsoleLogHelper.PrintLine();
 
-            _cameraStateProvider.UpdatePtzControlMode(
+            _context.CameraStateProvider.UpdatePtzControlMode(
                 normalizedMode);
         }
 
@@ -6035,7 +5715,7 @@ namespace VertiportNexus.ViewModels.Main
             _isUiContinuousMoveStarted =
                 false;
 
-            _ads1000CameraControlService
+            _context.Ads1000CameraControlService
                 .MovePanAbsolute(
                     panCommandTarget);
 
@@ -6116,7 +5796,7 @@ namespace VertiportNexus.ViewModels.Main
             _isUiContinuousMoveStarted =
                 false;
 
-            _ads1000CameraControlService
+            _context.Ads1000CameraControlService
                 .MoveTiltAbsolute(
                     deviceTargetTilt);
 
@@ -6124,7 +5804,6 @@ namespace VertiportNexus.ViewModels.Main
                 "TILT RELATIVE MOVE";
         }
         #endregion
-
 
         #region [UDP Connection Methods]
 
@@ -6186,7 +5865,7 @@ namespace VertiportNexus.ViewModels.Main
                 ConnectionState.Connecting);
 
             ControllerResult result =
-                await _radarUdpController
+                await _context.RadarUdpController
                     .StartReceiveAsync(
                         RadarUdpLocalPort);
 
@@ -6223,7 +5902,7 @@ namespace VertiportNexus.ViewModels.Main
             }
 
             ControllerResult result =
-                _radarUdpController
+                _context.RadarUdpController
                     .StopReceive();
 
             if (result.IsSuccess)
@@ -6296,7 +5975,7 @@ namespace VertiportNexus.ViewModels.Main
             byte[] packet)
         {
             Ads1000ReceiveControllerResult result =
-                _ads1000ReceiveController
+                _context.Ads1000ReceiveController
                     .ProcessReceivedPacket(
                         deviceName,
                         packet);
@@ -6339,7 +6018,7 @@ namespace VertiportNexus.ViewModels.Main
             Ads1000ParsedPacket parsedPacket)
         {
             Ads1000StatusApplyControllerResult result =
-                _ads1000StatusApplyController
+                _context.Ads1000StatusApplyController
                     .Apply(
                         parsedPacket);
 
@@ -6390,7 +6069,6 @@ namespace VertiportNexus.ViewModels.Main
         }
         #endregion
 
-
         #region [Zoom / Focus Position Control Methods]
 
         /// <summary>
@@ -6403,7 +6081,7 @@ namespace VertiportNexus.ViewModels.Main
         private void SetZoomPosition()
         {
             PtzControllerResult result =
-                _zoomFocusPositionController
+                _context.ZoomFocusPositionController
                     .SetZoomPosition(
                         ZoomPositionValue);
 
@@ -6423,7 +6101,7 @@ namespace VertiportNexus.ViewModels.Main
         private void SetZoomRatio()
         {
             PtzControllerResult result =
-                _zoomFocusPositionController
+                _context.ZoomFocusPositionController
                     .SetZoomRatio(
                         ZoomRatioValue);
 
@@ -6491,7 +6169,7 @@ namespace VertiportNexus.ViewModels.Main
         private void SetFocusPosition()
         {
             PtzControllerResult result =
-                _zoomFocusPositionController
+                _context.ZoomFocusPositionController
                     .SetFocusPosition(
                         FocusPositionValue);
 

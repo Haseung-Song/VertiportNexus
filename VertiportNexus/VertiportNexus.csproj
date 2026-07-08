@@ -138,6 +138,9 @@
       <SubType>Designer</SubType>
     </ApplicationDefinition>
     <Compile Include="Services\ADS1000\Control\Ads1000ConnectionService.cs" />
+    <Compile Include="ViewModels\Main\Composition\MainViewModelBootstrapper.cs" />
+    <Compile Include="ViewModels\Main\Composition\MainViewModelCommandFactory.cs" />
+    <Compile Include="ViewModels\Main\Composition\MainViewModelContext.cs" />
     <Compile Include="ViewModels\Main\Controllers\Camera\Ads1000ReceiveController.cs" />
     <Compile Include="ViewModels\Main\Controllers\Camera\Ads1000StatusApplyController.cs" />
     <Compile Include="ViewModels\Main\Controllers\Camera\EoCameraController.cs" />
