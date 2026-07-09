@@ -48,6 +48,15 @@ namespace VertiportNexus.ViewModels.Main.Coordinators
         private readonly Func<bool> _isDeviceFullyConnected;
 
         /// <summary>
+        /// [Keyboard] Pan / Tilt 키보드 이동 진행 여부
+        /// 
+        /// 방향키 입력으로 실제 Pan / Tilt 이동 명령을 전달한 경우에만 true로 설정한다.
+        /// Home Position 이동 중 KeyUp 이벤트가 들어와도
+        /// 불필요한 Stop 명령이 송신되지 않도록 구분하기 위해 사용한다.
+        /// </summary>
+        private bool _isPanTiltKeyboardMoveActive;
+
+        /// <summary>
         /// [Home Position] 이동 상태 변경 처리 함수
         /// </summary>
         private readonly Action<bool> _homePositionMovingStateChanged;
@@ -114,28 +123,106 @@ namespace VertiportNexus.ViewModels.Main.Coordinators
 
         /// <summary>
         /// [Keyboard] 방향키 입력 처리
+        /// 
+        /// Home Position 이동 중이거나 Pan / Tilt 수동 제어가 불가능한 상태에서는
+        /// 키보드 Pan / Tilt 이동 명령을 전달하지 않는다.
+        /// 
+        /// 실제 KeyDown 이동 명령을 전달한 경우에만
+        /// KeyUp에서 Stop 명령을 처리할 수 있도록 상태를 저장한다.
         /// </summary>
+        /// <param name="key">
+        /// 입력된 키
+        /// </param>
         internal void HandlePanTiltKeyDown(
             Key key)
         {
+            if (!IsPanTiltKeyboardControlKey(
+                    key))
+            {
+                return;
+            }
+
+            bool isMoveAvailable =
+                IsPtzKeyboardMoveAvailable();
+
+            if (!isMoveAvailable)
+            {
+                _isPanTiltKeyboardMoveActive =
+                    false;
+
+                return;
+            }
+
+            _isPanTiltKeyboardMoveActive =
+                true;
+
             Apply(
                 _coordinator
                     .HandlePanTiltKeyDown(
                         key,
-                        IsPtzKeyboardMoveAvailable()));
+                        isMoveAvailable));
         }
 
         /// <summary>
         /// [Keyboard] 방향키 해제 처리
+        /// 
+        /// 방향키로 실제 Pan / Tilt 이동이 시작된 경우에만
+        /// KeyUp Stop 명령을 전달한다.
+        /// 
+        /// Home Position 이동 중 발생한 KeyUp은
+        /// Home Position 명령을 중단시킬 수 있으므로 Stop 명령을 송신하지 않는다.
         /// </summary>
+        /// <param name="key">
+        /// 해제된 키
+        /// </param>
         internal void HandlePanTiltKeyUp(
             Key key)
         {
+            if (!IsPanTiltKeyboardControlKey(
+                    key))
+            {
+                return;
+            }
+
+            if (!_isPanTiltKeyboardMoveActive)
+            {
+                return;
+            }
+
+            _isPanTiltKeyboardMoveActive =
+                false;
+
+            bool isMoveAvailable =
+                IsPtzKeyboardMoveAvailable();
+
+            if (!isMoveAvailable)
+            {
+                return;
+            }
+
             Apply(
                 _coordinator
                     .HandlePanTiltKeyUp(
                         key,
-                        IsPtzKeyboardMoveAvailable()));
+                        isMoveAvailable));
+        }
+
+        /// <summary>
+        /// [Keyboard] Pan / Tilt 제어 키 여부 조회
+        /// </summary>
+        /// <param name="key">
+        /// 입력된 키
+        /// </param>
+        /// <returns>
+        /// Pan / Tilt 제어 키 여부
+        /// </returns>
+        private bool IsPanTiltKeyboardControlKey(
+            Key key)
+        {
+            return key == Key.Left ||
+                   key == Key.Right ||
+                   key == Key.Up ||
+                   key == Key.Down;
         }
 
         /// <summary>

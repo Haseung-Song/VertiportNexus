@@ -84,6 +84,9 @@ namespace VertiportNexus.ViewModels.Main.Coordinators
             {
                 Notify(
                     "PtzControlModeText");
+
+                Notify(
+                    "IsManualPanTiltControlEnabled");
             }
 
         }

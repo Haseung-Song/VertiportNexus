@@ -145,6 +145,7 @@
     <Compile Include="Features\Main\Connection\DeviceConnectionWorkflowResult.cs" />
     <Compile Include="Features\Main\Ptz\PtzControlWorkflow.cs" />
     <Compile Include="Features\Main\Ptz\PtzControlWorkflowResult.cs" />
+    <Compile Include="Features\Main\Ptz\TrackingControlStabilizer.cs" />
     <Compile Include="Features\Main\States\MainCameraState.cs" />
     <Compile Include="Features\Main\Test\DummyTrackingTestManager.cs" />
     <Compile Include="Features\Main\Ui\MainViewModelUiRefreshService.cs" />

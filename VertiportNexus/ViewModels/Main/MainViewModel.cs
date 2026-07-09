@@ -961,6 +961,9 @@ namespace VertiportNexus.ViewModels.Main
             _uiRefreshService
                 .NotifyHomePositionMovingStateChanged(
                     OnPropertyChanged);
+
+            OnPropertyChanged(
+                nameof(IsManualPanTiltControlEnabled));
         }
 
         /// <summary>
@@ -993,6 +996,8 @@ namespace VertiportNexus.ViewModels.Main
             _uiRefreshService
                 .NotifyDeviceConnectionStateChanged(
                     OnPropertyChanged);
+
+            OnPropertyChanged(nameof(IsManualPanTiltControlEnabled));
         }
 
         /// <summary>
@@ -1262,7 +1267,6 @@ namespace VertiportNexus.ViewModels.Main
                                     operationModeText;
                             });
                 }
-
             }));
 
         }
@@ -1319,6 +1323,11 @@ namespace VertiportNexus.ViewModels.Main
         public void HandlePanTiltKeyDown(
             Key key)
         {
+            if (!IsManualPanTiltControlEnabled)
+            {
+                return;
+            }
+
             _ptzCommandProxy
                 .HandlePanTiltKeyDown(
                     key);
@@ -1350,6 +1359,11 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         public void StartPanLeftMove()
         {
+            if (!IsManualPanTiltControlEnabled)
+            {
+                return;
+            }
+
             _ptzCommandProxy
                 .StartPanLeftMove();
         }
@@ -1359,6 +1373,11 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         public void StartPanRightMove()
         {
+            if (!IsManualPanTiltControlEnabled)
+            {
+                return;
+            }
+
             _ptzCommandProxy
                 .StartPanRightMove();
         }
@@ -1368,6 +1387,11 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         public void StartTiltUpMove()
         {
+            if (!IsManualPanTiltControlEnabled)
+            {
+                return;
+            }
+
             _ptzCommandProxy
                 .StartTiltUpMove();
         }
@@ -1377,6 +1401,11 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         public void StartTiltDownMove()
         {
+            if (!IsManualPanTiltControlEnabled)
+            {
+                return;
+            }
+
             _ptzCommandProxy
                 .StartTiltDownMove();
         }
@@ -1431,6 +1460,11 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         public void StartPanLeftTiltUpMove()
         {
+            if (!IsManualPanTiltControlEnabled)
+            {
+                return;
+            }
+
             _ptzCommandProxy
                 .StartPanLeftTiltUpMove();
         }
@@ -1440,6 +1474,11 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         public void StartPanRightTiltUpMove()
         {
+            if (!IsManualPanTiltControlEnabled)
+            {
+                return;
+            }
+
             _ptzCommandProxy
                 .StartPanRightTiltUpMove();
         }
@@ -1449,6 +1488,11 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         public void StartPanLeftTiltDownMove()
         {
+            if (!IsManualPanTiltControlEnabled)
+            {
+                return;
+            }
+
             _ptzCommandProxy
                 .StartPanLeftTiltDownMove();
         }
@@ -1458,6 +1502,11 @@ namespace VertiportNexus.ViewModels.Main
         /// </summary>
         public void StartPanRightTiltDownMove()
         {
+            if (!IsManualPanTiltControlEnabled)
+            {
+                return;
+            }
+
             _ptzCommandProxy
                 .StartPanRightTiltDownMove();
         }
@@ -1767,6 +1816,16 @@ namespace VertiportNexus.ViewModels.Main
                 _connectionPanel.McbConnectionState,
                 _connectionPanel.IsHomePositionMoving);
 
+        public bool IsManualPanTiltControlEnabled =>
+            _uiStateService
+                .IsManualPanTiltControlEnabled(
+                    _connectionPanel.McbConnectionState,
+                    _connectionPanel.ScbConnectionState,
+                    _connectionPanel.IsDeviceConnecting,
+                    _connectionPanel.IsDeviceDisconnecting,
+                    _connectionPanel.IsHomePositionMoving,
+                    PtzControlModeText);
+
         public bool IsDeviceConnectButtonEnabled =>
             _uiStateService.IsDeviceConnectButtonEnabled(
                 _connectionPanel.IsDeviceConnecting,
@@ -1829,7 +1888,9 @@ namespace VertiportNexus.ViewModels.Main
                 {
                     OnPropertyChanged();
                 }
+
             }
+
         }
 
         public string OperationModeText
@@ -1841,7 +1902,9 @@ namespace VertiportNexus.ViewModels.Main
                 {
                     OnPropertyChanged();
                 }
+
             }
+
         }
 
         public string PtzControlModeText
@@ -1852,8 +1915,13 @@ namespace VertiportNexus.ViewModels.Main
                 if (_statusPanel.SetPtzControlModeText(value))
                 {
                     OnPropertyChanged();
+
+                    OnPropertyChanged(
+                        nameof(IsManualPanTiltControlEnabled));
                 }
+
             }
+
         }
 
         #endregion

@@ -147,6 +147,15 @@ namespace VertiportNexus.Services.Camera
         private DateTime _lastTrackingCommandTime =
             DateTime.MinValue;
 
+        /// <summary>
+        /// [Tracking] 보정값 안정화 서비스
+        /// 
+        /// 고배율 Zoom 상태에서 발생하는
+        /// Pan / Tilt 미세 떨림과 헌팅 현상을 줄이기 위해 사용한다.
+        /// </summary>
+        private readonly TrackingControlStabilizer _trackingControlStabilizer =
+            new TrackingControlStabilizer();
+
         #endregion
 
         #region [Constructor]
@@ -226,21 +235,19 @@ namespace VertiportNexus.Services.Camera
             double errorY =
                 boundingBox.CenterY.Value - frameCenterY;
 
-            if (IsInDeadZone(
-                errorX,
-                errorY))
-            {
-                Console.WriteLine(
-                    "[TRACKING][AUTO] Stop : Target is in Dead Zone");
-
-                StopTracking();
-
-                return;
-            }
-
             double currentZoomRatio =
                 CalculateZoomRatioByPosition(
                     currentZoomPosition);
+
+            if (IsInDeadZone(
+                errorX,
+                errorY,
+                currentZoomRatio))
+            {
+                HandleTrackingDeadZone();
+
+                return;
+            }
 
             double horizontalFov =
                 CalculateHorizontalFov(
@@ -275,13 +282,13 @@ namespace VertiportNexus.Services.Camera
 
             ExecuteTrackingAngleCommand(
                 panAngleOffset,
-                tiltAngleOffset);
+                tiltAngleOffset,
+                currentZoomRatio);
         }
 
         /// <summary>
         /// [AUTO] 추적 정지
         /// 
-        /// 추적 대상이 중심 허용 범위에 들어오거나,
         /// 추적 종료 / [MANUAL] 전환 시 진행 중인 [Pan] / [Tilt] 이동을 정지한다.
         /// </summary>
         public void StopTracking()
@@ -289,7 +296,28 @@ namespace VertiportNexus.Services.Camera
             Console.WriteLine(
                 "[TRACKING][AUTO] Tracking Stop");
 
+            _trackingControlStabilizer
+                .Reset();
+
             StopPtz();
+        }
+
+        /// <summary>
+        /// [AUTO] Dead Zone 진입 처리
+        /// 
+        /// 추적 대상이 중심 허용 범위에 들어온 경우
+        /// 이전 Tracking 필터 값을 초기화한다.
+        /// 
+        /// Relative 이동 명령은 지정 각도 이동 후 장비가 정지하므로,
+        /// Dead Zone 상태에서 매번 Stop 명령을 반복 송신하지 않는다.
+        /// </summary>
+        private void HandleTrackingDeadZone()
+        {
+            Console.WriteLine(
+                "[TRACKING][AUTO] Stop : Target is in Dead Zone");
+
+            _trackingControlStabilizer
+                .Reset();
         }
 
         #endregion
@@ -334,8 +362,9 @@ namespace VertiportNexus.Services.Camera
         /// 
         /// 탐지 객체 중심점이 영상 중심점 기준 Dead Zone 내부에 있는지 확인한다.
         /// 
-        /// Pan / Tilt 오차가 모두 허용 범위 안에 들어온 경우에만
-        /// 추적 보정이 필요 없는 상태로 판단한다.
+        /// Pixel Dead Zone은 Tracking 시작 여부를 판단하는 1차 조건이므로,
+        /// Zoom 배율에 따라 과도하게 확대하지 않는다.
+        /// 고배율 떨림 보정은 [TrackingControlStabilizer]의 각도 필터에서 처리한다.
         /// </summary>
         /// <param name="errorX">
         /// 영상 중심 기준 X축 Pixel 오차
@@ -343,12 +372,16 @@ namespace VertiportNexus.Services.Camera
         /// <param name="errorY">
         /// 영상 중심 기준 Y축 Pixel 오차
         /// </param>
+        /// <param name="currentZoomRatio">
+        /// 현재 Zoom 배율
+        /// </param>
         /// <returns>
         /// Dead Zone 내부 여부
         /// </returns>
         private bool IsInDeadZone(
             double errorX,
-            double errorY)
+            double errorY,
+            double currentZoomRatio)
         {
             return Math.Abs(errorX) <= DEAD_ZONE_X_PIXEL &&
                    Math.Abs(errorY) <= DEAD_ZONE_Y_PIXEL;
@@ -531,29 +564,54 @@ namespace VertiportNexus.Services.Camera
         /// 자동 추적 각도 보정 명령 실행
         /// 
         /// [Pixel] 오차를 화각 기준 [Degree]로 변환한 값을
+        /// 바로 송신하지 않고, Tracking 안정화 처리를 적용한 뒤
         /// [Pan] / [Tilt] Relative 이동 명령으로 송신한다.
         /// 
         /// Relative 이동은 지정 각도만큼 이동 후 장비가 정지하므로,
         /// Continuous 이동에서 사용하던 자동 정지 예약은 사용하지 않는다.
         /// </summary>
         /// <param name="panAngleOffset">
-        /// [Pan] 보정 각도 [Degree]
+        /// [Pan] 원본 보정 각도 [Degree]
         /// </param>
         /// <param name="tiltAngleOffset">
-        /// [Tilt] 보정 각도 [Degree]
+        /// [Tilt] 원본 보정 각도 [Degree]
+        /// </param>
+        /// <param name="currentZoomRatio">
+        /// 현재 Zoom 배율
         /// </param>
         private void ExecuteTrackingAngleCommand(
             double panAngleOffset,
-            double tiltAngleOffset)
+            double tiltAngleOffset,
+            double currentZoomRatio)
         {
+            if (!_trackingControlStabilizer.TryCreateStableAngle(
+                    panAngleOffset,
+                    tiltAngleOffset,
+                    currentZoomRatio,
+                    out double stablePanAngleOffset,
+                    out double stableTiltAngleOffset))
+            {
+                Console.WriteLine(
+                    "[TRACKING][AUTO] Skip : Stabilized Angle Offset is too small");
+
+                return;
+            }
+
+            PrintStabilizedTrackingLog(
+                panAngleOffset,
+                tiltAngleOffset,
+                stablePanAngleOffset,
+                stableTiltAngleOffset,
+                currentZoomRatio);
+
             bool hasPanMove =
                 Math.Abs(
-                    panAngleOffset)
+                    stablePanAngleOffset)
                 >= MIN_TRACKING_ANGLE_DEGREE;
 
             bool hasTiltMove =
                 Math.Abs(
-                    tiltAngleOffset)
+                    stableTiltAngleOffset)
                 >= MIN_TRACKING_ANGLE_DEGREE;
 
             if (!hasPanMove &&
@@ -569,14 +627,14 @@ namespace VertiportNexus.Services.Camera
             {
                 _ads1000CameraControlService
                     .MovePanRelative(
-                        panAngleOffset);
+                        stablePanAngleOffset);
             }
 
             if (hasTiltMove)
             {
                 _ads1000CameraControlService
                     .MoveTiltRelative(
-                        tiltAngleOffset);
+                        stableTiltAngleOffset);
             }
 
         }
@@ -663,6 +721,40 @@ namespace VertiportNexus.Services.Camera
             Console.WriteLine(
                 "[TRACKING][ANGLE] Tilt Offset : "
                 + tiltAngleOffset.ToString("F2"));
+        }
+
+        /// <summary>
+        /// [AUTO] 안정화된 추적 보정 각도 로그 출력
+        /// </summary>
+        private void PrintStabilizedTrackingLog(
+            double rawPanAngleOffset,
+            double rawTiltAngleOffset,
+            double stablePanAngleOffset,
+            double stableTiltAngleOffset,
+            double currentZoomRatio)
+        {
+            Console.WriteLine(
+                "[TRACKING][STABILIZER] Angle Stabilized");
+
+            Console.WriteLine(
+                "[TRACKING][STABILIZER] Zoom Ratio : x"
+                + currentZoomRatio.ToString("F1"));
+
+            Console.WriteLine(
+                "[TRACKING][STABILIZER] Raw Pan : "
+                + rawPanAngleOffset.ToString("F4"));
+
+            Console.WriteLine(
+                "[TRACKING][STABILIZER] Raw Tilt : "
+                + rawTiltAngleOffset.ToString("F4"));
+
+            Console.WriteLine(
+                "[TRACKING][STABILIZER] Stable Pan : "
+                + stablePanAngleOffset.ToString("F4"));
+
+            Console.WriteLine(
+                "[TRACKING][STABILIZER] Stable Tilt : "
+                + stableTiltAngleOffset.ToString("F4"));
         }
         #endregion
     }

@@ -126,6 +126,59 @@ namespace VertiportNexus.Features.Main.Ui
         }
 
         /// <summary>
+        /// [Pan / Tilt] 수동 제어 UI 활성 여부 조회
+        /// 
+        /// 장비 제어가 가능한 상태이고,
+        /// 현재 PTZ 제어 모드가 [MANUAL]일 때만 활성화한다.
+        /// AUTO Mode에서는 상 / 하 / 좌 / 우 / 대각선 / Stop 수동 조작을 막는다.
+        /// </summary>
+        /// <param name="mcbConnectionState">
+        /// [MCB] 연결 상태
+        /// </param>
+        /// <param name="scbConnectionState">
+        /// [SCB] 연결 상태
+        /// </param>
+        /// <param name="isDeviceConnecting">
+        /// 장비 연결 진행 여부
+        /// </param>
+        /// <param name="isDeviceDisconnecting">
+        /// 장비 연결 해제 진행 여부
+        /// </param>
+        /// <param name="isHomePositionMoving">
+        /// Home Position 이동 진행 여부
+        /// </param>
+        /// <param name="ptzControlMode">
+        /// 현재 PTZ 제어 모드
+        /// </param>
+        /// <returns>
+        /// [Pan / Tilt] 수동 제어 UI 활성 여부
+        /// </returns>
+        internal bool IsManualPanTiltControlEnabled(
+            MainViewModel.ConnectionState mcbConnectionState,
+            MainViewModel.ConnectionState scbConnectionState,
+            bool isDeviceConnecting,
+            bool isDeviceDisconnecting,
+            bool isHomePositionMoving,
+            string ptzControlMode)
+        {
+            bool isManualMode =
+                !string.IsNullOrWhiteSpace(
+                    ptzControlMode) &&
+                ptzControlMode
+                    .IndexOf(
+                        "MANUAL",
+                        System.StringComparison.OrdinalIgnoreCase) >= 0;
+
+            return IsDeviceControlEnabled(
+                       mcbConnectionState,
+                       scbConnectionState,
+                       isDeviceConnecting,
+                       isDeviceDisconnecting,
+                       isHomePositionMoving) &&
+                   isManualMode;
+        }
+
+        /// <summary>
         /// 장비 연결 버튼 활성 여부 조회
         /// </summary>
         internal bool IsDeviceConnectButtonEnabled(

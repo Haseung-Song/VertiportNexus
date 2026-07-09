@@ -52,6 +52,10 @@ namespace VertiportNexus.Features.Main.Ui
             // [Pan / Tilt Speed] 설정 가능 상태 갱신
             notifyPropertyChanged(
                 "IsPanTiltSpeedEnabled");
+
+            // [Pan / Tilt] 수동 제어 UI 활성화 상태 갱신
+            notifyPropertyChanged(
+                "IsManualPanTiltControlEnabled");
         }
 
         #endregion
@@ -100,6 +104,10 @@ namespace VertiportNexus.Features.Main.Ui
             notifyPropertyChanged(
                 "IsPanTiltSpeedEnabled");
 
+            // [Pan / Tilt] 수동 제어 UI 활성화 상태 갱신
+            notifyPropertyChanged(
+                "IsManualPanTiltControlEnabled");
+
             // [장비 연결] 버튼 활성화 상태 갱신
             notifyPropertyChanged(
                 "IsDeviceConnectButtonEnabled");
@@ -138,6 +146,10 @@ namespace VertiportNexus.Features.Main.Ui
             {
                 return;
             }
+
+            // [Pan / Tilt] 수동 제어 UI 활성화 상태 갱신
+            notifyPropertyChanged(
+                "IsManualPanTiltControlEnabled");
 
             // [장비 연결] 버튼 활성화 상태 갱신
             notifyPropertyChanged(
