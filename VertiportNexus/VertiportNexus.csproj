@@ -137,6 +137,18 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Features\Main\Ads1000\Ads1000StatusWorkflow.cs" />
+    <Compile Include="Features\Main\Camera\EoCameraWorkflow.cs" />
+    <Compile Include="Features\Main\Communication\RabbitMqReceiveworkflow.cs" />
+    <Compile Include="Features\Main\Communication\RadarUdpReceiveworkflow.cs" />
+    <Compile Include="Features\Main\Connection\DeviceConnectionWorkflow.cs" />
+    <Compile Include="Features\Main\Connection\DeviceConnectionWorkflowResult.cs" />
+    <Compile Include="Features\Main\Ptz\PtzControlWorkflow.cs" />
+    <Compile Include="Features\Main\Ptz\PtzControlWorkflowResult.cs" />
+    <Compile Include="Features\Main\States\MainCameraState.cs" />
+    <Compile Include="Features\Main\Test\DummyTrackingTestManager.cs" />
+    <Compile Include="Features\Main\Ui\MainViewModelUiRefreshService.cs" />
+    <Compile Include="Features\Main\Ui\MainViewModelUiStateService.cs" />
     <Compile Include="Services\ADS1000\Control\Ads1000ConnectionService.cs" />
     <Compile Include="ViewModels\Main\Composition\MainViewModelBootstrapper.cs" />
     <Compile Include="ViewModels\Main\Composition\MainViewModelCommandFactory.cs" />
@@ -154,6 +166,18 @@
     <Compile Include="ViewModels\Main\Controllers\Ptz\PtzModeController.cs" />
     <Compile Include="ViewModels\Main\Controllers\Ptz\PtzRelativeController.cs" />
     <Compile Include="ViewModels\Main\Controllers\Ptz\ZoomFocusPositionController.cs" />
+    <Compile Include="ViewModels\Main\Coordinators\MainAds1000StatusResultApplier.cs" />
+    <Compile Include="ViewModels\Main\Coordinators\MainCommunicationCommandProxy.cs" />
+    <Compile Include="ViewModels\Main\Coordinators\MainCommunicationCoordinator.cs" />
+    <Compile Include="ViewModels\Main\Coordinators\MainCommunicationResult.cs" />
+    <Compile Include="ViewModels\Main\Coordinators\MainCommunicationResultApplier.cs" />
+    <Compile Include="ViewModels\Main\Coordinators\MainPtzCommandProxy.cs" />
+    <Compile Include="ViewModels\Main\Coordinators\MainPtzControlCoordinator.cs" />
+    <Compile Include="ViewModels\Main\Coordinators\MainPtzControlResultApplier.cs" />
+    <Compile Include="ViewModels\Main\Panels\MainCameraPanelViewModel.cs" />
+    <Compile Include="ViewModels\Main\Panels\MainConnectionPanelViewModel.cs" />
+    <Compile Include="ViewModels\Main\Panels\MainNetworkPanelViewModel.cs" />
+    <Compile Include="ViewModels\Main\Panels\MainStatusPanelViewModel.cs" />
     <Compile Include="ViewModels\Main\Results\Ads1000ReceiveControllerResult.cs" />
     <Compile Include="ViewModels\Main\Results\Ads1000StatusApplyControllerResult.cs" />
     <Compile Include="ViewModels\Main\Results\ControllerResult.cs" />
