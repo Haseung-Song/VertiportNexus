@@ -248,7 +248,7 @@ namespace VertiportNexus.ViewModels.Main.Panels
             double clampedValue =
                 CameraCommandService.Clamp(
                     value,
-                    5,
+                    0,
                     50);
 
             if (_context.Ads1000CameraControlService.PanTiltSpeedLevel == clampedValue)
