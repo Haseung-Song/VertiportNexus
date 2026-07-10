@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
 using VertiportNexus.Common;
+using VertiportNexus.Common.Helpers;
 
 namespace VertiportNexus
 {
@@ -139,6 +140,8 @@ namespace VertiportNexus
             /// </summary>
             Environment.SetEnvironmentVariable("OPENCV_LOG_LEVEL", "ERROR");
 
+            AppLogger.Initialize();
+
             base.OnStartup(e);
 
             InitializeFFmpeg();
@@ -243,6 +246,7 @@ namespace VertiportNexus
             ConsoleLogHelper.PrintLine();
             Console.WriteLine("[CONSOLE] Vertiport Nexus Middleware -> Debug Console End");
 
+            AppLogger.Shutdown();
 #if DEBUG
             /// <summary>
             /// [Debug] 콘솔 창 해제

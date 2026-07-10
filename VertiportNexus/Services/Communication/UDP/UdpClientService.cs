@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Serilog;
+using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -114,6 +115,11 @@ namespace VertiportNexus.Services.Communication.UDP
             {
                 if (_isReceiving)
                 {
+                    Log.Information(
+                        "[UDP][{ServiceName}] Receive Start Ignored : Already Started, LocalPort={LocalPort}",
+                        _serviceName,
+                        localPort);
+
                     ConsoleLogHelper.PrintLine();
                     Console.WriteLine("[UDP][" + _serviceName + "] Receive Start Ignored");
                     Console.WriteLine("[UDP][" + _serviceName + "] Reason : Already Started");
@@ -136,6 +142,11 @@ namespace VertiportNexus.Services.Communication.UDP
                     _isReceiving =
                         true;
 
+                    Log.Information(
+                        "[UDP][{ServiceName}] Receive Start : LocalPort={LocalPort}",
+                        _serviceName,
+                        localPort);
+
                     ConsoleLogHelper.PrintLine();
                     Console.WriteLine("[UDP][" + _serviceName + "] Receive Start");
                     Console.WriteLine("[UDP][" + _serviceName + "] Local Port : " + localPort);
@@ -155,6 +166,12 @@ namespace VertiportNexus.Services.Communication.UDP
 
                     _cts?.Dispose();
                     _cts = null;
+
+                    Log.Error(
+                        ex,
+                        "[UDP][{ServiceName}] Receive Start Failed : LocalPort={LocalPort}",
+                        _serviceName,
+                        localPort);
 
                     ConsoleLogHelper.PrintLine();
                     Console.WriteLine("[UDP][" + _serviceName + "] Receive Start Failed");
@@ -206,6 +223,13 @@ namespace VertiportNexus.Services.Communication.UDP
                     IPEndPoint remoteEndPoint =
                         receiveResult.RemoteEndPoint;
 
+                    Log.Debug(
+                        "[UDP][{ServiceName}] RECV Remote={RemoteEndPoint}, Hex={Hex}",
+                        _serviceName,
+                        remoteEndPoint,
+                        ToHexString(
+                            receivedData));
+
                     PrintHexData(
                         "[UDP][" + _serviceName + "] RECV",
                         receivedData);
@@ -216,6 +240,10 @@ namespace VertiportNexus.Services.Communication.UDP
                 }
                 catch (ObjectDisposedException)
                 {
+                    Log.Information(
+                        "[UDP][{ServiceName}] Receive Loop Closed",
+                        _serviceName);
+
                     // [UDP] 수신 루프 종료
                     //
                     // StopReceive() 호출로 UdpClient가 Dispose된 경우
@@ -231,6 +259,11 @@ namespace VertiportNexus.Services.Communication.UDP
                     {
                         return;
                     }
+
+                    Log.Warning(
+                        ex,
+                        "[UDP][{ServiceName}] Receive Socket Reset Ignored",
+                        _serviceName);
 
                     // [UDP] ConnectionReset 예외 무시
                     //
@@ -248,6 +281,11 @@ namespace VertiportNexus.Services.Communication.UDP
                         continue;
                     }
 
+                    Log.Error(
+                        ex,
+                        "[UDP][{ServiceName}] Receive Socket Failed",
+                        _serviceName);
+
                     Console.WriteLine(
                         "[UDP][" + _serviceName + "] Receive Socket Failed : "
                         + ex.Message);
@@ -260,6 +298,11 @@ namespace VertiportNexus.Services.Communication.UDP
                     {
                         return;
                     }
+
+                    Log.Error(
+                        ex,
+                        "[UDP][{ServiceName}] Receive Failed",
+                        _serviceName);
 
                     Console.WriteLine(
                         "[UDP][" + _serviceName + "] Receive Failed : "
@@ -318,6 +361,10 @@ namespace VertiportNexus.Services.Communication.UDP
             if (data == null ||
                 data.Length == 0)
             {
+                Log.Warning(
+                    "[UDP][{ServiceName}] Send Failed : Empty Data",
+                    _serviceName);
+
                 Console.WriteLine(
                     "[UDP][" + _serviceName + "] Send Failed : Empty Data");
 
@@ -342,6 +389,14 @@ namespace VertiportNexus.Services.Communication.UDP
                             remotePort);
                 }
 
+                Log.Debug(
+                    "[UDP][{ServiceName}] SEND Remote={RemoteIp}:{RemotePort}, Hex={Hex}",
+                    _serviceName,
+                    remoteIpAddress,
+                    remotePort,
+                    ToHexString(
+                        data));
+
                 PrintHexData(
                     "[UDP][" + _serviceName + "] SEND",
                     data);
@@ -350,6 +405,13 @@ namespace VertiportNexus.Services.Communication.UDP
             }
             catch (Exception ex)
             {
+                Log.Error(
+                    ex,
+                    "[UDP][{ServiceName}] Send Failed : Remote={RemoteIp}:{RemotePort}",
+                    _serviceName,
+                    remoteIpAddress,
+                    remotePort);
+
                 Console.WriteLine(
                     "[UDP][" + _serviceName + "] Send Failed : "
                     + ex.Message);
@@ -447,6 +509,26 @@ namespace VertiportNexus.Services.Communication.UDP
         #endregion
 
         #region [Log Methods]
+
+        /// <summary>
+        /// [byte] 배열을 [HEX] 문자열로 변환
+        /// </summary>
+        private string ToHexString(
+            byte[] data)
+        {
+            if (data == null ||
+                data.Length == 0)
+            {
+                return string.Empty;
+            }
+
+            return BitConverter
+                .ToString(
+                    data)
+                .Replace(
+                    "-",
+                    " ");
+        }
 
         /// <summary>
         /// [byte[]] HEX 로그 출력

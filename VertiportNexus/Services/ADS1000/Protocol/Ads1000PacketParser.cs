@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Serilog;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
@@ -81,6 +82,11 @@ namespace VertiportNexus.Services.ADS1000
             if (packet == null ||
                 packet.Length < MIN_PACKET_LENGTH)
             {
+
+                Log.Warning(
+                    "[ADS1000][PARSER] Invalid Packet : Length Too Short, Length={Length}",
+                    packet == null ? 0 : packet.Length);
+
                 result.IsValid = false;
                 result.ErrorMessage = "Packet length is too short";
 
@@ -90,6 +96,9 @@ namespace VertiportNexus.Services.ADS1000
             if (packet[0] != SYNC_0 ||
                 packet[1] != SYNC_1)
             {
+                Log.Warning(
+                    "[ADS1000][PARSER] Invalid Sync");
+
                 result.IsValid = false;
                 result.ErrorMessage = "Invalid Sync";
 
@@ -109,6 +118,11 @@ namespace VertiportNexus.Services.ADS1000
 
             if (packet.Length < expectedLength)
             {
+                Log.Warning(
+                    "[ADS1000][PARSER] Packet Length Mismatch : Expected={Expected}, Actual={Actual}",
+                    expectedLength,
+                    packet.Length);
+
                 result.IsValid = false;
                 result.ErrorMessage =
                     "Packet length mismatch. Expected : "
@@ -138,6 +152,12 @@ namespace VertiportNexus.Services.ADS1000
 
             if (calculatedChecksum != result.Checksum)
             {
+                Log.Warning(
+                    "[ADS1000][PARSER] Checksum Mismatch : Cmd1=0x{Cmd1}, Calculated=0x{Calculated}, Received=0x{Received}",
+                    result.Cmd1.ToString("X2"),
+                    calculatedChecksum.ToString("X2"),
+                    result.Checksum.ToString("X2"));
+
                 result.IsValid = false;
                 result.ErrorMessage =
                     "Checksum mismatch. Calculated : 0x"
@@ -211,10 +231,18 @@ namespace VertiportNexus.Services.ADS1000
                 if (index + 3 >= receivedData.Length)
                     break;
 
+                byte cmd1 = receivedData[index + 2];
+
                 byte dataLength = receivedData[index + 3];
 
                 int packetLength =
                     2 + 1 + 1 + dataLength + 1;
+
+                //Log.Debug(
+                //    "[ADS1000][PARSER] Packet Split : Cmd1=0x{Cmd1}, DataLength={DataLength}, PacketLength={PacketLength}",
+                //    cmd1.ToString("X2"),
+                //    dataLength,
+                //    packetLength);
 
                 // 수신 버퍼 안에 완성 [Packet]이 모두 들어왔는지 확인한다.
                 if (index + packetLength > receivedData.Length)
@@ -354,6 +382,11 @@ namespace VertiportNexus.Services.ADS1000
                 CultureInfo.InvariantCulture,
                 out double encoderValue))
             {
+                Log.Warning(
+                    "[ADS1000][MCB] Encoder Parse Failed : Cmd1=0x{Cmd1}, Text={Text}",
+                    cmd1.ToString("X2"),
+                    text);
+
                 return false;
             }
 
@@ -374,6 +407,14 @@ namespace VertiportNexus.Services.ADS1000
 
             angleValue =
                 encoderValue * 360.0 / motorEncoderResolution;
+
+            Log.Debug(
+                "[ADS1000][MCB] Encoder Parsed : Cmd1=0x{Cmd1}, Text={Text}, Raw={Raw}, Resolution={Resolution}, Angle={Angle:F3}",
+                cmd1.ToString("X2"),
+                text,
+                encoderValue,
+                motorEncoderResolution,
+                angleValue);
 
             return true;
         }
