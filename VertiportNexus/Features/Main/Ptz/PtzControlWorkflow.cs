@@ -1243,7 +1243,7 @@ namespace VertiportNexus.Features.Main.Ptz
                 200;
 
             const int TIMEOUT_MILLISECONDS =
-                20000;
+                300000;
 
             const int REQUIRED_STABLE_COUNT =
                 5;
@@ -1327,11 +1327,31 @@ namespace VertiportNexus.Features.Main.Ptz
                     {
                         return true;
                     }
+
                 }
                 else
                 {
+                    if (stableCount > 0)
+                    {
+                        Console.WriteLine(
+                            "[DEVICE] Home Position Stable Count Reset");
+                    }
+
                     stableCount =
                         0;
+
+                    Console.WriteLine(
+                        "[DEVICE] Home Position Wait Check : "
+                        + "Pan="
+                        + currentPan.ToString("F2")
+                        + ", Tilt="
+                        + currentTilt.ToString("F2")
+                        + ", PanDelta="
+                        + panDelta.ToString("F2")
+                        + ", TiltDelta="
+                        + tiltDelta.ToString("F2")
+                        + ", NearHome="
+                        + isNearHome);
                 }
 
                 previousPan =

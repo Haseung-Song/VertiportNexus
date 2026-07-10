@@ -413,9 +413,15 @@ namespace VertiportNexus.Services.ADS1000
             byte cmd1,
             double degreePerSecond)
         {
+            double motorEncoderResolution =
+                GetMotorEncoderResolution(
+                    cmd1);
+
             int motorSpeed =
                 Convert.ToInt32(
-                    Ads1000Constants.MOTOR_ENCODER_RESOLUTION / 360.0 * degreePerSecond);
+                    motorEncoderResolution
+                    / 360.0
+                    * degreePerSecond);
 
             string commandText =
                 "JV="
@@ -464,9 +470,13 @@ namespace VertiportNexus.Services.ADS1000
                 ClampPositionSpeed(
                     degreePerSecond);
 
+            double motorEncoderResolution =
+                GetMotorEncoderResolution(
+                    cmd1);
+
             int motorSpeed =
                 Convert.ToInt32(
-                    Ads1000Constants.MOTOR_ENCODER_RESOLUTION
+                    motorEncoderResolution
                     / 360.0
                     * positionSpeed);
 
@@ -505,15 +515,19 @@ namespace VertiportNexus.Services.ADS1000
                 ClampPositionSpeed(
                     speed);
 
+            double motorEncoderResolution =
+                GetMotorEncoderResolution(
+                    cmd1);
+
             int motorPosition =
                 Convert.ToInt32(
-                    Ads1000Constants.MOTOR_ENCODER_RESOLUTION
+                    motorEncoderResolution
                     / 360.0
                     * angle);
 
             int motorSpeed =
                 Convert.ToInt32(
-                    Ads1000Constants.MOTOR_ENCODER_RESOLUTION
+                    motorEncoderResolution
                     / 360.0
                     * positionSpeed);
 
@@ -549,15 +563,19 @@ namespace VertiportNexus.Services.ADS1000
                 ClampPositionSpeed(
                     speed);
 
+            double motorEncoderResolution =
+                GetMotorEncoderResolution(
+                    cmd1);
+
             int motorPosition =
                 Convert.ToInt32(
-                    Ads1000Constants.MOTOR_ENCODER_RESOLUTION
+                    motorEncoderResolution
                     / 360.0
                     * angle);
 
             int motorSpeed =
                 Convert.ToInt32(
-                    Ads1000Constants.MOTOR_ENCODER_RESOLUTION
+                    motorEncoderResolution
                     / 360.0
                     * positionSpeed);
 
@@ -574,12 +592,43 @@ namespace VertiportNexus.Services.ADS1000
         }
 
         /// <summary>
+        /// [MCB] 제어 축 기준 모터 엔코더 해상도 조회
+        /// 
+        /// [LA Local Agent]와 동일하게
+        /// [PMOTOR] / [TMOTOR] 해상도를 분리하여 사용한다.
+        /// 
+        /// Pan 360도 회전 오차 보정 시
+        /// Tilt 변환값에 영향을 주지 않도록 축별 Resolution을 분리한다.
+        /// </summary>
+        /// <param name="cmd1">
+        /// 제어 축 Command
+        /// </param>
+        /// <returns>
+        /// 제어 축별 모터 엔코더 해상도
+        /// </returns>
+        private double GetMotorEncoderResolution(
+            byte cmd1)
+        {
+            if (cmd1 == CMD1_PAN)
+            {
+                return Ads1000Constants.PAN_MOTOR_ENCODER_RESOLUTION;
+            }
+
+            if (cmd1 == CMD1_TILT)
+            {
+                return Ads1000Constants.TILT_MOTOR_ENCODER_RESOLUTION;
+            }
+
+            return Ads1000Constants.PAN_MOTOR_ENCODER_RESOLUTION;
+        }
+
+        /// <summary>
         /// [Pan / Tilt] 위치 이동 속도 범위 보정
         /// 
         /// Pan / Tilt Absolute / Relative 위치 이동 Packet 생성 시
         /// 입력된 속도값이 장비 운용 기준 범위를 벗어나지 않도록 보정한다.
         /// 
-        /// UI에서는 최대 속도를 [50 deg/s]로 제한하지만,
+        /// UI에서는 속도 [0 ~ 50 deg/s]를 허용하지만,
         /// 다른 호출 경로에서 직접 속도값이 전달될 수 있으므로
         /// Packet 생성 단계에서도 동일하게 한 번 더 보정한다.
         /// </summary>
@@ -593,7 +642,7 @@ namespace VertiportNexus.Services.ADS1000
             double degreePerSecond)
         {
             const double MIN_SPEED =
-                5;
+                0;
 
             const double MAX_SPEED =
                 50;

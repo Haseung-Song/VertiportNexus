@@ -55,7 +55,8 @@ namespace VertiportNexus.Services.ADS1000
         /// </summary>
         public Ads1000PacketParser()
         {
-            _checksum = new Ads1000Checksum();
+            _checksum =
+                new Ads1000Checksum();
         }
 
         #endregion
@@ -185,6 +186,15 @@ namespace VertiportNexus.Services.ADS1000
                 return parsedPackets;
             }
 
+            //Console.WriteLine(
+            //    "[ADS1000][MCB] ParseAll Received HEX : "
+            //    + BitConverter
+            //        .ToString(
+            //            receivedData)
+            //        .Replace(
+            //            "-",
+            //            " "));
+
             int index = 0;
 
             while (index <= receivedData.Length - MIN_PACKET_LENGTH)
@@ -230,6 +240,7 @@ namespace VertiportNexus.Services.ADS1000
                 index +=
                     packetLength;
             }
+
             return parsedPackets;
         }
 
@@ -253,6 +264,7 @@ namespace VertiportNexus.Services.ADS1000
             {
                 if (TryParseMcbEncoderText(
                     packet.Data,
+                    packet.Cmd1,
                     out double panValue))
                 {
                     packet.HasPanValue = true;
@@ -267,6 +279,7 @@ namespace VertiportNexus.Services.ADS1000
                     packet.PanValue =
                         -panValue;
                 }
+
                 return;
             }
 
@@ -274,11 +287,13 @@ namespace VertiportNexus.Services.ADS1000
             {
                 if (TryParseMcbEncoderText(
                     packet.Data,
+                    packet.Cmd1,
                     out double tiltValue))
                 {
                     packet.HasTiltValue = true;
                     packet.TiltValue = tiltValue;
                 }
+
                 return;
             }
 
@@ -314,6 +329,7 @@ namespace VertiportNexus.Services.ADS1000
         /// </summary>
         private bool TryParseMcbEncoderText(
             byte[] data,
+            byte cmd1,
             out double angleValue)
         {
             angleValue = 0;
@@ -341,15 +357,50 @@ namespace VertiportNexus.Services.ADS1000
                 return false;
             }
 
+            //Console.WriteLine(
+            //    "[ADS1000][MCB] Raw Encoder Value : Cmd1=0x"
+            //    + cmd1.ToString("X2")
+            //    + ", Encoder="
+            //    + encoderValue.ToString(
+            //        CultureInfo.InvariantCulture));
+
             // Encoder 값 => 각도 변환
             // 
-            // 문서 기준:
-            // 위치 = 2^19 / 360 * 각도
-            // 각도 = 위치 * 360 / 2^19
+            // [LA Local Agent]와 동일하게
+            // Pan / Tilt 축별 Resolution을 분리하여 각도를 계산한다.
+            double motorEncoderResolution =
+                GetMotorEncoderResolution(
+                    cmd1);
+
             angleValue =
-                encoderValue * 360.0 / Ads1000Constants.MOTOR_ENCODER_RESOLUTION;
+                encoderValue * 360.0 / motorEncoderResolution;
 
             return true;
+        }
+
+        /// <summary>
+        /// [MCB] 제어 축 기준 모터 엔코더 해상도 조회
+        /// </summary>
+        /// <param name="cmd1">
+        /// 제어 축 Command
+        /// </param>
+        /// <returns>
+        /// 제어 축별 모터 엔코더 해상도
+        /// </returns>
+        private double GetMotorEncoderResolution(
+            byte cmd1)
+        {
+            if (cmd1 == 0x01)
+            {
+                return Ads1000Constants.PAN_MOTOR_ENCODER_RESOLUTION;
+            }
+
+            if (cmd1 == 0x02)
+            {
+                return Ads1000Constants.TILT_MOTOR_ENCODER_RESOLUTION;
+            }
+
+            return Ads1000Constants.PAN_MOTOR_ENCODER_RESOLUTION;
         }
 
         #endregion
