@@ -61,6 +61,40 @@ namespace VertiportNexus.Services.Camera
             500.0;
 
         /// <summary>
+        /// [Tracking] 중배율 Zoom 기준
+        /// 
+        /// 저배율보다 보수적인 Tracking 명령 송신 조건을
+        /// 적용하기 위한 기준값이다.
+        /// </summary>
+        private const double MIDDLE_ZOOM_RATIO =
+            10.0;
+
+        /// <summary>
+        /// [Tracking] 고배율 Zoom 기준
+        /// 
+        /// 작은 Relative 명령도 화면상 크게 보이는 구간으로 판단하여
+        /// 명령 송신 간격 / 최소 송신 각도 / Dead Zone을 보정한다.
+        /// </summary>
+        private const double HIGH_ZOOM_RATIO =
+            20.0;
+
+        /// <summary>
+        /// [Tracking] 중배율 Tracking 명령 처리 제한 시간 [ms]
+        /// </summary>
+        private const double MIDDLE_ZOOM_TRACKING_COMMAND_INTERVAL_MS =
+            700.0;
+
+        /// <summary>
+        /// [Tracking] 고배율 Tracking 명령 처리 제한 시간 [ms]
+        /// 
+        /// 고배율 Zoom 상태에서는 작은 Relative 명령이
+        /// 짧은 간격으로 반복 송신되면 화면상 떨림처럼 보일 수 있으므로,
+        /// 명령 처리 간격을 늘린다.
+        /// </summary>
+        private const double HIGH_ZOOM_TRACKING_COMMAND_INTERVAL_MS =
+            900.0;
+
+        /// <summary>
         /// [Zoom] 최소 배율
         /// </summary>
         private const double MIN_ZOOM_RATIO =
@@ -130,6 +164,56 @@ namespace VertiportNexus.Services.Camera
         private const double MIN_TRACKING_ANGLE_DEGREE =
             0.02;
 
+        /// <summary>
+        /// [Tracking] 중배율 최소 송신 각도 [Degree]
+        /// 
+        /// 중배율 Zoom 상태에서 미세 Relative 명령이
+        /// 반복 송신되는 현상을 줄이기 위해 사용한다.
+        /// </summary>
+        private const double MIDDLE_ZOOM_MIN_TRACKING_ANGLE_DEGREE =
+            0.04;
+
+        /// <summary>
+        /// [Tracking] 고배율 최소 송신 각도 [Degree]
+        /// 
+        /// 고배율 Zoom 상태에서 너무 작은 Relative 명령이 반복 송신되면
+        /// 화면상 떨림처럼 보일 수 있으므로,
+        /// 해당 값 이상 누적되었을 때만 송신한다.
+        /// </summary>
+        private const double HIGH_ZOOM_MIN_TRACKING_ANGLE_DEGREE =
+            0.06;
+
+        /// <summary>
+        /// [Tracking] 고배율 Dead Zone 확대 비율
+        /// 
+        /// 고배율 Zoom 상태에서 중심 근처 미세 추적 명령이 반복되지 않도록
+        /// Pixel Dead Zone을 소폭 확대한다.
+        /// </summary>
+        private const double HIGH_ZOOM_DEAD_ZONE_SCALE =
+            1.4;
+
+        /// <summary>
+        /// [Tracking] 중배율 누적 송신 최대 각도 [Degree]
+        /// 
+        /// 누적된 Tracking 보정 각도가 과도하게 커지는 것을 방지한다.
+        /// </summary>
+        private const double MIDDLE_ZOOM_MAX_COMMAND_ANGLE_DEGREE =
+            0.14;
+
+        /// <summary>
+        /// [Tracking] 고배율 누적 송신 최대 각도 [Degree]
+        /// 
+        /// 고배율 Zoom 상태에서 한 번에 과도한 Relative 명령이 송신되지 않도록 제한한다.
+        /// </summary>
+        private const double HIGH_ZOOM_MAX_COMMAND_ANGLE_DEGREE =
+            0.10;
+
+        /// <summary>
+        /// [Tracking] 기본 누적 송신 최대 각도 [Degree]
+        /// </summary>
+        private const double DEFAULT_MAX_COMMAND_ANGLE_DEGREE =
+            0.20;
+
         #endregion
 
         #region [Fields]
@@ -155,6 +239,22 @@ namespace VertiportNexus.Services.Camera
         /// </summary>
         private readonly TrackingControlStabilizer _trackingControlStabilizer =
             new TrackingControlStabilizer();
+
+        /// <summary>
+        /// [Tracking] 누적 Pan 보정 각도
+        /// 
+        /// 고배율 Zoom 상태에서 너무 작은 Pan Relative 명령이
+        /// 짧게 반복 송신되는 것을 방지하기 위해 사용한다.
+        /// </summary>
+        private double _pendingPanAngleOffset;
+
+        /// <summary>
+        /// [Tracking] 누적 Tilt 보정 각도
+        /// 
+        /// 고배율 Zoom 상태에서 너무 작은 Tilt Relative 명령이
+        /// 짧게 반복 송신되는 것을 방지하기 위해 사용한다.
+        /// </summary>
+        private double _pendingTiltAngleOffset;
 
         #endregion
 
@@ -198,7 +298,12 @@ namespace VertiportNexus.Services.Camera
             DetectionBoundingBox boundingBox,
             double currentZoomPosition)
         {
-            if (!CanProcessTracking())
+            double currentZoomRatio =
+                CalculateZoomRatioByPosition(
+                    currentZoomPosition);
+
+            if (!CanProcessTracking(
+                    currentZoomRatio))
             {
                 return;
             }
@@ -235,14 +340,10 @@ namespace VertiportNexus.Services.Camera
             double errorY =
                 boundingBox.CenterY.Value - frameCenterY;
 
-            double currentZoomRatio =
-                CalculateZoomRatioByPosition(
-                    currentZoomPosition);
-
             if (IsInDeadZone(
-                errorX,
-                errorY,
-                currentZoomRatio))
+                    errorX,
+                    errorY,
+                    currentZoomRatio))
             {
                 HandleTrackingDeadZone();
 
@@ -299,25 +400,9 @@ namespace VertiportNexus.Services.Camera
             _trackingControlStabilizer
                 .Reset();
 
+            ResetPendingTrackingAngle();
+
             StopPtz();
-        }
-
-        /// <summary>
-        /// [AUTO] Dead Zone 진입 처리
-        /// 
-        /// 추적 대상이 중심 허용 범위에 들어온 경우
-        /// 이전 Tracking 필터 값을 초기화한다.
-        /// 
-        /// Relative 이동 명령은 지정 각도 이동 후 장비가 정지하므로,
-        /// Dead Zone 상태에서 매번 Stop 명령을 반복 송신하지 않는다.
-        /// </summary>
-        private void HandleTrackingDeadZone()
-        {
-            Console.WriteLine(
-                "[TRACKING][AUTO] Stop : Target is in Dead Zone");
-
-            _trackingControlStabilizer
-                .Reset();
         }
 
         #endregion
@@ -328,12 +413,16 @@ namespace VertiportNexus.Services.Camera
         /// 자동 추적 처리 가능 여부 확인
         /// 
         /// [Detect Continue]가 짧은 주기로 반복 수신될 수 있으므로,
-        /// 지정 시간 이내의 중복 추적 명령은 무시한다.
+        /// 현재 Zoom 배율 기준 제한 시간 이내의 중복 추적 명령은 무시한다.
         /// </summary>
+        /// <param name="currentZoomRatio">
+        /// 현재 Zoom 배율
+        /// </param>
         /// <returns>
         /// 자동 추적 처리 가능 여부
         /// </returns>
-        private bool CanProcessTracking()
+        private bool CanProcessTracking(
+            double currentZoomRatio)
         {
             DateTime currentTime =
                 DateTime.Now;
@@ -342,8 +431,12 @@ namespace VertiportNexus.Services.Camera
                 (currentTime - _lastTrackingCommandTime)
                     .TotalMilliseconds;
 
+            double trackingCommandIntervalMs =
+                GetTrackingCommandIntervalMs(
+                    currentZoomRatio);
+
             if (elapsedMilliseconds <
-                TRACKING_COMMAND_INTERVAL_MS)
+                trackingCommandIntervalMs)
             {
                 Console.WriteLine(
                     "[TRACKING][AUTO] Skip : Tracking Interval");
@@ -358,13 +451,41 @@ namespace VertiportNexus.Services.Camera
         }
 
         /// <summary>
+        /// [Tracking] Tracking 명령 처리 제한 시간 조회
+        /// 
+        /// 고배율 Zoom 상태에서는 작은 Relative 이동도 화면상 크게 보이므로,
+        /// 명령 처리 간격을 늘려 짧은 이동 명령이 반복 송신되는 현상을 줄인다.
+        /// </summary>
+        /// <param name="currentZoomRatio">
+        /// 현재 Zoom 배율
+        /// </param>
+        /// <returns>
+        /// Tracking 명령 처리 제한 시간 [ms]
+        /// </returns>
+        private double GetTrackingCommandIntervalMs(
+            double currentZoomRatio)
+        {
+            if (currentZoomRatio >= HIGH_ZOOM_RATIO)
+            {
+                return HIGH_ZOOM_TRACKING_COMMAND_INTERVAL_MS;
+            }
+
+            if (currentZoomRatio >= MIDDLE_ZOOM_RATIO)
+            {
+                return MIDDLE_ZOOM_TRACKING_COMMAND_INTERVAL_MS;
+            }
+
+            return TRACKING_COMMAND_INTERVAL_MS;
+        }
+
+        /// <summary>
         /// [Tracking] Dead Zone 여부 확인
         /// 
         /// 탐지 객체 중심점이 영상 중심점 기준 Dead Zone 내부에 있는지 확인한다.
         /// 
-        /// Pixel Dead Zone은 Tracking 시작 여부를 판단하는 1차 조건이므로,
-        /// Zoom 배율에 따라 과도하게 확대하지 않는다.
-        /// 고배율 떨림 보정은 [TrackingControlStabilizer]의 각도 필터에서 처리한다.
+        /// 고배율 Zoom 상태에서는 중심 근처 미세 이동 명령이 반복될 경우
+        /// 화면상 떨림으로 보일 수 있으므로,
+        /// Pixel Dead Zone을 소폭 확대한다.
         /// </summary>
         /// <param name="errorX">
         /// 영상 중심 기준 X축 Pixel 오차
@@ -383,8 +504,39 @@ namespace VertiportNexus.Services.Camera
             double errorY,
             double currentZoomRatio)
         {
-            return Math.Abs(errorX) <= DEAD_ZONE_X_PIXEL &&
-                   Math.Abs(errorY) <= DEAD_ZONE_Y_PIXEL;
+            double deadZoneScale =
+                currentZoomRatio >= HIGH_ZOOM_RATIO
+                    ? HIGH_ZOOM_DEAD_ZONE_SCALE
+                    : 1.0;
+
+            double deadZoneX =
+                DEAD_ZONE_X_PIXEL * deadZoneScale;
+
+            double deadZoneY =
+                DEAD_ZONE_Y_PIXEL * deadZoneScale;
+
+            return Math.Abs(errorX) <= deadZoneX &&
+                   Math.Abs(errorY) <= deadZoneY;
+        }
+
+        /// <summary>
+        /// [AUTO] Dead Zone 진입 처리
+        /// 
+        /// 추적 대상이 중심 허용 범위에 들어온 경우
+        /// 이전 Tracking 필터 값과 누적 보정 각도를 초기화한다.
+        /// 
+        /// Relative 이동 명령은 지정 각도 이동 후 장비가 정지하므로,
+        /// Dead Zone 상태에서 매번 Stop 명령을 반복 송신하지 않는다.
+        /// </summary>
+        private void HandleTrackingDeadZone()
+        {
+            Console.WriteLine(
+                "[TRACKING][AUTO] Stop : Target is in Dead Zone");
+
+            _trackingControlStabilizer
+                .Reset();
+
+            ResetPendingTrackingAngle();
         }
 
         #endregion
@@ -453,6 +605,7 @@ namespace VertiportNexus.Services.Camera
             {
                 return TELE_HORIZONTAL_FOV_DEGREE;
             }
+
             return horizontalFov;
         }
 
@@ -488,6 +641,7 @@ namespace VertiportNexus.Services.Camera
             {
                 return TELE_VERTICAL_FOV_DEGREE;
             }
+
             return verticalFov;
         }
 
@@ -537,6 +691,196 @@ namespace VertiportNexus.Services.Camera
         }
 
         /// <summary>
+        /// 최소 Tracking 명령 각도 조회
+        /// 
+        /// 고배율 Zoom 상태에서는 작은 Relative 명령이 반복될 경우
+        /// 화면상 떨림으로 보일 수 있으므로,
+        /// 최소 송신 각도를 높여 불필요한 미세 이동을 줄인다.
+        /// </summary>
+        /// <param name="currentZoomRatio">
+        /// 현재 Zoom 배율
+        /// </param>
+        /// <returns>
+        /// 최소 Tracking 명령 각도 [Degree]
+        /// </returns>
+        private double GetMinimumTrackingAngleDegree(
+            double currentZoomRatio)
+        {
+            if (currentZoomRatio >= HIGH_ZOOM_RATIO)
+            {
+                return HIGH_ZOOM_MIN_TRACKING_ANGLE_DEGREE;
+            }
+
+            if (currentZoomRatio >= MIDDLE_ZOOM_RATIO)
+            {
+                return MIDDLE_ZOOM_MIN_TRACKING_ANGLE_DEGREE;
+            }
+
+            return MIN_TRACKING_ANGLE_DEGREE;
+        }
+
+        /// <summary>
+        /// 최대 Tracking 명령 각도 조회
+        /// 
+        /// 누적된 보정 각도가 과도하게 커져
+        /// 한 번에 큰 Relative 이동 명령이 송신되지 않도록 제한한다.
+        /// </summary>
+        /// <param name="currentZoomRatio">
+        /// 현재 Zoom 배율
+        /// </param>
+        /// <returns>
+        /// 최대 Tracking 명령 각도 [Degree]
+        /// </returns>
+        private double GetMaximumTrackingCommandAngleDegree(
+            double currentZoomRatio)
+        {
+            if (currentZoomRatio >= HIGH_ZOOM_RATIO)
+            {
+                return HIGH_ZOOM_MAX_COMMAND_ANGLE_DEGREE;
+            }
+
+            if (currentZoomRatio >= MIDDLE_ZOOM_RATIO)
+            {
+                return MIDDLE_ZOOM_MAX_COMMAND_ANGLE_DEGREE;
+            }
+
+            return DEFAULT_MAX_COMMAND_ANGLE_DEGREE;
+        }
+
+        /// <summary>
+        /// Tracking 송신 각도 생성
+        /// 
+        /// 안정화된 보정 각도를 바로 송신하지 않고,
+        /// 최소 송신 각도에 도달할 때까지 누적한다.
+        /// 
+        /// 이를 통해 고배율 Zoom 상태에서
+        /// 너무 짧은 Relative 명령이 반복 송신되는 현상을 줄인다.
+        /// </summary>
+        /// <param name="stableAngleOffset">
+        /// 안정화된 보정 각도
+        /// </param>
+        /// <param name="pendingAngleOffset">
+        /// 누적 보정 각도
+        /// </param>
+        /// <param name="minimumTrackingAngleDegree">
+        /// 최소 송신 각도
+        /// </param>
+        /// <param name="maximumTrackingCommandAngleDegree">
+        /// 최대 송신 각도
+        /// </param>
+        /// <param name="axisName">
+        /// 축 이름
+        /// </param>
+        /// <returns>
+        /// 실제 송신할 보정 각도
+        /// </returns>
+        private double CreateTrackingCommandAngle(
+            double stableAngleOffset,
+            ref double pendingAngleOffset,
+            double minimumTrackingAngleDegree,
+            double maximumTrackingCommandAngleDegree,
+            string axisName)
+        {
+            if (Math.Abs(stableAngleOffset) <= 0.0)
+            {
+                return 0.0;
+            }
+
+            if (IsDirectionChanged(
+                    pendingAngleOffset,
+                    stableAngleOffset))
+            {
+                pendingAngleOffset =
+                    0.0;
+
+                Console.WriteLine(
+                    "[TRACKING][AUTO] Pending "
+                    + axisName
+                    + " Reset : Direction Changed");
+            }
+
+            pendingAngleOffset +=
+                stableAngleOffset;
+
+            Console.WriteLine(
+                "[TRACKING][AUTO] Pending "
+                + axisName
+                + " : "
+                + pendingAngleOffset.ToString("F4"));
+
+            if (Math.Abs(pendingAngleOffset) <
+                minimumTrackingAngleDegree)
+            {
+                return 0.0;
+            }
+
+            double commandAngleOffset =
+                ClampByAbsoluteValue(
+                    pendingAngleOffset,
+                    maximumTrackingCommandAngleDegree);
+
+            pendingAngleOffset =
+                0.0;
+
+            return commandAngleOffset;
+        }
+
+        /// <summary>
+        /// 방향 변경 여부 조회
+        /// </summary>
+        /// <param name="previousValue">
+        /// 이전 누적값
+        /// </param>
+        /// <param name="currentValue">
+        /// 현재 보정값
+        /// </param>
+        /// <returns>
+        /// 방향 변경 여부
+        /// </returns>
+        private bool IsDirectionChanged(
+            double previousValue,
+            double currentValue)
+        {
+            if (Math.Abs(previousValue) <= 0.0 ||
+                Math.Abs(currentValue) <= 0.0)
+            {
+                return false;
+            }
+
+            return Math.Sign(previousValue) !=
+                   Math.Sign(currentValue);
+        }
+
+        /// <summary>
+        /// 절대값 기준 범위 보정
+        /// </summary>
+        /// <param name="value">
+        /// 입력값
+        /// </param>
+        /// <param name="maxAbsoluteValue">
+        /// 최대 절대값
+        /// </param>
+        /// <returns>
+        /// 보정된 값
+        /// </returns>
+        private double ClampByAbsoluteValue(
+            double value,
+            double maxAbsoluteValue)
+        {
+            if (value > maxAbsoluteValue)
+            {
+                return maxAbsoluteValue;
+            }
+
+            if (value < -maxAbsoluteValue)
+            {
+                return -maxAbsoluteValue;
+            }
+
+            return value;
+        }
+
+        /// <summary>
         /// 숫자 범위 보정
         /// </summary>
         private double Clamp(
@@ -553,6 +897,7 @@ namespace VertiportNexus.Services.Camera
             {
                 return max;
             }
+
             return value;
         }
 
@@ -565,6 +910,7 @@ namespace VertiportNexus.Services.Camera
         /// 
         /// [Pixel] 오차를 화각 기준 [Degree]로 변환한 값을
         /// 바로 송신하지 않고, Tracking 안정화 처리를 적용한 뒤
+        /// 최소 송신 각도까지 누적하여
         /// [Pan] / [Tilt] Relative 이동 명령으로 송신한다.
         /// 
         /// Relative 이동은 지정 각도만큼 이동 후 장비가 정지하므로,
@@ -604,39 +950,90 @@ namespace VertiportNexus.Services.Camera
                 stableTiltAngleOffset,
                 currentZoomRatio);
 
+            double minimumTrackingAngleDegree =
+                GetMinimumTrackingAngleDegree(
+                    currentZoomRatio);
+
+            double maximumTrackingCommandAngleDegree =
+                GetMaximumTrackingCommandAngleDegree(
+                    currentZoomRatio);
+
+            Console.WriteLine(
+                "[TRACKING][AUTO] Minimum Angle : "
+                + minimumTrackingAngleDegree.ToString("F4"));
+
+            Console.WriteLine(
+                "[TRACKING][AUTO] Maximum Angle : "
+                + maximumTrackingCommandAngleDegree.ToString("F4"));
+
+            double panCommandAngleOffset =
+                CreateTrackingCommandAngle(
+                    stablePanAngleOffset,
+                    ref _pendingPanAngleOffset,
+                    minimumTrackingAngleDegree,
+                    maximumTrackingCommandAngleDegree,
+                    "Pan");
+
+            double tiltCommandAngleOffset =
+                CreateTrackingCommandAngle(
+                    stableTiltAngleOffset,
+                    ref _pendingTiltAngleOffset,
+                    minimumTrackingAngleDegree,
+                    maximumTrackingCommandAngleDegree,
+                    "Tilt");
+
             bool hasPanMove =
                 Math.Abs(
-                    stablePanAngleOffset)
-                >= MIN_TRACKING_ANGLE_DEGREE;
+                    panCommandAngleOffset)
+                >= minimumTrackingAngleDegree;
 
             bool hasTiltMove =
                 Math.Abs(
-                    stableTiltAngleOffset)
-                >= MIN_TRACKING_ANGLE_DEGREE;
+                    tiltCommandAngleOffset)
+                >= minimumTrackingAngleDegree;
 
             if (!hasPanMove &&
                 !hasTiltMove)
             {
                 Console.WriteLine(
-                    "[TRACKING][AUTO] Skip : Angle Offset is too small");
+                    "[TRACKING][AUTO] Skip : Accumulated Angle Offset is too small");
 
                 return;
             }
 
             if (hasPanMove)
             {
+                Console.WriteLine(
+                    "[TRACKING][AUTO] Send Pan : "
+                    + panCommandAngleOffset.ToString("F4"));
+
                 _ads1000CameraControlService
                     .MovePanRelative(
-                        stablePanAngleOffset);
+                        panCommandAngleOffset);
             }
 
             if (hasTiltMove)
             {
+                Console.WriteLine(
+                    "[TRACKING][AUTO] Send Tilt : "
+                    + tiltCommandAngleOffset.ToString("F4"));
+
                 _ads1000CameraControlService
                     .MoveTiltRelative(
-                        stableTiltAngleOffset);
+                        tiltCommandAngleOffset);
             }
+        }
 
+        /// <summary>
+        /// [Tracking] 누적 보정 각도 초기화
+        /// </summary>
+        private void ResetPendingTrackingAngle()
+        {
+            _pendingPanAngleOffset =
+                0.0;
+
+            _pendingTiltAngleOffset =
+                0.0;
         }
 
         /// <summary>

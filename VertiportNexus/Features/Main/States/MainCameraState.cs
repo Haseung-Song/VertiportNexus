@@ -526,17 +526,31 @@ namespace VertiportNexus.ViewModels.Main.States
         #region [UI Zero Convert Methods]
 
         /// <summary>
-        /// UI Zero 기준 [Pan] 현재 위치 계산
+        /// [Pan] UI 기준 현재 Pan 각도 조회
+        /// 
+        /// 장비 상태값에서 UI Zero Offset을 제외한 뒤,
+        /// [0 ~ 360] 범위로 정규화하고 Protocol 표시 단위로 반올림한다.
+        /// 
+        /// 반올림 결과가 360.00이 되는 경우에도
+        /// Pan 기준 360도는 0도와 동일한 위치이므로,
+        /// 최종 표시값을 다시 정규화하여 0.00으로 보정한다.
         /// </summary>
         /// <returns>
-        /// UI Zero 기준 [Pan] 위치값
+        /// UI 기준 현재 Pan 각도
         /// </returns>
         internal double GetUiCurrentPan()
         {
-            return RoundAngleToProtocolScale(
+            double normalizedPan =
                 CameraCommandService.NormalizePanStatus(
                     CurrentPan
-                    - PanUiZeroOffset));
+                    - PanUiZeroOffset);
+
+            double roundedPan =
+                RoundAngleToProtocolScale(
+                    normalizedPan);
+
+            return CameraCommandService.NormalizePanStatus(
+                roundedPan);
         }
 
         /// <summary>
@@ -547,9 +561,20 @@ namespace VertiportNexus.ViewModels.Main.States
         /// </returns>
         internal double GetUiCurrentTilt()
         {
-            return RoundAngleToProtocolScale(
-                CurrentTilt
-                - TiltUiZeroOffset);
+            double roundedTilt =
+                RoundAngleToProtocolScale(
+                    CurrentTilt
+                    - TiltUiZeroOffset);
+
+            const double ZERO_EPSILON =
+                0.005;
+
+            if (Math.Abs(roundedTilt) <= ZERO_EPSILON)
+            {
+                return 0.0;
+            }
+
+            return roundedTilt;
         }
 
         /// <summary>
