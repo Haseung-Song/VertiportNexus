@@ -11,6 +11,8 @@
         Background="#20242A"
         Focusable="True"
         Loaded="Window_Loaded"
+        Deactivated="Window_Deactivated"
+        LostKeyboardFocus="Window_LostKeyboardFocus"
         PreviewKeyDown="Window_PreviewKeyDown"
         PreviewKeyUp="Window_PreviewKeyUp">
 

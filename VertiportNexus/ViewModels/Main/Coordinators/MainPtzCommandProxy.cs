@@ -184,19 +184,14 @@ namespace VertiportNexus.ViewModels.Main.Coordinators
                 return;
             }
 
-            if (!_isPanTiltKeyboardMoveActive)
-            {
-                return;
-            }
-
-            _isPanTiltKeyboardMoveActive =
-                false;
-
             bool isMoveAvailable =
                 IsPtzKeyboardMoveAvailable();
 
             if (!isMoveAvailable)
             {
+                _isPanTiltKeyboardMoveActive =
+                    false;
+
                 return;
             }
 
@@ -205,6 +200,22 @@ namespace VertiportNexus.ViewModels.Main.Coordinators
                     .HandlePanTiltKeyUp(
                         key,
                         isMoveAvailable));
+        }
+
+        /// <summary>
+        /// [Keyboard] 방향키 입력 상태 초기화 및 Pan / Tilt 연속 이동 정지
+        /// 
+        /// KeyUp 누락 / Window Focus 이탈 / 동시 키 해제 상황에서
+        /// 장비가 한 방향으로 계속 이동하는 현상을 방지하기 위해 호출한다.
+        /// </summary>
+        internal void ResetKeyboardPanTiltState()
+        {
+            _isPanTiltKeyboardMoveActive =
+                false;
+
+            Apply(
+                _coordinator
+                    .ResetKeyboardPanTiltState());
         }
 
         /// <summary>

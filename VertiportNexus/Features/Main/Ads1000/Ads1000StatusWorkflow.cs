@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Serilog;
+using System;
+using System.Threading.Tasks;
 using System.Windows;
 using VertiportNexus.Models.ADS1000;
 using VertiportNexus.Services.Command;
@@ -67,46 +69,116 @@ namespace VertiportNexus.Features.Main.ADS1000
             byte[] packet,
             Action<Ads1000StatusApplyControllerResult> applyStatusResult)
         {
-            Ads1000ReceiveControllerResult receiveResult =
-                _context
-                    .Ads1000ReceiveController
-                    .ProcessReceivedPacket(
+            try
+            {
+                if (packet == null ||
+                    packet.Length == 0)
+                {
+                    return;
+                }
+
+                if (_context == null ||
+                    _context.Ads1000ReceiveController == null ||
+                    _context.Ads1000StatusApplyController == null)
+                {
+                    Log.Warning(
+                        "[ADS1000][{DeviceName}] Receive Skip : Context Not Ready",
+                        deviceName);
+
+                    return;
+                }
+
+                Ads1000ReceiveControllerResult receiveResult =
+                    _context
+                        .Ads1000ReceiveController
+                        .ProcessReceivedPacket(
+                            deviceName,
+                            packet);
+
+                if (receiveResult == null)
+                {
+                    return;
+                }
+
+                if (!receiveResult.IsSuccess)
+                {
+                    Log.Warning(
+                        "[ADS1000][{DeviceName}] Receive Failed : {Message}",
                         deviceName,
-                        packet);
+                        receiveResult.Message);
 
-            if (!receiveResult.IsSuccess)
-            {
-                Console.WriteLine(
-                    "[" + deviceName + "][RECEIVE] " + receiveResult.Message);
+                    return;
+                }
 
-                return;
-            }
+                if (receiveResult.ParsedPackets == null)
+                {
+                    return;
+                }
 
-            if (receiveResult.ParsedPackets == null)
-            {
-                return;
-            }
+                System.Windows.Threading.Dispatcher dispatcher =
+                    Application.Current?.Dispatcher;
 
-            Application
-                .Current
-                .Dispatcher
-                .BeginInvoke(
+                if (dispatcher == null ||
+                    dispatcher.HasShutdownStarted ||
+                    dispatcher.HasShutdownFinished)
+                {
+                    return;
+                }
+
+                dispatcher.BeginInvoke(
                     new Action(() =>
                     {
-                        foreach (Ads1000ParsedPacket parsedPacket in receiveResult.ParsedPackets)
+                        try
                         {
-                            Ads1000StatusApplyControllerResult applyResult =
-                                _context
-                                    .Ads1000StatusApplyController
-                                    .Apply(
-                                        parsedPacket);
+                            if (dispatcher.HasShutdownStarted ||
+                                dispatcher.HasShutdownFinished)
+                            {
+                                return;
+                            }
 
-                            applyStatusResult
-                                ?.Invoke(
-                                    applyResult);
+                            foreach (Ads1000ParsedPacket parsedPacket in receiveResult.ParsedPackets)
+                            {
+                                if (parsedPacket == null)
+                                {
+                                    continue;
+                                }
+
+                                Ads1000StatusApplyControllerResult applyResult =
+                                    _context
+                                        .Ads1000StatusApplyController
+                                        .Apply(
+                                            parsedPacket);
+
+                                applyStatusResult
+                                    ?.Invoke(
+                                        applyResult);
+                            }
                         }
-
+                        catch (InvalidOperationException)
+                        {
+                            // 프로그램 종료 중 Dispatcher 작업이 닫힌 경우 무시한다.
+                        }
+                        catch (TaskCanceledException)
+                        {
+                            // 프로그램 종료 중 Dispatcher 작업이 취소된 경우 무시한다.
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Error(
+                                ex,
+                                "[ADS1000][{DeviceName}] Status Apply Failed",
+                                deviceName);
+                        }
                     }));
+            }
+            catch (Exception ex)
+            {
+                Log.Error(
+                    ex,
+                    "[ADS1000][{DeviceName}] Receive Process Failed",
+                    deviceName);
+            }
+
         }
 
         #endregion

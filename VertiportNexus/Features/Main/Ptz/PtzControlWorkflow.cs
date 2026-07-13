@@ -199,6 +199,10 @@ namespace VertiportNexus.Features.Main.Ptz
 
         /// <summary>
         /// [Keyboard] 방향키 입력 처리
+        /// 
+        /// KeyDown / KeyUp 이벤트 누락 또는 동시 키 해제 시 상태가 꼬이지 않도록
+        /// 이벤트 값만 신뢰하지 않고 현재 실제 Keyboard 입력 상태를 기준으로
+        /// Pan / Tilt 이동 상태를 다시 계산한다.
         /// </summary>
         /// <param name="key">
         /// 입력된 키
@@ -213,35 +217,21 @@ namespace VertiportNexus.Features.Main.Ptz
             Key key,
             bool isMoveAvailable)
         {
+            if (!IsPanTiltKeyboardKey(
+                    key))
+            {
+                return PtzControlWorkflowResult.Ignored(
+                    string.Empty);
+            }
+
             _context.KeyboardPtzController
                 .HandleKeyDown();
 
-            switch (key)
-            {
-                case Key.Left:
-                    _isKeyboardPanLeftPressed =
-                        true;
-                    break;
+            SynchronizeKeyboardPanTiltPressedState();
 
-                case Key.Right:
-                    _isKeyboardPanRightPressed =
-                        true;
-                    break;
-
-                case Key.Up:
-                    _isKeyboardTiltUpPressed =
-                        true;
-                    break;
-
-                case Key.Down:
-                    _isKeyboardTiltDownPressed =
-                        true;
-                    break;
-
-                default:
-                    return PtzControlWorkflowResult.Ignored(
-                        string.Empty);
-            }
+            SetKeyboardPanTiltPressedState(
+                key,
+                true);
 
             return UpdateKeyboardPanTiltMove(
                 isMoveAvailable);
@@ -249,6 +239,11 @@ namespace VertiportNexus.Features.Main.Ptz
 
         /// <summary>
         /// [Keyboard] 방향키 해제 처리
+        /// 
+        /// 대각선 이동 중 두 방향키를 동시에 해제하는 경우
+        /// 일부 KeyUp 이벤트가 늦게 들어오거나 누락될 수 있으므로,
+        /// KeyUp 이벤트의 Key 값만 기준으로 상태를 변경하지 않고
+        /// 현재 실제 Keyboard 입력 상태를 기준으로 전체 축을 다시 계산한다.
         /// </summary>
         /// <param name="key">
         /// 해제된 키
@@ -263,44 +258,140 @@ namespace VertiportNexus.Features.Main.Ptz
             Key key,
             bool isMoveAvailable)
         {
+            if (!IsPanTiltKeyboardKey(
+                    key))
+            {
+                return PtzControlWorkflowResult.Ignored(
+                    string.Empty);
+            }
+
             _context.KeyboardPtzController
                 .HandleKeyUp();
 
+            SynchronizeKeyboardPanTiltPressedState();
+
+            SetKeyboardPanTiltPressedState(
+                key,
+                false);
+
+            return UpdateKeyboardPanTiltMove(
+                isMoveAvailable);
+        }
+
+        /// <summary>
+        /// [Keyboard] Pan / Tilt 방향키 여부 확인
+        /// </summary>
+        /// <param name="key">
+        /// 입력된 키
+        /// </param>
+        /// <returns>
+        /// Pan / Tilt 방향키 여부
+        /// </returns>
+        private bool IsPanTiltKeyboardKey(
+            Key key)
+        {
+            return key == Key.Left ||
+                   key == Key.Right ||
+                   key == Key.Up ||
+                   key == Key.Down;
+        }
+
+        /// <summary>
+        /// [Keyboard] 이벤트 기준 방향키 입력 상태 반영
+        /// 
+        /// PreviewKeyUp 처리 시점에 Keyboard.IsKeyDown 값이 늦게 갱신되거나,
+        /// 동시 키 해제 중 일부 KeyUp 이벤트 순서가 밀리는 경우를 보정하기 위해
+        /// 현재 이벤트로 들어온 키 상태를 명시적으로 한 번 더 반영한다.
+        /// </summary>
+        /// <param name="key">
+        /// 입력 / 해제된 키
+        /// </param>
+        /// <param name="isPressed">
+        /// 입력 상태 여부
+        /// </param>
+        private void SetKeyboardPanTiltPressedState(
+            Key key,
+            bool isPressed)
+        {
             switch (key)
             {
                 case Key.Left:
                     _isKeyboardPanLeftPressed =
-                        false;
-                    StopPanMove();
-                    return UpdateKeyboardTiltMove(
-                        isMoveAvailable);
+                        isPressed;
+                    break;
 
                 case Key.Right:
                     _isKeyboardPanRightPressed =
-                        false;
-                    StopPanMove();
-                    return UpdateKeyboardTiltMove(
-                        isMoveAvailable);
+                        isPressed;
+                    break;
 
                 case Key.Up:
                     _isKeyboardTiltUpPressed =
-                        false;
-                    StopTiltMove();
-                    return UpdateKeyboardPanMove(
-                        isMoveAvailable);
+                        isPressed;
+                    break;
 
                 case Key.Down:
                     _isKeyboardTiltDownPressed =
-                        false;
-                    StopTiltMove();
-                    return UpdateKeyboardPanMove(
-                        isMoveAvailable);
-
-                default:
-                    return PtzControlWorkflowResult.Ignored(
-                        string.Empty);
+                        isPressed;
+                    break;
             }
 
+        }
+
+        /// <summary>
+        /// [Keyboard] 현재 실제 방향키 입력 상태 동기화
+        /// 
+        /// WPF KeyDown / KeyUp 이벤트 순서나 Focus 상태에 따라
+        /// 내부 입력 상태가 남는 현상을 방지하기 위해,
+        /// 매 입력 처리 시 Keyboard.IsKeyDown 기준으로 상태를 재동기화한다.
+        /// </summary>
+        private void SynchronizeKeyboardPanTiltPressedState()
+        {
+            _isKeyboardPanLeftPressed =
+                Keyboard.IsKeyDown(
+                    Key.Left);
+
+            _isKeyboardPanRightPressed =
+                Keyboard.IsKeyDown(
+                    Key.Right);
+
+            _isKeyboardTiltUpPressed =
+                Keyboard.IsKeyDown(
+                    Key.Up);
+
+            _isKeyboardTiltDownPressed =
+                Keyboard.IsKeyDown(
+                    Key.Down);
+
+            Log.Debug(
+                "[PTZ][KEYBOARD] Pressed State : Left={Left}, Right={Right}, Up={Up}, Down={Down}",
+                _isKeyboardPanLeftPressed,
+                _isKeyboardPanRightPressed,
+                _isKeyboardTiltUpPressed,
+                _isKeyboardTiltDownPressed);
+        }
+
+        /// <summary>
+        /// [Keyboard] Pan / Tilt 입력 상태 초기화 및 연속 이동 정지
+        /// 
+        /// 창 Focus 변경 / 제어 비활성화 / KeyUp 누락 상황에서
+        /// 내부 Key 상태가 남아 장비가 계속 이동하는 현상을 방지한다.
+        /// </summary>
+        internal PtzControlWorkflowResult ResetKeyboardPanTiltState()
+        {
+            _isKeyboardPanLeftPressed =
+                false;
+
+            _isKeyboardPanRightPressed =
+                false;
+
+            _isKeyboardTiltUpPressed =
+                false;
+
+            _isKeyboardTiltDownPressed =
+                false;
+
+            return StopContinuousMove();
         }
 
         /// <summary>
@@ -317,6 +408,8 @@ namespace VertiportNexus.Features.Main.Ptz
         {
             if (!isMoveAvailable)
             {
+                ResetKeyboardPanTiltState();
+
                 return PtzControlWorkflowResult.Ignored(
                     string.Empty);
             }
@@ -358,13 +451,32 @@ namespace VertiportNexus.Features.Main.Ptz
             if (_isKeyboardPanLeftPressed &&
                 !_isKeyboardPanRightPressed)
             {
+                if (_isPanContinuousMoving &&
+                    _currentPanContinuousMoveDirection == PanTiltContinuousMoveDirection.PanLeft)
+                {
+                    return PtzControlWorkflowResult.Ignored(
+                        string.Empty);
+                }
+
                 return StartPanLeftMove();
             }
 
             if (_isKeyboardPanRightPressed &&
                 !_isKeyboardPanLeftPressed)
             {
+                if (_isPanContinuousMoving &&
+                    _currentPanContinuousMoveDirection == PanTiltContinuousMoveDirection.PanRight)
+                {
+                    return PtzControlWorkflowResult.Ignored(
+                        string.Empty);
+                }
+
                 return StartPanRightMove();
+            }
+
+            if (_isPanContinuousMoving)
+            {
+                return StopPanMove();
             }
 
             return PtzControlWorkflowResult.Ignored(
@@ -392,13 +504,32 @@ namespace VertiportNexus.Features.Main.Ptz
             if (_isKeyboardTiltUpPressed &&
                 !_isKeyboardTiltDownPressed)
             {
+                if (_isTiltContinuousMoving &&
+                    _currentTiltContinuousMoveDirection == PanTiltContinuousMoveDirection.TiltUp)
+                {
+                    return PtzControlWorkflowResult.Ignored(
+                        string.Empty);
+                }
+
                 return StartTiltUpMove();
             }
 
             if (_isKeyboardTiltDownPressed &&
                 !_isKeyboardTiltUpPressed)
             {
+                if (_isTiltContinuousMoving &&
+                    _currentTiltContinuousMoveDirection == PanTiltContinuousMoveDirection.TiltDown)
+                {
+                    return PtzControlWorkflowResult.Ignored(
+                        string.Empty);
+                }
+
                 return StartTiltDownMove();
+            }
+
+            if (_isTiltContinuousMoving)
+            {
+                return StopTiltMove();
             }
 
             return PtzControlWorkflowResult.Ignored(
@@ -1386,6 +1517,7 @@ namespace VertiportNexus.Features.Main.Ptz
                             tiltDelta,
                             isNearHome);
                     }
+
                 }
 
                 previousPan =

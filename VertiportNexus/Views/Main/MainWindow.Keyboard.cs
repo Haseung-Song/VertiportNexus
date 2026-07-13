@@ -75,11 +75,6 @@ namespace VertiportNexus.Views.Main
             object sender,
             KeyEventArgs e)
         {
-            if (IsTextBoxKeyboardFocus())
-            {
-                return;
-            }
-
             if (!IsPanTiltDirectionKey(
                 e.Key))
             {
@@ -92,6 +87,36 @@ namespace VertiportNexus.Views.Main
 
             e.Handled =
                 true;
+        }
+
+        /// <summary>
+        /// [Window] Focus 이탈 처리
+        /// 
+        /// 방향키를 누른 상태에서 Window Focus가 빠지면
+        /// KeyUp 이벤트가 전달되지 않을 수 있으므로
+        /// Keyboard PTZ 상태를 강제로 초기화한다.
+        /// </summary>
+        private void Window_Deactivated(
+            object sender,
+            System.EventArgs e)
+        {
+            _viewModel
+                .ResetKeyboardPanTiltState();
+        }
+
+        /// <summary>
+        /// [Window] Keyboard Focus 이탈 처리
+        /// 
+        /// TextBox / Button 등 다른 컨트롤로 Focus가 이동하면서
+        /// KeyUp 이벤트가 누락되는 경우를 대비하여
+        /// Keyboard PTZ 상태를 강제로 초기화한다.
+        /// </summary>
+        private void Window_LostKeyboardFocus(
+            object sender,
+            KeyboardFocusChangedEventArgs e)
+        {
+            _viewModel
+                .ResetKeyboardPanTiltState();
         }
 
         /// <summary>

@@ -1363,6 +1363,9 @@ namespace VertiportNexus.ViewModels.Main
         {
             if (!IsManualPanTiltControlEnabled)
             {
+                _ptzCommandProxy
+                    .ResetKeyboardPanTiltState();
+
                 return;
             }
 
@@ -1373,6 +1376,11 @@ namespace VertiportNexus.ViewModels.Main
 
         /// <summary>
         /// [Keyboard] 방향키 해제 처리
+        /// 
+        /// 대각선 입력 상태에서 두 방향키를 거의 동시에 해제하면
+        /// 일부 KeyUp 이벤트가 누락되거나 순서가 밀릴 수 있으므로,
+        /// 일반 KeyUp 처리 후 한 번 더 현재 Keyboard 상태 기준으로
+        /// 이동 상태를 재계산한다.
         /// </summary>
         /// <param name="key">
         /// 해제된 키
@@ -1383,6 +1391,43 @@ namespace VertiportNexus.ViewModels.Main
             _ptzCommandProxy
                 .HandlePanTiltKeyUp(
                     key);
+
+            System.Windows.Threading.Dispatcher dispatcher =
+                App.Current?.Dispatcher;
+
+            if (dispatcher == null ||
+                dispatcher.HasShutdownStarted ||
+                dispatcher.HasShutdownFinished)
+            {
+                return;
+            }
+
+            dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (!IsManualPanTiltControlEnabled)
+                {
+                    _ptzCommandProxy
+                        .ResetKeyboardPanTiltState();
+
+                    return;
+                }
+
+                _ptzCommandProxy
+                    .HandlePanTiltKeyUp(
+                        key);
+            }));
+        }
+
+        /// <summary>
+        /// [Keyboard] 방향키 입력 상태 초기화 및 Pan / Tilt 연속 이동 정지
+        /// 
+        /// Window Focus 이탈 / KeyUp 누락 / 동시 키 해제 상황에서
+        /// 잔류 이동을 방지하기 위해 Window에서 직접 호출한다.
+        /// </summary>
+        public void ResetKeyboardPanTiltState()
+        {
+            _ptzCommandProxy
+                .ResetKeyboardPanTiltState();
         }
 
         #endregion

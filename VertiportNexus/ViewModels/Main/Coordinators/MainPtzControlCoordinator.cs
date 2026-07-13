@@ -90,6 +90,15 @@ namespace VertiportNexus.ViewModels.Main.Coordinators
                     isMoveAvailable);
         }
 
+        /// <summary>
+        /// [Keyboard] 방향키 입력 상태 초기화 및 Pan / Tilt 연속 이동 정지
+        /// </summary>
+        internal PtzControlWorkflowResult ResetKeyboardPanTiltState()
+        {
+            return _ptzControlWorkflow
+                .ResetKeyboardPanTiltState();
+        }
+
         #endregion
 
         #region [Absolute Control Methods]
@@ -285,7 +294,8 @@ namespace VertiportNexus.ViewModels.Main.Coordinators
                 Console.WriteLine(
                     "[UI][PTZ] Tilt Relative Failed : Value is empty");
 
-                return PtzControlWorkflowResult.Ignored(string.Empty);
+                return
+                    PtzControlWorkflowResult.Ignored(string.Empty);
             }
 
             double currentTilt =
