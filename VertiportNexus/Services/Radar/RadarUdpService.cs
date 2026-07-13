@@ -1,6 +1,6 @@
-﻿using System;
+﻿using Serilog;
+using System;
 using System.Net;
-using VertiportNexus.Common;
 using VertiportNexus.Services.Communication.UDP;
 
 namespace VertiportNexus.Services.Radar
@@ -15,6 +15,15 @@ namespace VertiportNexus.Services.Radar
     internal class RadarUdpService
     {
         #region [Fields]
+
+        /// <summary>
+        /// [Radar UDP] Raw Packet HEX 로그 저장 여부
+        /// 
+        /// 평상시에는 Packet 수신 여부와 응답 결과만 저장하고,
+        /// 원본 HEX 분석이 필요한 경우에만 true로 변경한다.
+        /// </summary>
+        private static readonly bool ENABLE_RADAR_RAW_PACKET_LOG =
+            false;
 
         /// <summary>
         /// [Radar] UDP 통신 서비스
@@ -96,16 +105,29 @@ namespace VertiportNexus.Services.Radar
                 if (receivedData == null ||
                     receivedData.Length == 0)
                 {
-                    Console.WriteLine("[RADAR][UDP] Receive Skip : Empty Packet");
+                    Log.Warning(
+                        "[RADAR][UDP] Receive Skip : Empty Packet");
 
                     return;
                 }
 
-                ConsoleLogHelper.PrintLine();
-                Console.WriteLine("[RADAR][UDP] Packet Received");
-                Console.WriteLine("[RADAR][UDP] Remote : " + remoteEndPoint);
-                Console.WriteLine("[RADAR][UDP] Length : " + receivedData.Length);
-                ConsoleLogHelper.PrintLine();
+                Log.Information(
+                    "[RADAR][UDP] Packet Received : Remote={RemoteEndPoint}, Length={Length}, ReceivedTime={ReceivedTime:yyyy-MM-dd HH:mm:ss.fff}",
+                    remoteEndPoint,
+                    receivedData.Length,
+                    receivedTime);
+
+                if (ENABLE_RADAR_RAW_PACKET_LOG)
+                {
+                    Log.Debug(
+                        "[RADAR][UDP] RECV {Hex}",
+                        BitConverter
+                            .ToString(
+                                receivedData)
+                            .Replace(
+                                "-",
+                                " "));
+                }
 
                 byte[] responsePacket =
                     _radarCommandHandler
@@ -115,7 +137,8 @@ namespace VertiportNexus.Services.Radar
                 if (responsePacket == null ||
                     responsePacket.Length == 0)
                 {
-                    Console.WriteLine("[RADAR][UDP] Response Skip : Empty Packet");
+                    Log.Warning(
+                        "[RADAR][UDP] Response Skip : Empty Packet");
 
                     return;
                 }
@@ -126,15 +149,30 @@ namespace VertiportNexus.Services.Radar
                             responsePacket,
                             remoteEndPoint);
 
-                Console.WriteLine("[RADAR][UDP] Response Send Result : " + isSent);
-                ConsoleLogHelper.PrintLine();
+                Log.Information(
+                    "[RADAR][UDP] Response Send Result : {IsSent}, Remote={RemoteEndPoint}, Length={Length}",
+                    isSent,
+                    remoteEndPoint,
+                    responsePacket.Length);
+
+                if (ENABLE_RADAR_RAW_PACKET_LOG)
+                {
+                    Log.Debug(
+                        "[RADAR][UDP] SEND {Hex}",
+                        BitConverter
+                            .ToString(
+                                responsePacket)
+                            .Replace(
+                                "-",
+                                " "));
+                }
+
             }
             catch (Exception ex)
             {
-                ConsoleLogHelper.PrintLine();
-                Console.WriteLine("[RADAR][UDP] Packet Handle Failed");
-                Console.WriteLine("[RADAR][UDP] Error : " + ex.Message);
-                ConsoleLogHelper.PrintLine();
+                Log.Error(
+                    ex,
+                    "[RADAR][UDP] Packet Handle Failed");
             }
 
         }

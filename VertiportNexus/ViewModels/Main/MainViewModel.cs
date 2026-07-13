@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Serilog;
+using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
@@ -6,19 +7,19 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using VertiportNexus.Common;
+using VertiportNexus.Features.Main.ADS1000;
 using VertiportNexus.Features.Main.Camera;
 using VertiportNexus.Features.Main.Communication;
 using VertiportNexus.Features.Main.Connection;
 using VertiportNexus.Features.Main.Ptz;
-using VertiportNexus.Features.Main.ADS1000;
 using VertiportNexus.Features.Main.Test;
 using VertiportNexus.Features.Main.Ui;
-using VertiportNexus.ViewModels.Main.States;
-using VertiportNexus.ViewModels.Main.Panels;
-using VertiportNexus.ViewModels.Main.Coordinators;
 using VertiportNexus.Models.ADS1000;
 using VertiportNexus.Models.Vertiport;
 using VertiportNexus.ViewModels.Main.Composition;
+using VertiportNexus.ViewModels.Main.Coordinators;
+using VertiportNexus.ViewModels.Main.Panels;
+using VertiportNexus.ViewModels.Main.States;
 
 namespace VertiportNexus.ViewModels.Main
 {
@@ -1215,16 +1216,53 @@ namespace VertiportNexus.ViewModels.Main
         private void OnEoCameraFrameReceived(
             BitmapSource bitmap)
         {
-            EoCameraControllerResult result =
-                _eoCameraWorkflow
-                    .CreateFrameResult(
-                        bitmap);
-
-            App.Current.Dispatcher.BeginInvoke(new Action(() =>
+            try
             {
-                EOCameraImage =
-                    result.Frame;
-            }));
+                if (bitmap == null ||
+                    _eoCameraWorkflow == null)
+                {
+                    return;
+                }
+
+                System.Windows.Threading.Dispatcher dispatcher =
+                    App.Current?.Dispatcher;
+
+                if (dispatcher == null ||
+                    dispatcher.HasShutdownStarted ||
+                    dispatcher.HasShutdownFinished)
+                {
+                    return;
+                }
+
+                EoCameraControllerResult result =
+                    _eoCameraWorkflow
+                        .CreateFrameResult(
+                            bitmap);
+
+                if (result == null ||
+                    result.Frame == null)
+                {
+                    return;
+                }
+
+                dispatcher.BeginInvoke(new Action(() =>
+                {
+                    if (dispatcher.HasShutdownStarted ||
+                        dispatcher.HasShutdownFinished)
+                    {
+                        return;
+                    }
+
+                    EOCameraImage =
+                        result.Frame;
+                }));
+            }
+            catch (Exception ex)
+            {
+                Log.Error(
+                    ex,
+                    "[EO Camera] Frame Receive Failed");
+            }
 
         }
 

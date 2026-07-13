@@ -1,5 +1,5 @@
-﻿using System;
-using VertiportNexus.Common;
+﻿using Serilog;
+using System;
 using VertiportNexus.Common.Constants;
 using VertiportNexus.Models.Radar;
 
@@ -46,8 +46,10 @@ namespace VertiportNexus.Services.Radar
         /// [RadarCommandHandler] 생성자
         /// 
         /// [Radar] Packet 처리에 필요한
-        /// Packet Parser, Packet Builder,
-        /// Radar 상태 저장 서비스, Radar 추적 제어 서비스를 주입받는다.
+        /// Packet Parser, 
+        /// Packet Builder,
+        /// Radar 상태 저장 서비스, 
+        /// Radar 추적 제어 서비스를 주입받는다.
         /// </summary>
         /// <param name="radarPacketParser">
         /// [Radar] Packet Parser
@@ -109,12 +111,9 @@ namespace VertiportNexus.Services.Radar
         {
             try
             {
-                ConsoleLogHelper.PrintLine();
-
-                Console.WriteLine(
-                    "[RADAR][CMD] Packet Handle Start");
-
-                ConsoleLogHelper.PrintLine();
+                Log.Information(
+                    "[RADAR][CMD] Packet Handle Start : Length={Length}",
+                    packetBytes == null ? 0 : packetBytes.Length);
 
                 RadarPacket radarPacket =
                     _radarPacketParser
@@ -123,10 +122,8 @@ namespace VertiportNexus.Services.Radar
 
                 if (radarPacket == null)
                 {
-                    Console.WriteLine(
-                        "[RADAR][CMD] Failed : Packet Parse Failed");
-
-                    ConsoleLogHelper.PrintLine();
+                    Log.Warning(
+                        "[RADAR][CMD] Packet Parse Failed");
 
                     return null;
                 }
@@ -151,31 +148,27 @@ namespace VertiportNexus.Services.Radar
                         break;
 
                     default:
-                        Console.WriteLine(
-                            "[RADAR][CMD] Failed : Unknown Command");
-
-                        Console.WriteLine(
-                            "[RADAR][CMD] Command : "
-                            + radarPacket.Header.Command);
+                        Log.Warning(
+                            "[RADAR][CMD] Unknown Command : Command={Command}",
+                            radarPacket.Header.Command);
 
                         responsePacket =
                             null;
                         break;
                 }
 
-                Console.WriteLine(
-                    "[RADAR][CMD] Packet Handle End");
-
-                ConsoleLogHelper.PrintLine();
+                Log.Information(
+                    "[RADAR][CMD] Packet Handle End : Command={Command}, ResponseLength={ResponseLength}",
+                    radarPacket.Header.Command,
+                    responsePacket == null ? 0 : responsePacket.Length);
 
                 return responsePacket;
             }
             catch (Exception ex)
             {
-                ConsoleLogHelper.PrintLine();
-                Console.WriteLine("[RADAR][CMD] Packet Handle Exception");
-                Console.WriteLine("[RADAR][CMD] Error : " + ex.Message);
-                ConsoleLogHelper.PrintLine();
+                Log.Error(
+                    ex,
+                    "[RADAR][CMD] Packet Handle Exception");
 
                 return null;
             }
@@ -202,10 +195,8 @@ namespace VertiportNexus.Services.Radar
         private byte[] HandleTrackingRequest(
             RadarPacket radarPacket)
         {
-            Console.WriteLine();
-            Console.WriteLine(
+            Log.Information(
                 "[RADAR][CMD] Tracking Request");
-            Console.WriteLine();
 
             RadarTrackingRequestPayload requestPayload =
                 _radarPacketParser
@@ -214,7 +205,7 @@ namespace VertiportNexus.Services.Radar
 
             if (requestPayload == null)
             {
-                Console.WriteLine(
+                Log.Warning(
                     "[RADAR][CMD] Tracking Request Failed : Payload Parse Failed");
 
                 return null;
@@ -222,6 +213,13 @@ namespace VertiportNexus.Services.Radar
 
             PrintTrackingRequestLog(
                 requestPayload);
+
+            Log.Information(
+                "[RADAR][TRACKING] Request Parsed : Id={Id}, Azimuth={Azimuth}, Elevation={Elevation}, Distance={Distance}",
+                requestPayload.Id,
+                requestPayload.Azimuth,
+                requestPayload.Elevation,
+                requestPayload.Distance);
 
             _radarStateProvider
                 .UpdateTrackingRequest(
@@ -253,10 +251,9 @@ namespace VertiportNexus.Services.Radar
                     .BuildTrackingResponsePacket(
                         responsePayload);
 
-            Console.WriteLine(
-                "[RADAR][CMD] Tracking Response Packet Created");
-
-            Console.WriteLine();
+            Log.Information(
+                "[RADAR][CMD] Tracking Response Packet Created : Length={Length}",
+                responsePacket == null ? 0 : responsePacket.Length);
 
             return responsePacket;
         }
@@ -279,10 +276,8 @@ namespace VertiportNexus.Services.Radar
         private byte[] HandleBistRequest(
             RadarPacket radarPacket)
         {
-            Console.WriteLine(
+            Log.Information(
                 "[RADAR][CMD] BIST Request");
-
-            Console.WriteLine();
 
             RadarBistRequestPayload requestPayload =
                 _radarPacketParser
@@ -291,7 +286,7 @@ namespace VertiportNexus.Services.Radar
 
             if (requestPayload == null)
             {
-                Console.WriteLine(
+                Log.Warning(
                     "[RADAR][CMD] BIST Request Failed : Payload Parse Failed");
 
                 return null;
@@ -314,10 +309,9 @@ namespace VertiportNexus.Services.Radar
                     .BuildBistResponsePacket(
                         responsePayload);
 
-            Console.WriteLine(
-                "[RADAR][CMD] BIST Response Packet Created");
-
-            Console.WriteLine();
+            Log.Information(
+                "[RADAR][CMD] BIST Response Packet Created : Length={Length}",
+                responsePacket == null ? 0 : responsePacket.Length);
 
             return responsePacket;
         }
@@ -447,41 +441,16 @@ namespace VertiportNexus.Services.Radar
         private void PrintPacketHeaderLog(
             RadarPacket radarPacket)
         {
-            Console.WriteLine(
-                "[RADAR][HEADER] Start Frame : 0x"
-                + radarPacket.Header.StartFrame.ToString("X2"));
-
-            Console.WriteLine(
-                "[RADAR][HEADER] Send Id : 0x"
-                + radarPacket.Header.SendId.ToString("X2"));
-
-            Console.WriteLine(
-                "[RADAR][HEADER] Receive Id : 0x"
-                + radarPacket.Header.ReceiveId.ToString("X2"));
-
-            Console.WriteLine(
-                "[RADAR][HEADER] Command : "
-                + radarPacket.Header.Command);
-
-            Console.WriteLine(
-                "[RADAR][HEADER] Packet Number : "
-                + radarPacket.Header.PacketNumber);
-
-            Console.WriteLine(
-                "[RADAR][HEADER] Packet Length : "
-                + radarPacket.Header.PacketLength);
-
-            Console.WriteLine();
-
-            Console.WriteLine(
-                "[RADAR][TAIL] Checksum : 0x"
-                + radarPacket.Tail.Checksum.ToString("X2"));
-
-            Console.WriteLine(
-                "[RADAR][TAIL] End Frame : 0x"
-                + radarPacket.Tail.EndFrame.ToString("X2"));
-
-            Console.WriteLine();
+            Log.Debug(
+                "[RADAR][HEADER] StartFrame=0x{StartFrame}, SendId=0x{SendId}, ReceiveId=0x{ReceiveId}, Command={Command}, PacketNumber={PacketNumber}, PacketLength={PacketLength}, Checksum=0x{Checksum}, EndFrame=0x{EndFrame}",
+                radarPacket.Header.StartFrame.ToString("X2"),
+                radarPacket.Header.SendId.ToString("X2"),
+                radarPacket.Header.ReceiveId.ToString("X2"),
+                radarPacket.Header.Command,
+                radarPacket.Header.PacketNumber,
+                radarPacket.Header.PacketLength,
+                radarPacket.Tail.Checksum.ToString("X2"),
+                radarPacket.Tail.EndFrame.ToString("X2"));
         }
 
         /// <summary>
@@ -493,59 +462,21 @@ namespace VertiportNexus.Services.Radar
         private void PrintTrackingRequestLog(
             RadarTrackingRequestPayload payload)
         {
-            Console.WriteLine(
-                "[RADAR][TRACKING] TimeStamp : "
-                + payload.TimeStamp);
-
-            Console.WriteLine(
-                "[RADAR][TRACKING] PtMove : "
-                + payload.PtMove);
-
-            Console.WriteLine(
-                "[RADAR][TRACKING] Id : "
-                + payload.Id);
-
-            Console.WriteLine(
-                "[RADAR][TRACKING] Azimuth : "
-                + payload.Azimuth);
-
-            Console.WriteLine(
-                "[RADAR][TRACKING] Elevation : "
-                + payload.Elevation);
-
-            Console.WriteLine(
-                "[RADAR][TRACKING] Distance : "
-                + payload.Distance);
-
-            Console.WriteLine(
-                "[RADAR][TRACKING] Vx : "
-                + payload.Vx);
-
-            Console.WriteLine(
-                "[RADAR][TRACKING] Vy : "
-                + payload.Vy);
-
-            Console.WriteLine(
-                "[RADAR][TRACKING] Vz : "
-                + payload.Vz);
-
-            Console.WriteLine(
-                "[RADAR][TRACKING] EcefX : "
-                + payload.EcefX);
-
-            Console.WriteLine(
-                "[RADAR][TRACKING] EcefY : "
-                + payload.EcefY);
-
-            Console.WriteLine(
-                "[RADAR][TRACKING] EcefZ : "
-                + payload.EcefZ);
-
-            Console.WriteLine(
-                "[RADAR][TRACKING] Reserved : "
-                + payload.Reserved);
-
-            Console.WriteLine();
+            Log.Debug(
+                "[RADAR][TRACKING] TimeStamp={TimeStamp}, PtMove={PtMove}, Id={Id}, Azimuth={Azimuth}, Elevation={Elevation}, Distance={Distance}, Vx={Vx}, Vy={Vy}, Vz={Vz}, EcefX={EcefX}, EcefY={EcefY}, EcefZ={EcefZ}, Reserved={Reserved}",
+                payload.TimeStamp,
+                payload.PtMove,
+                payload.Id,
+                payload.Azimuth,
+                payload.Elevation,
+                payload.Distance,
+                payload.Vx,
+                payload.Vy,
+                payload.Vz,
+                payload.EcefX,
+                payload.EcefY,
+                payload.EcefZ,
+                payload.Reserved);
         }
 
         /// <summary>
@@ -560,23 +491,12 @@ namespace VertiportNexus.Services.Radar
         private void PrintBistRequestLog(
             RadarBistRequestPayload payload)
         {
-            Console.WriteLine(
-                "[RADAR][BIST] TimeStamp : "
-                + payload.TimeStamp);
-
-            Console.WriteLine(
-                "[RADAR][BIST] BistType : "
-                + payload.BistType);
-
-            Console.WriteLine(
-                "[RADAR][BIST] ComportNumber : "
-                + payload.ComportNumber);
-
-            Console.WriteLine(
-                "[RADAR][BIST] CbistInterval : "
-                + payload.CbistInterval);
-
-            Console.WriteLine();
+            Log.Debug(
+                "[RADAR][BIST] TimeStamp={TimeStamp}, BistType={BistType}, ComportNumber={ComportNumber}, CbistInterval={CbistInterval}",
+                payload.TimeStamp,
+                payload.BistType,
+                payload.ComportNumber,
+                payload.CbistInterval);
         }
         #endregion
     }

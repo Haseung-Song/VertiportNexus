@@ -1,8 +1,9 @@
 ﻿using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using Serilog;
 using System;
 using System.Text;
-using VertiportNexus.Common;
+using VertiportNexus.Common.Logging;
 using VertiportNexus.Models.Vertiport;
 
 namespace VertiportNexus.Services.Communication.MQ
@@ -139,7 +140,8 @@ namespace VertiportNexus.Services.Communication.MQ
             if (_channel != null &&
                 _channel.IsOpen)
             {
-                Console.WriteLine("[RabbitMQ][RECV] Receive Start Ignored : Already Running");
+                Log.Information(
+                    "[RabbitMQ][RECV] Receive Start Ignored : Already Running");
                 return;
             }
 
@@ -194,21 +196,23 @@ namespace VertiportNexus.Services.Communication.MQ
                         autoAck: true,
                         consumer: consumer);
 
-                ConsoleLogHelper.PrintLine();
-                Console.WriteLine("[RabbitMQ][RECV] Receive Start");
-                Console.WriteLine("[RabbitMQ][RECV] Host : " + _connectionFactory.HostName);
-                Console.WriteLine("[RabbitMQ][RECV] Port : " + _connectionFactory.Port);
-                Console.WriteLine("[RabbitMQ][RECV] Queue : " + CseMqQueue.CommandRequest);
-                Console.WriteLine("[RabbitMQ][RECV] Queue : " + CseMqQueue.StatusRequest);
-                ConsoleLogHelper.PrintLine();
+                LogSectionHelper.Information(
+                    "[RabbitMQ][RECV] RECEIVE START");
+
+                Log.Information(
+                    "[RabbitMQ][RECV] Receive Start : Host={Host}, Port={Port}, CommandQueue={CommandQueue}, StatusQueue={StatusQueue}",
+                    _connectionFactory.HostName,
+                    _connectionFactory.Port,
+                    CseMqQueue.CommandRequest,
+                    CseMqQueue.StatusRequest);
             }
             catch (Exception ex)
             {
-                ConsoleLogHelper.PrintLine();
-                Console.WriteLine("[RabbitMQ][RECV] Receive Start Failed");
-                Console.WriteLine("[RabbitMQ][RECV] RabbitMQ Server Not Connected");
-                Console.WriteLine("[RabbitMQ][RECV] Error : " + ex.Message);
-                ConsoleLogHelper.PrintLine();
+                Log.Error(
+                    ex,
+                    "[RabbitMQ][RECV] Receive Start Failed : Host={Host}, Port={Port}",
+                    _connectionFactory.HostName,
+                    _connectionFactory.Port);
 
                 ReleaseResources();
 
@@ -254,16 +258,14 @@ namespace VertiportNexus.Services.Communication.MQ
                     _connection.Close();
                 }
 
-                ConsoleLogHelper.PrintLine();
-                Console.WriteLine("[RabbitMQ][RECV] Receive Stop");
-                ConsoleLogHelper.PrintLine();
+                Log.Information(
+                    "[RabbitMQ][RECV] Receive Stop");
             }
             catch (Exception ex)
             {
-                ConsoleLogHelper.PrintLine();
-                Console.WriteLine("[RabbitMQ][RECV] Receive Stop Failed");
-                Console.WriteLine("[RabbitMQ][RECV] Error : " + ex.Message);
-                ConsoleLogHelper.PrintLine();
+                Log.Error(
+                    ex,
+                    "[RabbitMQ][RECV] Receive Stop Failed");
             }
             finally
             {
@@ -290,12 +292,14 @@ namespace VertiportNexus.Services.Communication.MQ
                 Encoding.UTF8.GetString(
                     eventArgs.Body.ToArray());
 
-            ConsoleLogHelper.PrintLine();
-            Console.WriteLine("[RabbitMQ][RECV] Message Received");
-            Console.WriteLine("[RabbitMQ][RECV] Queue : " + queueName);
-            Console.WriteLine("[RabbitMQ][RECV] JSON");
-            Console.WriteLine(message);
-            ConsoleLogHelper.PrintLine();
+            Log.Information(
+                "[RabbitMQ][RECV] Message Received : Queue={Queue}, Length={Length}",
+                queueName,
+                message.Length);
+
+            Log.Debug(
+                "[RabbitMQ][RECV] JSON : {Message}",
+                message);
 
             MessageReceived?.Invoke(
                 queueName,

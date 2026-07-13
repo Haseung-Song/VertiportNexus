@@ -408,14 +408,6 @@ namespace VertiportNexus.Services.ADS1000
             angleValue =
                 encoderValue * 360.0 / motorEncoderResolution;
 
-            Log.Debug(
-                "[ADS1000][MCB] Encoder Parsed : Cmd1=0x{Cmd1}, Text={Text}, Raw={Raw}, Resolution={Resolution}, Angle={Angle:F3}",
-                cmd1.ToString("X2"),
-                text,
-                encoderValue,
-                motorEncoderResolution,
-                angleValue);
-
             return true;
         }
 

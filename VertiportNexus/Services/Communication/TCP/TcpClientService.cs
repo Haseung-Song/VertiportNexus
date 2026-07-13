@@ -3,7 +3,7 @@ using System;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using VertiportNexus.Common;
+using VertiportNexus.Common.Logging;
 
 namespace VertiportNexus.Services.Communication.TCP
 {
@@ -19,6 +19,16 @@ namespace VertiportNexus.Services.Communication.TCP
     public class TcpClientService
     {
         #region [Fields]
+
+        /// <summary>
+        /// [TCP] 수신 Raw Packet 로그 저장 여부
+        /// 
+        /// MCB / SCB 상태 Packet은 짧은 주기로 반복 수신되므로
+        /// 전체 수신 Packet을 모두 저장하지 않고,
+        /// 1초 간격으로만 Raw Packet 로그를 저장한다.
+        /// </summary>
+        private static readonly bool ENABLE_TCP_RECEIVE_PACKET_LOG =
+            true;
 
         /// <summary>
         /// [TCP] [Client] 객체
@@ -122,20 +132,17 @@ namespace VertiportNexus.Services.Communication.TCP
                         "[TCP][{DeviceName}] Connect Ignored : Already Connected",
                         _deviceName);
 
-                    Console.WriteLine("[TCP][" + _deviceName + "] Already Connected");
                     return true;
                 }
+
+                LogSectionHelper.Information(
+                    $"[TCP][{_deviceName}] CONNECT START");
 
                 Log.Information(
                     "[TCP][{DeviceName}] Connect Try : {Ip}:{Port}",
                     _deviceName,
                     ip,
                     port);
-
-                Console.WriteLine("[TCP][" + _deviceName + "] Connect Try");
-                Console.WriteLine();
-                Console.WriteLine("[TCP][" + _deviceName + "] Target : " + ip + ":" + port);
-                Console.WriteLine();
 
                 _tcpClient =
                     new TcpClient();
@@ -160,8 +167,6 @@ namespace VertiportNexus.Services.Communication.TCP
                     ip,
                     port);
 
-                Console.WriteLine("[TCP][" + _deviceName + "] Connect Success");
-
                 return true;
             }
             catch (Exception ex)
@@ -172,9 +177,6 @@ namespace VertiportNexus.Services.Communication.TCP
                     _deviceName,
                     ip,
                     port);
-
-                Console.WriteLine("[TCP][" + _deviceName + "] Connect Failed : " + ex.Message);
-                Console.WriteLine();
 
                 Disconnect();
 
@@ -204,7 +206,6 @@ namespace VertiportNexus.Services.Communication.TCP
                         "[TCP][{DeviceName}] Send Failed : Not Connected",
                         _deviceName);
 
-                    Console.WriteLine("[TCP][" + _deviceName + "] Send Failed : Not Connected");
                     return false;
                 }
 
@@ -221,10 +222,6 @@ namespace VertiportNexus.Services.Communication.TCP
                     ToHexString(
                         data));
 
-                PrintHexData(
-                    "[TCP][" + _deviceName + "] SEND",
-                    data);
-
                 return true;
             }
             catch (Exception ex)
@@ -234,7 +231,6 @@ namespace VertiportNexus.Services.Communication.TCP
                     "[TCP][{DeviceName}] Send Failed",
                     _deviceName);
 
-                Console.WriteLine("[TCP][" + _deviceName + "] Send Failed : " + ex.Message);
                 return false;
             }
 
@@ -264,8 +260,7 @@ namespace VertiportNexus.Services.Communication.TCP
         private async Task ReceiveLoopAsync(
             CancellationToken token)
         {
-            byte[] buffer =
-                new byte[2048];
+            byte[] buffer = new byte[2048];
 
             try
             {
@@ -281,7 +276,10 @@ namespace VertiportNexus.Services.Communication.TCP
 
                     if (readSize <= 0)
                     {
-                        Console.WriteLine("[TCP][" + _deviceName + "] Server Disconnected");
+                        Log.Warning(
+                            "[TCP][{DeviceName}] Server Disconnected",
+                            _deviceName);
+
                         break;
                     }
 
@@ -300,11 +298,16 @@ namespace VertiportNexus.Services.Communication.TCP
             }
             catch (ObjectDisposedException)
             {
-                Console.WriteLine("[TCP][" + _deviceName + "] Receive Loop Closed");
+                Log.Information(
+                    "[TCP][{DeviceName}] Receive Loop Closed",
+                    _deviceName);
             }
             catch (Exception ex)
             {
-                Console.WriteLine("[TCP][" + _deviceName + "] Receive Failed : " + ex.Message);
+                Log.Error(
+                    ex,
+                    "[TCP][{DeviceName}] Receive Failed",
+                    _deviceName);
             }
             Disconnect();
         }
@@ -334,16 +337,21 @@ namespace VertiportNexus.Services.Communication.TCP
         private void PrintReceiveLogIfNeeded(
             byte[] receivedData)
         {
+            if (!ENABLE_TCP_RECEIVE_PACKET_LOG)
+            {
+                return;
+            }
+
             if ((DateTime.Now - _lastRecvLogTime).TotalSeconds < 1)
             {
                 return;
             }
 
-            PrintHexData(
-                "[TCP][" + _deviceName + "] RECV",
-                receivedData);
-
-            ConsoleLogHelper.PrintLine();
+            Log.Debug(
+                "[TCP][{DeviceName}] RECV {Hex}",
+                _deviceName,
+                ToHexString(
+                    receivedData));
 
             _lastRecvLogTime =
                 DateTime.Now;
@@ -384,20 +392,6 @@ namespace VertiportNexus.Services.Communication.TCP
                     " ");
         }
 
-        /// <summary>
-        /// [byte] 배열을 [HEX] 문자열 형태로 [Console] 출력
-        /// </summary>
-        private void PrintHexData(
-            string prefix,
-            byte[] data)
-        {
-            Console.WriteLine(
-                prefix
-                + " "
-                + ToHexString(
-                    data));
-        }
-
         #endregion
 
         #region [Disconnect Methods]
@@ -423,11 +417,13 @@ namespace VertiportNexus.Services.Communication.TCP
             _tcpClient?.Dispose();
             _tcpClient = null;
 
+            LogSectionHelper.Information(
+                $"[TCP][{_deviceName}] DISCONNECT");
+
             Log.Information(
                 "[TCP][{DeviceName}] Disconnected",
                 _deviceName);
 
-            Console.WriteLine("[TCP][" + _deviceName + "] Disconnected");
         }
         #endregion
     }

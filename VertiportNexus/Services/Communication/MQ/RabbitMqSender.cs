@@ -1,7 +1,7 @@
 ﻿using RabbitMQ.Client;
+using Serilog;
 using System;
 using System.Text;
-using VertiportNexus.Common;
 
 namespace VertiportNexus.Services.Communication.MQ
 {
@@ -93,7 +93,6 @@ namespace VertiportNexus.Services.Communication.MQ
                         TimeSpan.FromSeconds(
                             RABBITMQ_CONNECTION_TIMEOUT_SECONDS)
                 };
-
         }
 
         #endregion
@@ -145,24 +144,23 @@ namespace VertiportNexus.Services.Communication.MQ
                         body: body);
                 }
 
-                ConsoleLogHelper.PrintLine();
-                Console.WriteLine("[RabbitMQ][SEND] Send Start");
-                Console.WriteLine("[RabbitMQ][SEND] Host : " + _connectionFactory.HostName);
-                Console.WriteLine("[RabbitMQ][SEND] Port : " + _connectionFactory.Port);
-                Console.WriteLine("[RabbitMQ][SEND] Queue : " + queueName);
-                Console.WriteLine("[RabbitMQ][SEND] Message");
-                Console.WriteLine(message);
-                Console.WriteLine("[RabbitMQ][SEND] Send End");
-                ConsoleLogHelper.PrintLine();
+                Log.Information(
+                    "[RabbitMQ][SEND] Send Success : Host={Host}, Port={Port}, Queue={Queue}, Length={Length}",
+                    _connectionFactory.HostName,
+                    _connectionFactory.Port,
+                    queueName,
+                    message.Length);
+
+                Log.Debug(
+                    "[RabbitMQ][SEND] JSON : {Message}",
+                    message);
             }
             catch (Exception ex)
             {
-                ConsoleLogHelper.PrintLine();
-                Console.WriteLine("[RabbitMQ][SEND] Send Failed");
-                Console.WriteLine("[RabbitMQ][SEND] Queue : " + queueName);
-                Console.WriteLine("[RabbitMQ][SEND] RabbitMQ Server Not Connected");
-                Console.WriteLine("[RabbitMQ][SEND] Error : " + ex.Message);
-                ConsoleLogHelper.PrintLine();
+                Log.Error(
+                    ex,
+                    "[RabbitMQ][SEND] Send Failed : Queue={Queue}",
+                    queueName);
             }
 
         }
@@ -190,14 +188,16 @@ namespace VertiportNexus.Services.Communication.MQ
             if (string.IsNullOrWhiteSpace(
                 queueName))
             {
-                Console.WriteLine("[RabbitMQ][SEND] Send Failed : Queue is empty");
+                Log.Warning(
+                    "[RabbitMQ][SEND] Send Failed : Queue is empty");
                 return false;
             }
 
             if (string.IsNullOrWhiteSpace(
                 message))
             {
-                Console.WriteLine("[RabbitMQ][SEND] Send Failed : Message is empty");
+                Log.Warning(
+                    "[RabbitMQ][SEND] Send Failed : Message is empty");
                 return false;
             }
 

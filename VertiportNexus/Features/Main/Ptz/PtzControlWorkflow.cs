@@ -1,7 +1,9 @@
-﻿using System;
+﻿using Serilog;
+using System;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using VertiportNexus.Common;
+using VertiportNexus.Common.Logging;
 using VertiportNexus.Services.Command;
 using VertiportNexus.ViewModels.Main;
 using VertiportNexus.ViewModels.Main.Composition;
@@ -166,6 +168,13 @@ namespace VertiportNexus.Features.Main.Ptz
         /// [Keyboard] Tilt Down 입력 상태
         /// </summary>
         private bool _isKeyboardTiltDownPressed;
+
+
+        /// <summary>
+        /// [Home Position] 마지막 대기 상태 로그 출력 시간
+        /// </summary>
+        private DateTime _lastHomeWaitLogTime =
+            DateTime.MinValue;
 
         #endregion
 
@@ -1011,6 +1020,13 @@ namespace VertiportNexus.Features.Main.Ptz
 
             try
             {
+
+                LogSectionHelper.Information(
+                    "[ADS1000][HOME] HOME POSITION START");
+
+                Log.Information(
+                    "[ADS1000][HOME] Home Position Start");
+
                 homePositionMovingStateSetter(
                     true);
 
@@ -1025,9 +1041,16 @@ namespace VertiportNexus.Features.Main.Ptz
                     await _context.PtzHomeZeroController
                         .MoveHomePositionAsync();
 
+                Log.Information(
+                    "[ADS1000][HOME] Home Position Command Sent");
+
                 if (result != null &&
                     !result.IsSuccess)
                 {
+                    Log.Warning(
+                        "[ADS1000][HOME] Home Position Command Failed : {Message}",
+                        result.Message);
+
                     return PtzControlWorkflowResult.FromPtzControllerResult(
                         result);
                 }
@@ -1040,6 +1063,9 @@ namespace VertiportNexus.Features.Main.Ptz
 
                 if (!isCompleted)
                 {
+                    Log.Warning(
+                        "[ADS1000][HOME] Home Position Wait Timeout");
+
                     return PtzControlWorkflowResult.Ignored(
                         "HOME POSITION WAIT TIMEOUT");
                 }
@@ -1063,13 +1089,21 @@ namespace VertiportNexus.Features.Main.Ptz
                 await Task.Delay(
                     150);
 
-                Console.WriteLine(
-                    "[UI][PTZ] Home UI Zero Pan Offset : "
-                    + currentPan.ToString("F2"));
+                Log.Debug(
+                    "[UI][PTZ] Home UI Zero Pan Offset : {PanOffset:F2}",
+                    currentPan);
 
-                Console.WriteLine(
-                    "[UI][PTZ] Home UI Zero Tilt Offset : "
-                    + currentTilt.ToString("F2"));
+                Log.Debug(
+                    "[UI][PTZ] Home UI Zero Tilt Offset : {TiltOffset:F2}",
+                    currentTilt);
+
+                LogSectionHelper.Information(
+                    "[ADS1000][HOME] HOME POSITION COMPLETE");
+
+                Log.Information(
+                    "[ADS1000][HOME] Home Position Complete : PanOffset={PanOffset:F2}, TiltOffset={TiltOffset:F2}",
+                    currentPan,
+                    currentTilt);
 
                 return PtzControlWorkflowResult.HomePositionCompleted(
                     "HOME POSITION COMPLETE",
@@ -1078,6 +1112,10 @@ namespace VertiportNexus.Features.Main.Ptz
             }
             catch (Exception ex)
             {
+                Log.Error(
+                    ex,
+                    "[ADS1000][HOME] Home Position Failed");
+
                 ConsoleLogHelper.PrintBlock(
                     logPrefix + " Failed : " + ex.Message);
 
@@ -1274,8 +1312,8 @@ namespace VertiportNexus.Features.Main.Ptz
             {
                 if (!isDeviceFullyConnectedProvider())
                 {
-                    ConsoleLogHelper.PrintBlock(
-                        "[DEVICE] Home Position Wait Canceled : Device Disconnected");
+                    Log.Warning(
+                        "[ADS1000][HOME] Wait Canceled : Device Disconnected");
 
                     return false;
                 }
@@ -1313,45 +1351,41 @@ namespace VertiportNexus.Features.Main.Ptz
                 {
                     stableCount++;
 
-                    Console.WriteLine(
-                        "[DEVICE] Home Position Motion Stable Check : "
-                        + stableCount
-                        + " / "
-                        + REQUIRED_STABLE_COUNT
-                        + " Pan="
-                        + currentPan.ToString("F2")
-                        + ", Tilt="
-                        + currentTilt.ToString("F2"));
+                    Log.Debug(
+                        "[ADS1000][HOME] Stable Check : Count={StableCount}/{RequiredStableCount}, Pan={Pan:F2}, Tilt={Tilt:F2}, PanDelta={PanDelta:F2}, TiltDelta={TiltDelta:F2}",
+                        stableCount,
+                        REQUIRED_STABLE_COUNT,
+                        currentPan,
+                        currentTilt,
+                        panDelta,
+                        tiltDelta);
 
                     if (stableCount >= REQUIRED_STABLE_COUNT)
                     {
+                        Log.Information(
+                            "[ADS1000][HOME] Wait Complete : Pan={Pan:F2}, Tilt={Tilt:F2}",
+                            currentPan,
+                            currentTilt);
+
                         return true;
                     }
 
                 }
                 else
                 {
-                    if (stableCount > 0)
-                    {
-                        Console.WriteLine(
-                            "[DEVICE] Home Position Stable Count Reset");
-                    }
-
                     stableCount =
                         0;
 
-                    Console.WriteLine(
-                        "[DEVICE] Home Position Wait Check : "
-                        + "Pan="
-                        + currentPan.ToString("F2")
-                        + ", Tilt="
-                        + currentTilt.ToString("F2")
-                        + ", PanDelta="
-                        + panDelta.ToString("F2")
-                        + ", TiltDelta="
-                        + tiltDelta.ToString("F2")
-                        + ", NearHome="
-                        + isNearHome);
+                    if (ShouldWriteHomeWaitLog())
+                    {
+                        Log.Debug(
+                            "[ADS1000][HOME] Wait Check : Pan={Pan:F2}, Tilt={Tilt:F2}, PanDelta={PanDelta:F2}, TiltDelta={TiltDelta:F2}, NearHome={NearHome}",
+                            currentPan,
+                            currentTilt,
+                            panDelta,
+                            tiltDelta,
+                            isNearHome);
+                    }
                 }
 
                 previousPan =
@@ -1367,10 +1401,36 @@ namespace VertiportNexus.Features.Main.Ptz
                     CHECK_INTERVAL_MILLISECONDS;
             }
 
-            ConsoleLogHelper.PrintBlock(
-                "[DEVICE] Home Position Wait Timeout");
+            Log.Warning(
+                "[ADS1000][HOME] Wait Timeout");
 
             return false;
+        }
+
+        /// <summary>
+        /// [Home Position] 대기 상태 로그 출력 여부 확인
+        /// 
+        /// Home Position 완료 대기 중에는 Pan / Tilt 상태가 짧은 주기로 반복 갱신되므로,
+        /// 로그 파일이 과도하게 커지지 않도록 일정 주기마다만 대기 상태 로그를 저장한다.
+        /// </summary>
+        private bool ShouldWriteHomeWaitLog()
+        {
+            TimeSpan minLogInterval =
+                TimeSpan.FromSeconds(
+                    1);
+
+            DateTime now =
+                DateTime.Now;
+
+            if (now - _lastHomeWaitLogTime < minLogInterval)
+            {
+                return false;
+            }
+
+            _lastHomeWaitLogTime =
+                now;
+
+            return true;
         }
 
         /// <summary>

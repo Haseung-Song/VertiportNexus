@@ -4,7 +4,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using VertiportNexus.Common;
+using VertiportNexus.Common.Logging;
 
 namespace VertiportNexus.Services.Communication.UDP
 {
@@ -17,6 +17,16 @@ namespace VertiportNexus.Services.Communication.UDP
     public class UdpClientService
     {
         #region [Fields]
+
+        /// <summary>
+        /// [UDP] 수신 Raw Packet 로그 저장 여부
+        /// 
+        /// Radar UDP Packet 원본 확인을 위해
+        /// 전체 수신 Packet을 모두 저장하지 않고,
+        /// 1초 간격으로만 Raw Packet 로그를 저장한다.
+        /// </summary>
+        private static readonly bool ENABLE_UDP_RECEIVE_PACKET_LOG =
+            true;
 
         /// <summary>
         /// [UDP] Client 객체
@@ -40,6 +50,16 @@ namespace VertiportNexus.Services.Communication.UDP
         /// 중복 Receive 시작을 방지한다.
         /// </summary>
         private bool _isReceiving;
+
+        /// <summary>
+        /// 마지막 수신 [Log] 출력 시간 저장
+        /// 
+        /// UDP Packet이 반복 수신될 수 있으므로,
+        /// [Log] 파일 도배 방지를 위해 일정 시간 간격으로만
+        /// 수신 Raw Packet [Log] 출력할 때 사용한다.
+        /// </summary>
+        private DateTime _lastRecvLogTime =
+            DateTime.MinValue;
 
         /// <summary>
         /// [UDP] Client 접근 동기화 객체
@@ -120,13 +140,6 @@ namespace VertiportNexus.Services.Communication.UDP
                         _serviceName,
                         localPort);
 
-                    ConsoleLogHelper.PrintLine();
-                    Console.WriteLine("[UDP][" + _serviceName + "] Receive Start Ignored");
-                    Console.WriteLine("[UDP][" + _serviceName + "] Reason : Already Started");
-
-                    Console.WriteLine("[UDP][" + _serviceName + "] Local Port : " + localPort);
-                    ConsoleLogHelper.PrintLine();
-
                     return;
                 }
 
@@ -142,15 +155,13 @@ namespace VertiportNexus.Services.Communication.UDP
                     _isReceiving =
                         true;
 
+                    LogSectionHelper.Information(
+                        $"[UDP][{_serviceName}] RECEIVE START");
+
                     Log.Information(
                         "[UDP][{ServiceName}] Receive Start : LocalPort={LocalPort}",
                         _serviceName,
                         localPort);
-
-                    ConsoleLogHelper.PrintLine();
-                    Console.WriteLine("[UDP][" + _serviceName + "] Receive Start");
-                    Console.WriteLine("[UDP][" + _serviceName + "] Local Port : " + localPort);
-                    ConsoleLogHelper.PrintLine();
 
                     Task.Run(() =>
                         ReceiveLoopAsync(
@@ -172,11 +183,6 @@ namespace VertiportNexus.Services.Communication.UDP
                         "[UDP][{ServiceName}] Receive Start Failed : LocalPort={LocalPort}",
                         _serviceName,
                         localPort);
-
-                    ConsoleLogHelper.PrintLine();
-                    Console.WriteLine("[UDP][" + _serviceName + "] Receive Start Failed");
-                    Console.WriteLine("[UDP][" + _serviceName + "] Error : " + ex.Message);
-                    ConsoleLogHelper.PrintLine();
                 }
 
             }
@@ -223,16 +229,9 @@ namespace VertiportNexus.Services.Communication.UDP
                     IPEndPoint remoteEndPoint =
                         receiveResult.RemoteEndPoint;
 
-                    Log.Debug(
-                        "[UDP][{ServiceName}] RECV Remote={RemoteEndPoint}, Hex={Hex}",
-                        _serviceName,
-                        remoteEndPoint,
-                        ToHexString(
-                            receivedData));
-
-                    PrintHexData(
-                        "[UDP][" + _serviceName + "] RECV",
-                        receivedData);
+                    PrintReceiveLogIfNeeded(
+                        receivedData,
+                        remoteEndPoint);
 
                     RaiseMessageReceived(
                         receivedData,
@@ -248,9 +247,6 @@ namespace VertiportNexus.Services.Communication.UDP
                     //
                     // StopReceive() 호출로 UdpClient가 Dispose된 경우
                     // 정상적인 종료 흐름으로 처리한다.
-                    Console.WriteLine(
-                        "[UDP][" + _serviceName + "] Receive Loop Closed");
-
                     return;
                 }
                 catch (SocketException ex)
@@ -259,11 +255,6 @@ namespace VertiportNexus.Services.Communication.UDP
                     {
                         return;
                     }
-
-                    Log.Warning(
-                        ex,
-                        "[UDP][{ServiceName}] Receive Socket Reset Ignored",
-                        _serviceName);
 
                     // [UDP] ConnectionReset 예외 무시
                     //
@@ -275,8 +266,10 @@ namespace VertiportNexus.Services.Communication.UDP
                     if (ex.SocketErrorCode ==
                         SocketError.ConnectionReset)
                     {
-                        Console.WriteLine(
-                            "[UDP][" + _serviceName + "] Receive Socket Reset Ignored");
+                        Log.Warning(
+                            ex,
+                            "[UDP][{ServiceName}] Receive Socket Reset Ignored",
+                            _serviceName);
 
                         continue;
                     }
@@ -285,10 +278,6 @@ namespace VertiportNexus.Services.Communication.UDP
                         ex,
                         "[UDP][{ServiceName}] Receive Socket Failed",
                         _serviceName);
-
-                    Console.WriteLine(
-                        "[UDP][" + _serviceName + "] Receive Socket Failed : "
-                        + ex.Message);
 
                     continue;
                 }
@@ -304,15 +293,40 @@ namespace VertiportNexus.Services.Communication.UDP
                         "[UDP][{ServiceName}] Receive Failed",
                         _serviceName);
 
-                    Console.WriteLine(
-                        "[UDP][" + _serviceName + "] Receive Failed : "
-                        + ex.Message);
-
                     continue;
                 }
 
             }
 
+        }
+
+        /// <summary>
+        /// 마지막 [Log] 출력 이후 1초 이상 지났을 경우,
+        /// 수신 [Log]를 출력한다.
+        /// </summary>
+        private void PrintReceiveLogIfNeeded(
+            byte[] receivedData,
+            IPEndPoint remoteEndPoint)
+        {
+            if (!ENABLE_UDP_RECEIVE_PACKET_LOG)
+            {
+                return;
+            }
+
+            if ((DateTime.Now - _lastRecvLogTime).TotalSeconds < 1)
+            {
+                return;
+            }
+
+            Log.Debug(
+                "[UDP][{ServiceName}] RECV Remote={RemoteEndPoint}, Hex={Hex}",
+                _serviceName,
+                remoteEndPoint,
+                ToHexString(
+                    receivedData));
+
+            _lastRecvLogTime =
+                DateTime.Now;
         }
 
         /// <summary>
@@ -365,9 +379,6 @@ namespace VertiportNexus.Services.Communication.UDP
                     "[UDP][{ServiceName}] Send Failed : Empty Data",
                     _serviceName);
 
-                Console.WriteLine(
-                    "[UDP][" + _serviceName + "] Send Failed : Empty Data");
-
                 return false;
             }
 
@@ -397,10 +408,6 @@ namespace VertiportNexus.Services.Communication.UDP
                     ToHexString(
                         data));
 
-                PrintHexData(
-                    "[UDP][" + _serviceName + "] SEND",
-                    data);
-
                 return true;
             }
             catch (Exception ex)
@@ -411,10 +418,6 @@ namespace VertiportNexus.Services.Communication.UDP
                     _serviceName,
                     remoteIpAddress,
                     remotePort);
-
-                Console.WriteLine(
-                    "[UDP][" + _serviceName + "] Send Failed : "
-                    + ex.Message);
 
                 return false;
             }
@@ -439,8 +442,9 @@ namespace VertiportNexus.Services.Communication.UDP
         {
             if (remoteEndPoint == null)
             {
-                Console.WriteLine(
-                    "[UDP][" + _serviceName + "] Send Failed : Remote EndPoint is null");
+                Log.Warning(
+                    "[UDP][{ServiceName}] Send Failed : Remote EndPoint is null",
+                    _serviceName);
 
                 return false;
             }
@@ -468,10 +472,9 @@ namespace VertiportNexus.Services.Communication.UDP
                 if (!_isReceiving &&
                     _udpClient == null)
                 {
-                    ConsoleLogHelper.PrintLine();
-                    Console.WriteLine("[UDP][" + _serviceName + "] Receive Stop Ignored");
-                    Console.WriteLine("[UDP][" + _serviceName + "] Reason : Already Stopped");
-                    ConsoleLogHelper.PrintLine();
+                    Log.Information(
+                        "[UDP][{ServiceName}] Receive Stop Ignored : Already Stopped",
+                        _serviceName);
 
                     return;
                 }
@@ -485,21 +488,24 @@ namespace VertiportNexus.Services.Communication.UDP
 
                     _udpClient?.Close();
                     _udpClient?.Dispose();
-
                     _udpClient = null;
 
                     _cts?.Dispose();
                     _cts = null;
 
-                    ConsoleLogHelper.PrintLine();
-                    Console.WriteLine("[UDP][" + _serviceName + "] Receive Stop");
-                    ConsoleLogHelper.PrintLine();
+                    LogSectionHelper.Information(
+                        $"[UDP][{_serviceName}] RECEIVE STOP");
+
+                    Log.Information(
+                        "[UDP][{ServiceName}] Receive Stop",
+                        _serviceName);
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(
-                        "[UDP][" + _serviceName + "] Receive Stop Failed : "
-                        + ex.Message);
+                    Log.Error(
+                        ex,
+                        "[UDP][{ServiceName}] Receive Stop Failed",
+                        _serviceName);
                 }
 
             }
@@ -528,42 +534,6 @@ namespace VertiportNexus.Services.Communication.UDP
                 .Replace(
                     "-",
                     " ");
-        }
-
-        /// <summary>
-        /// [byte[]] HEX 로그 출력
-        /// </summary>
-        /// <param name="title">
-        /// 로그 제목
-        /// </param>
-        /// <param name="data">
-        /// 출력 대상 byte 배열
-        /// </param>
-        private void PrintHexData(
-            string title,
-            byte[] data)
-        {
-            if (data == null ||
-                data.Length == 0)
-            {
-                Console.WriteLine(title + " : Empty");
-                ConsoleLogHelper.PrintLine();
-
-                return;
-            }
-
-            Console.WriteLine(
-                title);
-
-            Console.WriteLine(
-                BitConverter
-                    .ToString(
-                        data)
-                    .Replace(
-                        "-",
-                        " "));
-
-            ConsoleLogHelper.PrintLine();
         }
         #endregion
     }

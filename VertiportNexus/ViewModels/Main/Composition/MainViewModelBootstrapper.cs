@@ -1,5 +1,7 @@
-﻿using System;
+﻿using Serilog;
+using System;
 using System.Windows.Media.Imaging;
+using VertiportNexus.Common;
 using VertiportNexus.Models.ADS1000;
 using VertiportNexus.Models.Vertiport;
 using VertiportNexus.Services.ADS1000;
@@ -219,6 +221,11 @@ namespace VertiportNexus.ViewModels.Main.Composition
             // 상태 Packet 모델로 파싱하기 위해 사용한다.
             context.Ads1000StatusService =
                 new Ads1000StatusService();
+
+            Log.Information(
+                "[ADS1000] Encoder Resolution : Pan={PanResolution}, Tilt={TiltResolution}",
+                Ads1000Constants.PAN_MOTOR_ENCODER_RESOLUTION,
+                Ads1000Constants.TILT_MOTOR_ENCODER_RESOLUTION);
         }
 
         #endregion

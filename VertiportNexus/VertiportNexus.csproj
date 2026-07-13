@@ -150,6 +150,7 @@
       <SubType>Designer</SubType>
     </ApplicationDefinition>
     <Compile Include="Common\Logging\AppLogger.cs" />
+    <Compile Include="Common\Logging\LogSectionHelper.cs" />
     <Compile Include="Features\Main\Ads1000\Ads1000StatusWorkflow.cs" />
     <Compile Include="Features\Main\Camera\EoCameraWorkflow.cs" />
     <Compile Include="Features\Main\Communication\RabbitMqReceiveworkflow.cs" />
