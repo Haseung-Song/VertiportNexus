@@ -125,7 +125,6 @@ namespace VertiportNexus.Services.ADS1000
             ConsoleLogHelper.PrintLine();
             Console.WriteLine("[DEVICE] Connect Result");
             Console.WriteLine();
-
             Console.WriteLine("[DEVICE] MCB : " + isMcbConnected);
             Console.WriteLine("[DEVICE] SCB : " + isScbConnected);
             ConsoleLogHelper.PrintLine();
@@ -140,14 +139,12 @@ namespace VertiportNexus.Services.ADS1000
         /// </summary>
         public void Disconnect()
         {
-            ConsoleLogHelper.PrintLine();
             Console.WriteLine("[DEVICE] Disconnect Start");
             Console.WriteLine();
 
             _mcbTcpClientService.Disconnect();
             _scbTcpClientService.Disconnect();
 
-            Console.WriteLine();
             Console.WriteLine("[DEVICE] Disconnect Complete");
             ConsoleLogHelper.PrintLine();
         }

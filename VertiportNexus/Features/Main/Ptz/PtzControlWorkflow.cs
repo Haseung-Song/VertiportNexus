@@ -851,6 +851,8 @@ namespace VertiportNexus.Features.Main.Ptz
                 Console.WriteLine(
                     "[UI][PTZ] Pan / Tilt Speed Apply Ignored : Home Position Moving");
 
+                ConsoleLogHelper.PrintLine();
+
                 return PtzControlWorkflowResult.Ignored(
                     string.Empty);
             }
@@ -866,6 +868,8 @@ namespace VertiportNexus.Features.Main.Ptz
             {
                 Console.WriteLine(
                     "[UI][PTZ] Pan / Tilt Speed Apply Ignored : Pan / Tilt Move State None");
+
+                ConsoleLogHelper.PrintLine();
 
                 return PtzControlWorkflowResult.Ignored(
                     string.Empty);
