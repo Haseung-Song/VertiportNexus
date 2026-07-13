@@ -885,8 +885,8 @@ namespace VertiportNexus.ViewModels.Main
                     // 장비 연결 직후 EO Camera가 Ready 상태가 아닐 수 있으므로,
                     // RTSP 연결 성공 상태를 별도 비동기 흐름에서 대기한 뒤
                     // Home Position 이동을 수행한다.
-                    _ =
-                        WaitEoRtspConnectedAndMoveHomePositionAsync();
+                    // TODO: 초기 자동 Home Position 이동 임시 비활성화
+                    //_ = WaitEoRtspConnectedAndMoveHomePositionAsync();
                 }
                 else
                 {
@@ -1218,18 +1218,40 @@ namespace VertiportNexus.ViewModels.Main
         {
             try
             {
-                if (bitmap == null ||
-                    _eoCameraWorkflow == null)
-                {
-                    return;
-                }
-
                 System.Windows.Threading.Dispatcher dispatcher =
                     App.Current?.Dispatcher;
 
                 if (dispatcher == null ||
                     dispatcher.HasShutdownStarted ||
                     dispatcher.HasShutdownFinished)
+                {
+                    return;
+                }
+
+                // [EO Camera] 영상 초기화 Frame 처리
+                //
+                // EO RTSP Disconnect 시 EoCameraService에서
+                // FrameReceived(null)을 전달하므로,
+                // 이 경우 UI Image Source를 null로 초기화하여
+                // 화면을 Black 상태로 되돌린다.
+                if (bitmap == null)
+                {
+                    dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        if (dispatcher.HasShutdownStarted ||
+                            dispatcher.HasShutdownFinished)
+                        {
+                            return;
+                        }
+
+                        EOCameraImage =
+                            null;
+                    }));
+
+                    return;
+                }
+
+                if (_eoCameraWorkflow == null)
                 {
                     return;
                 }
@@ -1256,6 +1278,7 @@ namespace VertiportNexus.ViewModels.Main
                     EOCameraImage =
                         result.Frame;
                 }));
+
             }
             catch (Exception ex)
             {

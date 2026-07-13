@@ -8,10 +8,15 @@ namespace VertiportNexus.ViewModels.Main
         #region [Properties]
 
         internal double? CurrentPan { get; private set; }
+
         internal double? CurrentPanAccumulated { get; private set; }
+
         internal bool? HasPanAccumulatedStatus { get; private set; }
+
         internal double? CurrentTilt { get; private set; }
+
         internal double? CurrentZoom { get; private set; }
+
         internal double? CurrentFocus { get; private set; }
 
         #endregion
@@ -51,6 +56,7 @@ namespace VertiportNexus.ViewModels.Main
                 CurrentZoom = currentZoom,
                 CurrentFocus = currentFocus
             };
+
         }
 
         internal new static Ads1000StatusApplyControllerResult Failed(
@@ -60,7 +66,7 @@ namespace VertiportNexus.ViewModels.Main
                 false,
                 message);
         }
-
         #endregion
     }
+
 }
