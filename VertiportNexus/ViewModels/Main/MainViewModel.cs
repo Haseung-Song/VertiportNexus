@@ -885,7 +885,6 @@ namespace VertiportNexus.ViewModels.Main
                     // 장비 연결 직후 EO Camera가 Ready 상태가 아닐 수 있으므로,
                     // RTSP 연결 성공 상태를 별도 비동기 흐름에서 대기한 뒤
                     // Home Position 이동을 수행한다.
-                    // TODO: 초기 자동 Home Position 이동 임시 비활성화
                     _ = WaitEoRtspConnectedAndMoveHomePositionAsync();
                 }
                 else
@@ -1441,6 +1440,7 @@ namespace VertiportNexus.ViewModels.Main
                     .HandlePanTiltKeyUp(
                         key);
             }));
+
         }
 
         /// <summary>
