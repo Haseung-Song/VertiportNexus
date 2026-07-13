@@ -92,11 +92,20 @@ namespace VertiportNexus.ViewModels.Main.Coordinators
 
         /// <summary>
         /// [Keyboard] 방향키 입력 상태 초기화 및 Pan / Tilt 연속 이동 정지
+        /// 
+        /// Home Position 이동 중에는
+        /// Home Script 이동을 방해하지 않도록
+        /// Stop 명령을 송신하지 않고 키 입력 상태만 초기화한다.
         /// </summary>
-        internal PtzControlWorkflowResult ResetKeyboardPanTiltState()
+        /// <param name="isHomePositionMoving">
+        /// Home Position 이동 진행 여부
+        /// </param>
+        internal PtzControlWorkflowResult ResetKeyboardPanTiltState(
+            bool isHomePositionMoving)
         {
             return _ptzControlWorkflow
-                .ResetKeyboardPanTiltState();
+                .ResetKeyboardPanTiltState(
+                    isHomePositionMoving);
         }
 
         #endregion

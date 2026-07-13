@@ -372,12 +372,63 @@ namespace VertiportNexus.Features.Main.Ptz
         }
 
         /// <summary>
-        /// [Keyboard] Pan / Tilt 입력 상태 초기화 및 연속 이동 정지
+        /// [Keyboard] 방향키 입력 상태 초기화 및 Pan / Tilt 연속 이동 정지
         /// 
-        /// 창 Focus 변경 / 제어 비활성화 / KeyUp 누락 상황에서
-        /// 내부 Key 상태가 남아 장비가 계속 이동하는 현상을 방지한다.
+        /// KeyUp 누락 / Window Focus 이탈 시
+        /// 키보드 입력 상태를 초기화한다.
+        /// 
+        /// Home Position 이동 중에는
+        /// Home Script 이동을 방해하지 않도록
+        /// Pan / Tilt Stop 명령을 송신하지 않는다.
         /// </summary>
-        internal PtzControlWorkflowResult ResetKeyboardPanTiltState()
+        /// <param name="isHomePositionMoving">
+        /// Home Position 이동 진행 여부
+        /// </param>
+        /// <returns>
+        /// Workflow 처리 결과
+        /// </returns>
+        internal PtzControlWorkflowResult ResetKeyboardPanTiltState(
+            bool isHomePositionMoving)
+        {
+            ClearKeyboardPressedState();
+
+            if (isHomePositionMoving)
+            {
+                _isPanContinuousMoving =
+                    false;
+
+                _isTiltContinuousMoving =
+                    false;
+
+                _currentPanContinuousMoveDirection =
+                    PanTiltContinuousMoveDirection.None;
+
+                _currentTiltContinuousMoveDirection =
+                    PanTiltContinuousMoveDirection.None;
+
+                _isUiContinuousMoveStarted =
+                    false;
+
+                _currentPanTiltMoveAxis =
+                    PanTiltMoveAxis.None;
+
+                _currentPanTiltMoveType =
+                    PanTiltMoveType.None;
+
+                Log.Debug(
+                    "[PTZ][KEYBOARD] Reset State Only : Home Position Moving");
+
+                return PtzControlWorkflowResult.Ignored(
+                    "KEYBOARD STATE RESET ONLY");
+            }
+
+            return StopContinuousMove();
+        }
+
+        /// <summary>
+        /// [Keyboard] 방향키 눌림 상태 초기화
+        /// </summary>
+        private void ClearKeyboardPressedState()
         {
             _isKeyboardPanLeftPressed =
                 false;
@@ -390,8 +441,6 @@ namespace VertiportNexus.Features.Main.Ptz
 
             _isKeyboardTiltDownPressed =
                 false;
-
-            return StopContinuousMove();
         }
 
         /// <summary>
@@ -408,7 +457,7 @@ namespace VertiportNexus.Features.Main.Ptz
         {
             if (!isMoveAvailable)
             {
-                ResetKeyboardPanTiltState();
+                ClearKeyboardPressedState();
 
                 return PtzControlWorkflowResult.Ignored(
                     string.Empty);
@@ -1255,8 +1304,14 @@ namespace VertiportNexus.Features.Main.Ptz
             }
             finally
             {
+                ResetKeyboardPanTiltState(
+                    true);
+
                 homePositionMovingStateSetter(
                     false);
+
+                mainStatusSetter(
+                    "CAMERA READY");
             }
 
         }
@@ -1412,7 +1467,7 @@ namespace VertiportNexus.Features.Main.Ptz
                 200;
 
             const int TIMEOUT_MILLISECONDS =
-                300000;
+                30000;
 
             const int REQUIRED_STABLE_COUNT =
                 5;
@@ -1473,8 +1528,15 @@ namespace VertiportNexus.Features.Main.Ptz
                     Math.Abs(
                         currentTilt) <= TILT_STABLE_TOLERANCE_DEGREES;
 
+                // [Home Position] 이동 완료 판단
+                //
+                // Home 명령 후 실제 장비가 0도에 도달했는지보다,
+                // 일정 시간 동안 Pan / Tilt 위치 변화가 거의 없는지 기준으로
+                // 이동 완료 여부를 판단한다.
+                //
+                // 장비 Offset / Encoder 보정 상태에 따라 표시값이 0이 아닐 수 있으므로,
+                // isNearHome은 완료 조건이 아니라 로그 확인용으로만 사용한다.
                 bool isStable =
-                    isNearHome &&
                     panDelta <= PAN_STABLE_TOLERANCE_DEGREES &&
                     tiltDelta <= TILT_STABLE_TOLERANCE_DEGREES;
 
@@ -1483,13 +1545,14 @@ namespace VertiportNexus.Features.Main.Ptz
                     stableCount++;
 
                     Log.Debug(
-                        "[ADS1000][HOME] Stable Check : Count={StableCount}/{RequiredStableCount}, Pan={Pan:F2}, Tilt={Tilt:F2}, PanDelta={PanDelta:F2}, TiltDelta={TiltDelta:F2}",
+                        "[ADS1000][HOME] Stable Check : Count={StableCount}/{RequiredStableCount}, Pan={Pan:F2}, Tilt={Tilt:F2}, PanDelta={PanDelta:F2}, TiltDelta={TiltDelta:F2}, NearHome={NearHome}",
                         stableCount,
                         REQUIRED_STABLE_COUNT,
                         currentPan,
                         currentTilt,
                         panDelta,
-                        tiltDelta);
+                        tiltDelta,
+                        isNearHome);
 
                     if (stableCount >= REQUIRED_STABLE_COUNT)
                     {

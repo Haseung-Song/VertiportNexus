@@ -886,7 +886,7 @@ namespace VertiportNexus.ViewModels.Main
                     // RTSP 연결 성공 상태를 별도 비동기 흐름에서 대기한 뒤
                     // Home Position 이동을 수행한다.
                     // TODO: 초기 자동 Home Position 이동 임시 비활성화
-                    //_ = WaitEoRtspConnectedAndMoveHomePositionAsync();
+                    _ = WaitEoRtspConnectedAndMoveHomePositionAsync();
                 }
                 else
                 {
@@ -1387,7 +1387,8 @@ namespace VertiportNexus.ViewModels.Main
             if (!IsManualPanTiltControlEnabled)
             {
                 _ptzCommandProxy
-                    .ResetKeyboardPanTiltState();
+                    .ResetKeyboardPanTiltState(
+                        _connectionPanel.IsHomePositionMoving);
 
                 return;
             }
@@ -1430,7 +1431,8 @@ namespace VertiportNexus.ViewModels.Main
                 if (!IsManualPanTiltControlEnabled)
                 {
                     _ptzCommandProxy
-                        .ResetKeyboardPanTiltState();
+                        .ResetKeyboardPanTiltState(
+                            _connectionPanel.IsHomePositionMoving);
 
                     return;
                 }
@@ -1442,15 +1444,20 @@ namespace VertiportNexus.ViewModels.Main
         }
 
         /// <summary>
-        /// [Keyboard] 방향키 입력 상태 초기화 및 Pan / Tilt 연속 이동 정지
+        /// [Keyboard] Pan / Tilt 입력 상태 초기화
         /// 
-        /// Window Focus 이탈 / KeyUp 누락 / 동시 키 해제 상황에서
-        /// 잔류 이동을 방지하기 위해 Window에서 직접 호출한다.
+        /// Window Focus 이탈 등으로 KeyUp 이벤트가 누락될 경우
+        /// 키보드 입력 상태를 초기화한다.
+        /// 
+        /// 단, Home Position 이동 중에는
+        /// Home Script 이동을 방해하지 않도록
+        /// Stop 명령을 송신하지 않는다.
         /// </summary>
         public void ResetKeyboardPanTiltState()
         {
             _ptzCommandProxy
-                .ResetKeyboardPanTiltState();
+                .ResetKeyboardPanTiltState(
+                    _connectionPanel.IsHomePositionMoving);
         }
 
         #endregion

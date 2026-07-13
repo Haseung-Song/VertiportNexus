@@ -105,21 +105,6 @@ namespace VertiportNexus.Views.Main
         }
 
         /// <summary>
-        /// [Window] Keyboard Focus 이탈 처리
-        /// 
-        /// TextBox / Button 등 다른 컨트롤로 Focus가 이동하면서
-        /// KeyUp 이벤트가 누락되는 경우를 대비하여
-        /// Keyboard PTZ 상태를 강제로 초기화한다.
-        /// </summary>
-        private void Window_LostKeyboardFocus(
-            object sender,
-            KeyboardFocusChangedEventArgs e)
-        {
-            _viewModel
-                .ResetKeyboardPanTiltState();
-        }
-
-        /// <summary>
         /// [Pan / Tilt] 방향키 여부 확인
         /// </summary>
         /// <param name="key">

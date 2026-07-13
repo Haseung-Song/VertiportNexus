@@ -203,19 +203,20 @@ namespace VertiportNexus.ViewModels.Main.Coordinators
         }
 
         /// <summary>
-        /// [Keyboard] 방향키 입력 상태 초기화 및 Pan / Tilt 연속 이동 정지
-        /// 
-        /// KeyUp 누락 / Window Focus 이탈 / 동시 키 해제 상황에서
-        /// 장비가 한 방향으로 계속 이동하는 현상을 방지하기 위해 호출한다.
+        /// [Keyboard] Pan / Tilt 입력 상태 초기화
         /// </summary>
-        internal void ResetKeyboardPanTiltState()
+        /// <param name="isHomePositionMoving">
+        /// Home Position 이동 진행 여부
+        /// </param>
+        internal void ResetKeyboardPanTiltState(
+            bool isHomePositionMoving)
         {
+            _coordinator
+                .ResetKeyboardPanTiltState(
+                    isHomePositionMoving);
+
             _isPanTiltKeyboardMoveActive =
                 false;
-
-            Apply(
-                _coordinator
-                    .ResetKeyboardPanTiltState());
         }
 
         /// <summary>
