@@ -1,4 +1,5 @@
 ﻿using System;
+using VertiportNexus.Common;
 
 namespace VertiportNexus.Services.Camera
 {
@@ -193,7 +194,7 @@ namespace VertiportNexus.Services.Camera
                     stablePanAngle,
                     stableTiltAngle))
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[TRACKING][STABILIZER] Skip : Direction Reversed");
 
                 UpdateLastDirection(
@@ -468,7 +469,6 @@ namespace VertiportNexus.Services.Camera
             {
                 return max;
             }
-
             return value;
         }
         #endregion

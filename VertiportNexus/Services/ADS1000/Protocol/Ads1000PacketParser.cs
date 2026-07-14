@@ -206,7 +206,7 @@ namespace VertiportNexus.Services.ADS1000
                 return parsedPackets;
             }
 
-            //Console.WriteLine(
+            //ConsoleLogHelper.WriteLine(
             //    "[ADS1000][MCB] ParseAll Received HEX : "
             //    + BitConverter
             //        .ToString(
@@ -390,7 +390,7 @@ namespace VertiportNexus.Services.ADS1000
                 return false;
             }
 
-            //Console.WriteLine(
+            //ConsoleLogHelper.WriteLine(
             //    "[ADS1000][MCB] Raw Encoder Value : Cmd1=0x"
             //    + cmd1.ToString("X2")
             //    + ", Encoder="

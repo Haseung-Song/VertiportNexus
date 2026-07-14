@@ -51,7 +51,7 @@ namespace VertiportNexus.Services.Communication.MQ
         {
             if (_isReceiving)
             {
-                Console.WriteLine("[MQ][MOCK][RECV] Receive Start Ignored : Already Running");
+                ConsoleLogHelper.WriteLine("[MQ][MOCK][RECV] Receive Start Ignored : Already Running");
                 return;
             }
 
@@ -62,8 +62,8 @@ namespace VertiportNexus.Services.Communication.MQ
                 true;
 
             ConsoleLogHelper.PrintLine();
-            Console.WriteLine("[MQ][MOCK][RECV] Receive Start");
-            Console.WriteLine("[MQ][MOCK][RECV] Queue : " + _queueName);
+            ConsoleLogHelper.WriteLine("[MQ][MOCK][RECV] Receive Start");
+            ConsoleLogHelper.WriteLine("[MQ][MOCK][RECV] Queue : " + _queueName);
             ConsoleLogHelper.PrintLine();
         }
 
@@ -74,7 +74,7 @@ namespace VertiportNexus.Services.Communication.MQ
         {
             if (!_isReceiving)
             {
-                Console.WriteLine("[MQ][MOCK][RECV] Receive Stop Ignored : Already Stopped");
+                ConsoleLogHelper.WriteLine("[MQ][MOCK][RECV] Receive Stop Ignored : Already Stopped");
                 return;
             }
 
@@ -82,7 +82,7 @@ namespace VertiportNexus.Services.Communication.MQ
                 false;
 
             ConsoleLogHelper.PrintLine();
-            Console.WriteLine("[MQ][MOCK][RECV] Receive Stop");
+            ConsoleLogHelper.WriteLine("[MQ][MOCK][RECV] Receive Stop");
             ConsoleLogHelper.PrintLine();
         }
 
@@ -100,23 +100,23 @@ namespace VertiportNexus.Services.Communication.MQ
         {
             if (!_isReceiving)
             {
-                Console.WriteLine("[MQ][MOCK][RECV] Inject Failed : Receiver Not Running");
+                ConsoleLogHelper.WriteLine("[MQ][MOCK][RECV] Inject Failed : Receiver Not Running");
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(
                 json))
             {
-                Console.WriteLine("[MQ][MOCK][RECV] Inject Failed : Message is empty");
+                ConsoleLogHelper.WriteLine("[MQ][MOCK][RECV] Inject Failed : Message is empty");
                 return;
             }
 
             ConsoleLogHelper.PrintLine();
-            Console.WriteLine("[MQ][MOCK][RECV] Message Received");
-            Console.WriteLine("[MQ][MOCK][RECV] Queue : " + _queueName);
-            Console.WriteLine("[MQ][MOCK][RECV] JSON");
+            ConsoleLogHelper.WriteLine("[MQ][MOCK][RECV] Message Received");
+            ConsoleLogHelper.WriteLine("[MQ][MOCK][RECV] Queue : " + _queueName);
+            ConsoleLogHelper.WriteLine("[MQ][MOCK][RECV] JSON");
 
-            Console.WriteLine(json);
+            ConsoleLogHelper.WriteLine(json);
             ConsoleLogHelper.PrintLine();
 
             MessageReceived?.Invoke(

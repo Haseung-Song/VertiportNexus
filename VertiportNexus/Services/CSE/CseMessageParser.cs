@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Text.Json;
 using VertiportNexus.Models.Vertiport;
+using VertiportNexus.Common;
 
 namespace VertiportNexus.Services.Vertiport
 {
@@ -23,8 +24,7 @@ namespace VertiportNexus.Services.Vertiport
         private readonly JsonSerializerOptions _jsonSerializerOptions =
             new JsonSerializerOptions
             {
-                PropertyNameCaseInsensitive =
-                    true
+                PropertyNameCaseInsensitive = true
             };
 
         #endregion
@@ -46,7 +46,7 @@ namespace VertiportNexus.Services.Vertiport
             if (string.IsNullOrWhiteSpace(
                 jsonText))
             {
-                Console.WriteLine("[CSE][PARSER] Parse Failed : JSON is empty");
+                ConsoleLogHelper.WriteLine("[CSE][PARSER] Parse Failed : JSON is empty");
                 return null;
             }
 
@@ -58,8 +58,8 @@ namespace VertiportNexus.Services.Vertiport
             }
             catch (Exception ex)
             {
-                Console.WriteLine("[CSE][PARSER] JSON Parse Failed");
-                Console.WriteLine("[CSE][PARSER] Error : " + ex.Message);
+                ConsoleLogHelper.WriteLine("[CSE][PARSER] JSON Parse Failed");
+                ConsoleLogHelper.WriteLine("[CSE][PARSER] Error : " + ex.Message);
 
                 return null;
             }

@@ -165,11 +165,11 @@ namespace VertiportNexus.Features.Main.Test
             ConsoleLogHelper.PrintBlock(
                 "[DUMMY TRACKING] Start");
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[DUMMY TRACKING] Detection Input Hz : "
                 + DUMMY_DETECTION_HZ);
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[DUMMY TRACKING] Tracking Process Hz : "
                 + DUMMY_TRACKING_HZ);
 
@@ -262,7 +262,7 @@ namespace VertiportNexus.Features.Main.Test
 
                     if (frameId % DUMMY_DETECTION_HZ == 0)
                     {
-                        Console.WriteLine(
+                        ConsoleLogHelper.WriteLine(
                             "[DUMMY TRACKING][INPUT] 30Hz Latest Frame : "
                             + frameId
                             + ", CenterX="
@@ -284,8 +284,8 @@ namespace VertiportNexus.Features.Main.Test
             {
                 ConsoleLogHelper.PrintBlock(
                     "[DUMMY TRACKING] Failed");
-                Console.WriteLine(
-                    ex);
+                ConsoleLogHelper.WriteLine(
+                    ex.ToString());
             }
 
         }
@@ -366,7 +366,7 @@ namespace VertiportNexus.Features.Main.Test
 
                     if (latestFrameId % DUMMY_TRACKING_HZ == 0)
                     {
-                        Console.WriteLine(
+                        ConsoleLogHelper.WriteLine(
                             "[DUMMY TRACKING][PROCESS] Latest Frame : "
                             + latestFrameId
                             + ", ElapsedMs="
@@ -402,8 +402,8 @@ namespace VertiportNexus.Features.Main.Test
                 ConsoleLogHelper.PrintBlock(
                     "[DUMMY TRACKING] Failed");
 
-                Console.WriteLine(
-                    ex);
+                ConsoleLogHelper.WriteLine(
+                    ex.ToString());
             }
             finally
             {

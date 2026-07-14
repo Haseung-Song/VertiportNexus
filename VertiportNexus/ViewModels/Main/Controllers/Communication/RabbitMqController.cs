@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using VertiportNexus.Services.Vertiport;
 using VertiportNexus.Services.Communication.MQ;
+using VertiportNexus.Common;
 
 namespace VertiportNexus.ViewModels.Main
 {
@@ -73,6 +74,9 @@ namespace VertiportNexus.ViewModels.Main
         {
             if (_isReceiveStarted)
             {
+                ConsoleLogHelper.Warning(
+                    "[RabbitMQ][RECV] Receive Ignored : Already Started");
+
                 return ControllerResult.Failed(
                     "RabbitMQ Receive Already Started");
             }
@@ -96,9 +100,13 @@ namespace VertiportNexus.ViewModels.Main
                 _isReceiveStarted =
                     false;
 
+                ConsoleLogHelper.Error(
+                    "[RabbitMQ][RECV] Receive Failed : " + ex.Message);
+
                 return ControllerResult.Failed(
                     "RabbitMQ Receive Failed : " + ex.Message);
             }
+
         }
 
         /// <summary>
@@ -108,6 +116,9 @@ namespace VertiportNexus.ViewModels.Main
         {
             if (!_isReceiveStarted)
             {
+                ConsoleLogHelper.Warning(
+                    "[RabbitMQ][RECV] Stop Ignored : Not Started");
+
                 return ControllerResult.Failed(
                     "RabbitMQ Receive Not Started");
             }
@@ -128,11 +139,15 @@ namespace VertiportNexus.ViewModels.Main
             }
             catch (Exception ex)
             {
+                ConsoleLogHelper.Error(
+                    "[RabbitMQ][RECV] Receive Stop Failed : " + ex.Message);
+
                 return ControllerResult.Failed(
                     "RabbitMQ Receive Stop Failed : " + ex.Message);
             }
-        }
 
+        }
         #endregion
     }
+
 }

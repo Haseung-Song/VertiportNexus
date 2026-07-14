@@ -1,6 +1,7 @@
 ﻿using System;
 using VertiportNexus.Models.Camera;
 using VertiportNexus.Services.ADS1000;
+using VertiportNexus.Common;
 
 namespace VertiportNexus.Services.Camera
 {
@@ -308,12 +309,12 @@ namespace VertiportNexus.Services.Camera
                 return;
             }
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[TRACKING][AUTO] Tracking Check");
 
             if (boundingBox == null)
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[TRACKING][AUTO] Failed : Bounding Box is null");
 
                 return;
@@ -322,7 +323,7 @@ namespace VertiportNexus.Services.Camera
             if (!boundingBox.CenterX.HasValue ||
                 !boundingBox.CenterY.HasValue)
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[TRACKING][AUTO] Failed : Bounding Box Center is invalid");
 
                 return;
@@ -394,7 +395,7 @@ namespace VertiportNexus.Services.Camera
         /// </summary>
         public void StopTracking()
         {
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[TRACKING][AUTO] Tracking Stop");
 
             _trackingControlStabilizer
@@ -438,7 +439,7 @@ namespace VertiportNexus.Services.Camera
             if (elapsedMilliseconds <
                 trackingCommandIntervalMs)
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[TRACKING][AUTO] Skip : Tracking Interval");
 
                 return false;
@@ -530,7 +531,7 @@ namespace VertiportNexus.Services.Camera
         /// </summary>
         private void HandleTrackingDeadZone()
         {
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[TRACKING][AUTO] Stop : Target is in Dead Zone");
 
             _trackingControlStabilizer
@@ -793,7 +794,7 @@ namespace VertiportNexus.Services.Camera
                 pendingAngleOffset =
                     0.0;
 
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[TRACKING][AUTO] Pending "
                     + axisName
                     + " Reset : Direction Changed");
@@ -802,7 +803,7 @@ namespace VertiportNexus.Services.Camera
             pendingAngleOffset +=
                 stableAngleOffset;
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[TRACKING][AUTO] Pending "
                 + axisName
                 + " : "
@@ -937,7 +938,7 @@ namespace VertiportNexus.Services.Camera
                     out double stablePanAngleOffset,
                     out double stableTiltAngleOffset))
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[TRACKING][AUTO] Skip : Stabilized Angle Offset is too small");
 
                 return;
@@ -958,11 +959,11 @@ namespace VertiportNexus.Services.Camera
                 GetMaximumTrackingCommandAngleDegree(
                     currentZoomRatio);
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[TRACKING][AUTO] Minimum Angle : "
                 + minimumTrackingAngleDegree.ToString("F4"));
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[TRACKING][AUTO] Maximum Angle : "
                 + maximumTrackingCommandAngleDegree.ToString("F4"));
 
@@ -995,7 +996,7 @@ namespace VertiportNexus.Services.Camera
             if (!hasPanMove &&
                 !hasTiltMove)
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[TRACKING][AUTO] Skip : Accumulated Angle Offset is too small");
 
                 return;
@@ -1003,7 +1004,7 @@ namespace VertiportNexus.Services.Camera
 
             if (hasPanMove)
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[TRACKING][AUTO] Send Pan : "
                     + panCommandAngleOffset.ToString("F4"));
 
@@ -1014,7 +1015,7 @@ namespace VertiportNexus.Services.Camera
 
             if (hasTiltMove)
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[TRACKING][AUTO] Send Tilt : "
                     + tiltCommandAngleOffset.ToString("F4"));
 
@@ -1022,6 +1023,7 @@ namespace VertiportNexus.Services.Camera
                     .MoveTiltRelative(
                         tiltCommandAngleOffset);
             }
+
         }
 
         /// <summary>
@@ -1068,54 +1070,54 @@ namespace VertiportNexus.Services.Camera
             double panAngleOffset,
             double tiltAngleOffset)
         {
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[TRACKING][AUTO] Angle Tracking Calculate");
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[TRACKING][BBOX] Center X : "
                 + boundingBox.CenterX);
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[TRACKING][BBOX] Center Y : "
                 + boundingBox.CenterY);
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[TRACKING][FRAME] Center X : "
                 + frameCenterX);
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[TRACKING][FRAME] Center Y : "
                 + frameCenterY);
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[TRACKING][ERROR] X : "
                 + errorX);
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[TRACKING][ERROR] Y : "
                 + errorY);
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[TRACKING][ZOOM] Position : "
                 + currentZoomPosition);
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[TRACKING][ZOOM] Ratio : x"
                 + currentZoomRatio.ToString("F1"));
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[TRACKING][FOV] Horizontal : "
                 + horizontalFov.ToString("F2"));
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[TRACKING][FOV] Vertical : "
                 + verticalFov.ToString("F2"));
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[TRACKING][ANGLE] Pan Offset : "
                 + panAngleOffset.ToString("F2"));
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[TRACKING][ANGLE] Tilt Offset : "
                 + tiltAngleOffset.ToString("F2"));
         }
@@ -1130,26 +1132,26 @@ namespace VertiportNexus.Services.Camera
             double stableTiltAngleOffset,
             double currentZoomRatio)
         {
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[TRACKING][STABILIZER] Angle Stabilized");
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[TRACKING][STABILIZER] Zoom Ratio : x"
                 + currentZoomRatio.ToString("F1"));
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[TRACKING][STABILIZER] Raw Pan : "
                 + rawPanAngleOffset.ToString("F4"));
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[TRACKING][STABILIZER] Raw Tilt : "
                 + rawTiltAngleOffset.ToString("F4"));
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[TRACKING][STABILIZER] Stable Pan : "
                 + stablePanAngleOffset.ToString("F4"));
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[TRACKING][STABILIZER] Stable Tilt : "
                 + stableTiltAngleOffset.ToString("F4"));
         }

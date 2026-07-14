@@ -1,5 +1,6 @@
 ﻿using System;
 using VertiportNexus.Models.Camera;
+using VertiportNexus.Common;
 
 namespace VertiportNexus.Services.Camera
 {
@@ -24,8 +25,7 @@ namespace VertiportNexus.Services.Camera
         /// [UI] / [Tracking] 처리 Thread가 동시에 접근할 수 있으므로
         /// lock 기준으로 상태값을 보호한다.
         /// </summary>
-        private readonly object _syncLock =
-            new object();
+        private readonly object _syncLock = new object();
 
         /// <summary>
         /// 탐지 기능 활성화 여부
@@ -123,7 +123,7 @@ namespace VertiportNexus.Services.Camera
                     DateTime.Now;
             }
 
-            Console.WriteLine("[DETECTION][STATE] LOCK ON");
+            ConsoleLogHelper.WriteLine("[DETECTION][STATE] LOCK ON");
         }
 
         /// <summary>
@@ -156,7 +156,7 @@ namespace VertiportNexus.Services.Camera
                     DateTime.Now;
             }
 
-            Console.WriteLine("[DETECTION][STATE] LOCK OFF");
+            ConsoleLogHelper.WriteLine("[DETECTION][STATE] LOCK OFF");
         }
 
         /// <summary>
@@ -189,7 +189,7 @@ namespace VertiportNexus.Services.Camera
                     DateTime.Now;
             }
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[DETECTION][STATE] Detect Enabled : "
                 + isEnabled);
         }
@@ -215,7 +215,7 @@ namespace VertiportNexus.Services.Camera
                     DateTime.Now;
             }
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[DETECTION][STATE] Detect Active : "
                 + isActive);
         }
@@ -235,7 +235,7 @@ namespace VertiportNexus.Services.Camera
                     DateTime.Now;
             }
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[DETECTION][STATE] Detect Continue : "
                 + isContinue);
         }
@@ -255,7 +255,7 @@ namespace VertiportNexus.Services.Camera
                     DateTime.Now;
             }
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[DETECTION][STATE] Track Id : "
                 + trackId);
         }
@@ -275,7 +275,7 @@ namespace VertiportNexus.Services.Camera
                 !boundingBox.X2.HasValue ||
                 !boundingBox.Y2.HasValue)
             {
-                Console.WriteLine("[DETECTION][STATE] Bounding Box Skip : Empty");
+                ConsoleLogHelper.WriteLine("[DETECTION][STATE] Bounding Box Skip : Empty");
                 return;
             }
 
@@ -287,14 +287,14 @@ namespace VertiportNexus.Services.Camera
                 _lastUpdatedTime =
                     DateTime.Now;
             }
-            Console.WriteLine("[DETECTION][STATE] Bounding Box Updated");
-            Console.WriteLine("[DETECTION][STATE] X1 : " + boundingBox.X1);
-            Console.WriteLine("[DETECTION][STATE] Y1 : " + boundingBox.Y1);
-            Console.WriteLine("[DETECTION][STATE] X2 : " + boundingBox.X2);
-            Console.WriteLine("[DETECTION][STATE] Y2 : " + boundingBox.Y2);
-            Console.WriteLine("[DETECTION][STATE] Center X : " + boundingBox.CenterX);
-            Console.WriteLine("[DETECTION][STATE] Center Y : " + boundingBox.CenterY);
-            Console.WriteLine("[DETECTION][STATE] Confidence : " + boundingBox.Confidence);
+            ConsoleLogHelper.WriteLine("[DETECTION][STATE] Bounding Box Updated");
+            ConsoleLogHelper.WriteLine("[DETECTION][STATE] X1 : " + boundingBox.X1);
+            ConsoleLogHelper.WriteLine("[DETECTION][STATE] Y1 : " + boundingBox.Y1);
+            ConsoleLogHelper.WriteLine("[DETECTION][STATE] X2 : " + boundingBox.X2);
+            ConsoleLogHelper.WriteLine("[DETECTION][STATE] Y2 : " + boundingBox.Y2);
+            ConsoleLogHelper.WriteLine("[DETECTION][STATE] Center X : " + boundingBox.CenterX);
+            ConsoleLogHelper.WriteLine("[DETECTION][STATE] Center Y : " + boundingBox.CenterY);
+            ConsoleLogHelper.WriteLine("[DETECTION][STATE] Confidence : " + boundingBox.Confidence);
         }
 
         #endregion

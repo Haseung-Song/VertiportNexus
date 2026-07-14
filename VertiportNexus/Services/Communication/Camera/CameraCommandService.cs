@@ -170,7 +170,7 @@ namespace VertiportNexus.Services.Command
         {
             if (command == null)
             {
-                Console.WriteLine("[CAMERA][CMD] Handle Failed : Command is null");
+                ConsoleLogHelper.WriteLine("[CAMERA][CMD] Handle Failed : Command is null");
                 return;
             }
 
@@ -189,11 +189,11 @@ namespace VertiportNexus.Services.Command
                     break;
 
                 case CameraCommandType.GetState:
-                    Console.WriteLine("[CAMERA][CMD] GetState Received");
+                    ConsoleLogHelper.WriteLine("[CAMERA][CMD] GetState Received");
                     break;
 
                 default:
-                    Console.WriteLine("[CAMERA][CMD] Unsupported Command Type : " + command.CommandType);
+                    ConsoleLogHelper.WriteLine("[CAMERA][CMD] Unsupported Command Type : " + command.CommandType);
                     break;
             }
             PrintCommandEndLog();
@@ -216,7 +216,7 @@ namespace VertiportNexus.Services.Command
             if (string.IsNullOrWhiteSpace(
                 command.Mode))
             {
-                Console.WriteLine("[CAMERA][CMD] PTZ Move Failed : Mode is empty");
+                ConsoleLogHelper.WriteLine("[CAMERA][CMD] PTZ Move Failed : Mode is empty");
                 return;
             }
 
@@ -256,7 +256,7 @@ namespace VertiportNexus.Services.Command
                     break;
 
                 default:
-                    Console.WriteLine("[CAMERA][CMD] Unsupported PTZ Mode : " + command.Mode);
+                    ConsoleLogHelper.WriteLine("[CAMERA][CMD] Unsupported PTZ Mode : " + command.Mode);
                     break;
             }
 
@@ -274,7 +274,7 @@ namespace VertiportNexus.Services.Command
         /// </summary>
         private void HandleAutoMode()
         {
-            Console.WriteLine("[CAMERA][CMD] PTZ Mode : AUTO");
+            ConsoleLogHelper.WriteLine("[CAMERA][CMD] PTZ Mode : AUTO");
         }
 
         /// <summary>
@@ -289,7 +289,7 @@ namespace VertiportNexus.Services.Command
         /// </summary>
         private void HandleManualMode()
         {
-            Console.WriteLine("[CAMERA][CMD] PTZ Mode : MANUAL");
+            ConsoleLogHelper.WriteLine("[CAMERA][CMD] PTZ Mode : MANUAL");
         }
 
         /// <summary>
@@ -349,7 +349,7 @@ namespace VertiportNexus.Services.Command
                 return;
             }
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[CAMERA][CMD] Continuous Move Failed : No command or direction value");
         }
 
@@ -374,10 +374,10 @@ namespace VertiportNexus.Services.Command
                 IsPanTiltDirectionCommand(
                     normalizedCommand))
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[CAMERA][CMD] Continuous Pan/Tilt Ignored : PTZ Mode is AUTO");
 
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[CAMERA][CMD] Command : "
                     + normalizedCommand);
 
@@ -444,7 +444,7 @@ namespace VertiportNexus.Services.Command
                     break;
 
                 default:
-                    Console.WriteLine("[CAMERA][CMD] Unsupported PTZ Command : " + command);
+                    ConsoleLogHelper.WriteLine("[CAMERA][CMD] Unsupported PTZ Command : " + command);
                     break;
             }
 
@@ -464,7 +464,7 @@ namespace VertiportNexus.Services.Command
 
             if (IsAutoMode())
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[CAMERA][CMD] Continuous Pan Ignored : PTZ Mode is AUTO");
 
                 return true;
@@ -496,7 +496,7 @@ namespace VertiportNexus.Services.Command
 
             if (IsAutoMode())
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[CAMERA][CMD] Continuous Tilt Ignored : PTZ Mode is AUTO");
 
                 return true;
@@ -589,8 +589,8 @@ namespace VertiportNexus.Services.Command
                         0,
                         1000);
 
-                Console.WriteLine("[CAMERA][ZOOM] Position Input : " + command.ZoomPosition.Value);
-                Console.WriteLine("[CAMERA][ZOOM] Position Target : " + zoomPosition);
+                ConsoleLogHelper.WriteLine("[CAMERA][ZOOM] Position Input : " + command.ZoomPosition.Value);
+                ConsoleLogHelper.WriteLine("[CAMERA][ZOOM] Position Target : " + zoomPosition);
 
                 _ads1000CameraControlService
                     .MoveZoomPosition(
@@ -605,8 +605,8 @@ namespace VertiportNexus.Services.Command
                     ConvertZoomRatioToPosition(
                         command.Zoom.Value);
 
-                Console.WriteLine("[CAMERA][ZOOM] Ratio Input : " + command.Zoom.Value);
-                Console.WriteLine("[CAMERA][ZOOM] Position Target : " + zoomPosition);
+                ConsoleLogHelper.WriteLine("[CAMERA][ZOOM] Ratio Input : " + command.Zoom.Value);
+                ConsoleLogHelper.WriteLine("[CAMERA][ZOOM] Position Target : " + zoomPosition);
 
                 _ads1000CameraControlService
                     .MoveZoomPosition(
@@ -615,7 +615,7 @@ namespace VertiportNexus.Services.Command
                 return;
             }
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[CAMERA][CMD] Zoom Move Failed : Zoom value is empty");
         }
 
@@ -642,14 +642,14 @@ namespace VertiportNexus.Services.Command
             {
                 if (IsAutoMode())
                 {
-                    Console.WriteLine(
+                    ConsoleLogHelper.WriteLine(
                         "[CAMERA][CMD] Absolute Pan Ignored : PTZ Mode is AUTO");
                 }
                 else
                 {
                     if (!_cameraStateProvider.CurrentPan.HasValue)
                     {
-                        Console.WriteLine(
+                        ConsoleLogHelper.WriteLine(
                             "[CAMERA][PTZ] Absolute Pan Failed : Current Pan is empty");
 
                         return;
@@ -679,31 +679,31 @@ namespace VertiportNexus.Services.Command
                     double panCommandTarget =
                         currentPanRaw + panMoveAngle;
 
-                    Console.WriteLine(
+                    ConsoleLogHelper.WriteLine(
                         "[CAMERA][PTZ] Absolute Pan Input : "
                         + command.Pan.Value);
 
-                    Console.WriteLine(
+                    ConsoleLogHelper.WriteLine(
                         "[CAMERA][PTZ] Absolute Pan Mode : "
                         + _cameraStateProvider.PanTurnMode);
 
-                    Console.WriteLine(
+                    ConsoleLogHelper.WriteLine(
                         "[CAMERA][PTZ] Absolute Pan Current Raw : "
                         + currentPanRaw.ToString("F2"));
 
-                    Console.WriteLine(
+                    ConsoleLogHelper.WriteLine(
                         "[CAMERA][PTZ] Absolute Pan Current Display : "
                         + currentPanDisplay.ToString("F2"));
 
-                    Console.WriteLine(
+                    ConsoleLogHelper.WriteLine(
                         "[CAMERA][PTZ] Absolute Pan Target Display : "
                         + targetPan.ToString("F2"));
 
-                    Console.WriteLine(
+                    ConsoleLogHelper.WriteLine(
                         "[CAMERA][PTZ] Absolute Pan Move Angle : "
                         + panMoveAngle.ToString("F2"));
 
-                    Console.WriteLine(
+                    ConsoleLogHelper.WriteLine(
                         "[CAMERA][PTZ] Absolute Pan Command Target Raw : "
                         + panCommandTarget.ToString("F2"));
 
@@ -721,7 +721,7 @@ namespace VertiportNexus.Services.Command
             {
                 if (IsAutoMode())
                 {
-                    Console.WriteLine(
+                    ConsoleLogHelper.WriteLine(
                         "[CAMERA][CMD] Absolute Tilt Ignored : PTZ Mode is AUTO");
                 }
                 else
@@ -732,8 +732,8 @@ namespace VertiportNexus.Services.Command
                             -90,
                             90);
 
-                    Console.WriteLine("[CAMERA][PTZ] Absolute Tilt Input : " + command.Tilt.Value);
-                    Console.WriteLine("[CAMERA][PTZ] Absolute Tilt Target : " + tilt);
+                    ConsoleLogHelper.WriteLine("[CAMERA][PTZ] Absolute Tilt Input : " + command.Tilt.Value);
+                    ConsoleLogHelper.WriteLine("[CAMERA][PTZ] Absolute Tilt Target : " + tilt);
 
                     _ads1000CameraControlService
                         .MoveTiltAbsolute(
@@ -757,8 +757,8 @@ namespace VertiportNexus.Services.Command
                         0,
                         1000);
 
-                Console.WriteLine("[CAMERA][ZOOM] Position Input : " + command.ZoomPosition.Value);
-                Console.WriteLine("[CAMERA][ZOOM] Position Target : " + zoomPosition);
+                ConsoleLogHelper.WriteLine("[CAMERA][ZOOM] Position Input : " + command.ZoomPosition.Value);
+                ConsoleLogHelper.WriteLine("[CAMERA][ZOOM] Position Target : " + zoomPosition);
 
                 _ads1000CameraControlService
                     .MoveZoomPosition(
@@ -779,8 +779,8 @@ namespace VertiportNexus.Services.Command
                     ConvertZoomRatioToPosition(
                         command.Zoom.Value);
 
-                Console.WriteLine("[CAMERA][ZOOM] Ratio Input : " + command.Zoom.Value);
-                Console.WriteLine("[CAMERA][ZOOM] Position Target : " + zoomPosition);
+                ConsoleLogHelper.WriteLine("[CAMERA][ZOOM] Ratio Input : " + command.Zoom.Value);
+                ConsoleLogHelper.WriteLine("[CAMERA][ZOOM] Position Target : " + zoomPosition);
 
                 _ads1000CameraControlService
                     .MoveZoomPosition(
@@ -804,7 +804,7 @@ namespace VertiportNexus.Services.Command
 
             if (!isHandled)
             {
-                Console.WriteLine("[CAMERA][CMD] Absolute Move Failed : No target value");
+                ConsoleLogHelper.WriteLine("[CAMERA][CMD] Absolute Move Failed : No target value");
             }
 
         }
@@ -830,7 +830,7 @@ namespace VertiportNexus.Services.Command
             {
                 if (IsAutoMode())
                 {
-                    Console.WriteLine(
+                    ConsoleLogHelper.WriteLine(
                         "[CAMERA][CMD] Relative Pan Ignored : PTZ Mode is AUTO");
 
                     isHandled =
@@ -851,7 +851,7 @@ namespace VertiportNexus.Services.Command
             {
                 if (IsAutoMode())
                 {
-                    Console.WriteLine(
+                    ConsoleLogHelper.WriteLine(
                         "[CAMERA][CMD] Relative Tilt Ignored : PTZ Mode is AUTO");
 
                     isHandled =
@@ -871,12 +871,12 @@ namespace VertiportNexus.Services.Command
             if (command.Zoom.HasValue ||
                 command.Focus.HasValue)
             {
-                Console.WriteLine("[CAMERA][CMD] Relative Zoom / Focus is not supported yet");
+                ConsoleLogHelper.WriteLine("[CAMERA][CMD] Relative Zoom / Focus is not supported yet");
             }
 
             if (!isHandled)
             {
-                Console.WriteLine("[CAMERA][CMD] Relative Move Failed : No target value");
+                ConsoleLogHelper.WriteLine("[CAMERA][CMD] Relative Move Failed : No target value");
             }
 
         }
@@ -936,15 +936,15 @@ namespace VertiportNexus.Services.Command
             CameraCommand command)
         {
             ConsoleLogHelper.PrintLine();
-            Console.WriteLine("[CAMERA][CMD] Camera Command Start");
-            Console.WriteLine("[CAMERA][CMD] Type : " + command.CommandType);
-            Console.WriteLine("[CAMERA][CMD] Mode : " + command.Mode);
-            Console.WriteLine("[CAMERA][CMD] Command : " + command.Command);
-            Console.WriteLine("[CAMERA][CMD] Pan : " + command.Pan);
-            Console.WriteLine("[CAMERA][CMD] Tilt : " + command.Tilt);
-            Console.WriteLine("[CAMERA][CMD] Zoom : " + command.Zoom);
-            Console.WriteLine("[CAMERA][CMD] Focus : " + command.Focus);
-            Console.WriteLine("[CAMERA][CMD] Source MsgId : " + command.SourceMsgId);
+            ConsoleLogHelper.WriteLine("[CAMERA][CMD] Camera Command Start");
+            ConsoleLogHelper.WriteLine("[CAMERA][CMD] Type : " + command.CommandType);
+            ConsoleLogHelper.WriteLine("[CAMERA][CMD] Mode : " + command.Mode);
+            ConsoleLogHelper.WriteLine("[CAMERA][CMD] Command : " + command.Command);
+            ConsoleLogHelper.WriteLine("[CAMERA][CMD] Pan : " + command.Pan);
+            ConsoleLogHelper.WriteLine("[CAMERA][CMD] Tilt : " + command.Tilt);
+            ConsoleLogHelper.WriteLine("[CAMERA][CMD] Zoom : " + command.Zoom);
+            ConsoleLogHelper.WriteLine("[CAMERA][CMD] Focus : " + command.Focus);
+            ConsoleLogHelper.WriteLine("[CAMERA][CMD] Source MsgId : " + command.SourceMsgId);
             ConsoleLogHelper.PrintLine();
         }
 
@@ -954,7 +954,7 @@ namespace VertiportNexus.Services.Command
         private void PrintCommandEndLog()
         {
             ConsoleLogHelper.PrintLine();
-            Console.WriteLine("[CAMERA][CMD] Camera Command End");
+            ConsoleLogHelper.WriteLine("[CAMERA][CMD] Camera Command End");
             ConsoleLogHelper.PrintLine();
         }
 

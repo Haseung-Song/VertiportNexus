@@ -697,7 +697,7 @@ namespace VertiportNexus.ViewModels.Main
 
             #region [Default Initialize]
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[CAMERA][STATE] Pan Turn Mode : "
                 + _cameraState.PanTurnMode);
 
@@ -707,7 +707,7 @@ namespace VertiportNexus.ViewModels.Main
 
             ConsoleLogHelper.PrintLine();
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[MAIN] ADS1000 Direct TCP Test Initialize Complete");
 
             ConsoleLogHelper.PrintLine();

@@ -4,6 +4,7 @@ using System.Windows.Input;
 using VertiportNexus.Features.Main.Ptz;
 using VertiportNexus.Services.Command;
 using VertiportNexus.ViewModels.Main.States;
+using VertiportNexus.Common;
 
 namespace VertiportNexus.ViewModels.Main.Coordinators
 {
@@ -20,7 +21,8 @@ namespace VertiportNexus.ViewModels.Main.Coordinators
         /// <summary>
         /// 위치 비교 허용 오차
         /// </summary>
-        private const double POSITION_EPSILON = 0.001;
+        private const double POSITION_EPSILON =
+            0.001;
 
         #endregion
 
@@ -126,7 +128,7 @@ namespace VertiportNexus.ViewModels.Main.Coordinators
         {
             if (!panAbsoluteValue.HasValue)
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[UI][PTZ] Pan Absolute Failed : Value is empty");
 
                 return PtzControlWorkflowResult.Ignored(string.Empty);
@@ -192,7 +194,7 @@ namespace VertiportNexus.ViewModels.Main.Coordinators
 
             if (Math.Abs(panMoveAngle) <= POSITION_EPSILON)
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[UI][PTZ] Pan Absolute Ignored : Already Target Position");
 
                 return PtzControlWorkflowResult.Ignored(string.Empty);
@@ -201,23 +203,23 @@ namespace VertiportNexus.ViewModels.Main.Coordinators
             double panCommandTarget =
                 currentPanCommandAngle + panMoveAngle;
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[UI][PTZ] Pan Absolute Input : {0:F2}",
                 inputPan);
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[UI][PTZ] Pan Absolute Current : {0:F2}",
                 currentPan);
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[UI][PTZ] Pan Absolute Target : {0:F2}",
                 targetPan);
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[UI][PTZ] Pan Absolute Move Angle : {0:F2}",
                 panMoveAngle);
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[UI][PTZ] Pan Absolute Command Target : {0:F2}",
                 panCommandTarget);
 
@@ -240,7 +242,7 @@ namespace VertiportNexus.ViewModels.Main.Coordinators
         {
             if (!tiltAbsoluteValue.HasValue)
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[UI][PTZ] Tilt Absolute Failed : Value is empty");
 
                 return PtzControlWorkflowResult.Ignored(string.Empty);
@@ -268,7 +270,7 @@ namespace VertiportNexus.ViewModels.Main.Coordinators
 
             if (Math.Abs(tiltMoveAngle) <= POSITION_EPSILON)
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[UI][PTZ] Tilt Absolute Ignored : Already Target Position");
 
                 return PtzControlWorkflowResult.Ignored(string.Empty);
@@ -297,7 +299,7 @@ namespace VertiportNexus.ViewModels.Main.Coordinators
         {
             if (!panRelativeValue.HasValue)
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[UI][PTZ] Pan Relative Failed : Value is empty");
 
                 return PtzControlWorkflowResult.Ignored(string.Empty);
@@ -344,7 +346,7 @@ namespace VertiportNexus.ViewModels.Main.Coordinators
         {
             if (!tiltRelativeValue.HasValue)
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[UI][PTZ] Tilt Relative Failed : Value is empty");
 
                 return

@@ -52,14 +52,14 @@ namespace VertiportNexus.Services.Radar
         /// </summary>
         public void RunAllTests()
         {
-            Console.WriteLine("[RADAR][MOCK] Test Start");
+            ConsoleLogHelper.WriteLine("[RADAR][MOCK] Test Start");
 
             RunTrackingRequestTest();
 
             RunBistRequestTest();
 
             ConsoleLogHelper.PrintLine();
-            Console.WriteLine("[RADAR][MOCK] Test End");
+            ConsoleLogHelper.WriteLine("[RADAR][MOCK] Test End");
             ConsoleLogHelper.PrintLine();
         }
 
@@ -69,7 +69,7 @@ namespace VertiportNexus.Services.Radar
         public void RunTrackingRequestTest()
         {
             ConsoleLogHelper.PrintLine();
-            Console.WriteLine("[RADAR][MOCK] Tracking Request Test Start");
+            ConsoleLogHelper.WriteLine("[RADAR][MOCK] Tracking Request Test Start");
 
             byte[] requestPacket =
                 BuildTrackingRequestPacket();
@@ -89,7 +89,7 @@ namespace VertiportNexus.Services.Radar
 
             ConsoleLogHelper.PrintLine();
 
-            Console.WriteLine("[RADAR][MOCK] Tracking Request Test End");
+            ConsoleLogHelper.WriteLine("[RADAR][MOCK] Tracking Request Test End");
             ConsoleLogHelper.PrintLine();
         }
 
@@ -100,7 +100,7 @@ namespace VertiportNexus.Services.Radar
         /// </summary>
         public void RunBistRequestTest()
         {
-            Console.WriteLine("[RADAR][MOCK] BIST Request Test Start");
+            ConsoleLogHelper.WriteLine("[RADAR][MOCK] BIST Request Test Start");
 
             byte[] requestPacket =
                 BuildBistRequestPacket();
@@ -120,7 +120,7 @@ namespace VertiportNexus.Services.Radar
 
             ConsoleLogHelper.PrintLine();
 
-            Console.WriteLine("[RADAR][MOCK] BIST Request Test End");
+            ConsoleLogHelper.WriteLine("[RADAR][MOCK] BIST Request Test End");
             ConsoleLogHelper.PrintLine();
         }
 
@@ -460,16 +460,16 @@ namespace VertiportNexus.Services.Radar
             if (data == null ||
                 data.Length == 0)
             {
-                Console.WriteLine(title + " : Empty");
+                ConsoleLogHelper.WriteLine(title + " : Empty");
                 return;
             }
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 title);
 
-            Console.WriteLine();
+            ConsoleLogHelper.WriteLine();
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 BitConverter
                     .ToString(
                         data)

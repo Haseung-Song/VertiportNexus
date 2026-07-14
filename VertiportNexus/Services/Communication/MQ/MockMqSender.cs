@@ -1,5 +1,4 @@
-﻿using System;
-using VertiportNexus.Common;
+﻿using VertiportNexus.Common;
 
 namespace VertiportNexus.Services.Communication.MQ
 {
@@ -34,10 +33,10 @@ namespace VertiportNexus.Services.Communication.MQ
             }
 
             ConsoleLogHelper.PrintLine();
-            Console.WriteLine("[MQ][MOCK][SEND] Send");
-            Console.WriteLine("[MQ][MOCK][SEND] Queue : " + queueName);
-            Console.WriteLine("[MQ][MOCK][SEND] Message");
-            Console.WriteLine(message);
+            ConsoleLogHelper.WriteLine("[MQ][MOCK][SEND] Send");
+            ConsoleLogHelper.WriteLine("[MQ][MOCK][SEND] Queue : " + queueName);
+            ConsoleLogHelper.WriteLine("[MQ][MOCK][SEND] Message");
+            ConsoleLogHelper.WriteLine(message);
             ConsoleLogHelper.PrintLine();
         }
 
@@ -63,16 +62,15 @@ namespace VertiportNexus.Services.Communication.MQ
         {
             if (string.IsNullOrWhiteSpace(queueName))
             {
-                Console.WriteLine("[MQ][MOCK][SEND] Send Failed : Queue is empty");
+                ConsoleLogHelper.WriteLine("[MQ][MOCK][SEND] Send Failed : Queue is empty");
                 return false;
             }
 
             if (string.IsNullOrWhiteSpace(message))
             {
-                Console.WriteLine("[MQ][MOCK][SEND] Send Failed : Message is empty");
+                ConsoleLogHelper.WriteLine("[MQ][MOCK][SEND] Send Failed : Message is empty");
                 return false;
             }
-
             return true;
         }
         #endregion

@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using VertiportNexus.Models.ADS1000;
 using VertiportNexus.Services.ADS1000;
+using VertiportNexus.Common;
 
 namespace VertiportNexus.ViewModels.Main
 {
@@ -74,6 +75,9 @@ namespace VertiportNexus.ViewModels.Main
             }
             catch (Exception ex)
             {
+                ConsoleLogHelper.Error(
+                    "[DEVICE] Connect Error : " + ex.Message);
+
                 return DeviceConnectionControllerResult.Failed(
                     "MCB / SCB Connect Error : " + ex.Message);
             }
@@ -95,6 +99,9 @@ namespace VertiportNexus.ViewModels.Main
             }
             catch (Exception ex)
             {
+                ConsoleLogHelper.Error(
+                    "[DEVICE] Disconnect Error : " + ex.Message);
+
                 return ControllerResult.Failed(
                     "MCB / SCB Disconnect Error : " + ex.Message);
             }

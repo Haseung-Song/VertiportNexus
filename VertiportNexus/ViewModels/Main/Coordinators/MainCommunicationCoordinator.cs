@@ -2,7 +2,6 @@
 using System.Threading.Tasks;
 using VertiportNexus.Common;
 using VertiportNexus.Features.Main.Communication;
-using VertiportNexus.Services.Command;
 
 namespace VertiportNexus.ViewModels.Main.Coordinators
 {
@@ -68,10 +67,10 @@ namespace VertiportNexus.ViewModels.Main.Coordinators
             {
                 ConsoleLogHelper.PrintLine();
 
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[CSE][MQ] Start Ignored : Already Started");
 
-                Console.WriteLine();
+                ConsoleLogHelper.WriteLine();
 
                 return MainCommunicationResult.Create();
             }
@@ -115,10 +114,10 @@ namespace VertiportNexus.ViewModels.Main.Coordinators
             {
                 ConsoleLogHelper.PrintLine();
 
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[CSE][MQ] Stop Ignored : Not Started");
 
-                Console.WriteLine();
+                ConsoleLogHelper.WriteLine();
 
                 return MainCommunicationResult.Create();
             }
@@ -171,10 +170,10 @@ namespace VertiportNexus.ViewModels.Main.Coordinators
             {
                 ConsoleLogHelper.PrintLine();
 
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[RADAR][UDP] Start Failed : MCB / SCB Not Connected");
 
-                Console.WriteLine();
+                ConsoleLogHelper.WriteLine();
 
                 return MainCommunicationResult.Create();
             }
@@ -184,10 +183,10 @@ namespace VertiportNexus.ViewModels.Main.Coordinators
             {
                 ConsoleLogHelper.PrintLine();
 
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[RADAR][UDP] Start Ignored : Already Started");
 
-                Console.WriteLine();
+                ConsoleLogHelper.WriteLine();
 
                 return MainCommunicationResult.Create();
             }
@@ -231,11 +230,9 @@ namespace VertiportNexus.ViewModels.Main.Coordinators
             if (radarUdpConnectionState != MainViewModel.ConnectionState.Connected)
             {
                 ConsoleLogHelper.PrintLine();
-
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[RADAR][UDP] Stop Ignored : Not Started");
-
-                Console.WriteLine();
+                ConsoleLogHelper.WriteLine();
 
                 return MainCommunicationResult.Create();
             }
@@ -253,7 +250,7 @@ namespace VertiportNexus.ViewModels.Main.Coordinators
             return MainCommunicationResult.Create(
                 mainStatusText: result.Message);
         }
-
         #endregion
     }
+
 }

@@ -1,6 +1,7 @@
 using System;
 using VertiportNexus.Models.ADS1000;
 using VertiportNexus.Services.Camera;
+using VertiportNexus.Common;
 
 namespace VertiportNexus.ViewModels.Main
 {
@@ -91,12 +92,16 @@ namespace VertiportNexus.ViewModels.Main
             }
             catch (Exception ex)
             {
+                ConsoleLogHelper.Error(
+                    "[ADS1000][STATUS] Status Apply Failed : " + ex.Message);
+
                 return Ads1000StatusApplyControllerResult
                     .Failed(
                         "ADS1000 Status Apply Failed : " + ex.Message);
             }
-        }
 
+        }
         #endregion
     }
+
 }

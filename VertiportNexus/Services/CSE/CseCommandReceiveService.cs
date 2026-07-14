@@ -121,8 +121,8 @@ namespace VertiportNexus.Services.Vertiport
                     json);
 
                 ConsoleLogHelper.PrintLine();
-                Console.WriteLine("[CSE][RECV] Queue : " + queueName);
-                Console.WriteLine("[CSE][RECV] JSON Parse Start");
+                ConsoleLogHelper.WriteLine("[CSE][RECV] Queue : " + queueName);
+                ConsoleLogHelper.WriteLine("[CSE][RECV] JSON Parse Start");
 
                 CseCommandMessage message =
                     _messageParser.Parse(
@@ -130,15 +130,15 @@ namespace VertiportNexus.Services.Vertiport
 
                 if (message == null)
                 {
-                    Console.WriteLine("[CSE][RECV] JSON Parse Failed");
+                    ConsoleLogHelper.WriteLine("[CSE][RECV] JSON Parse Failed");
                     ConsoleLogHelper.PrintLine();
                     return;
                 }
 
-                Console.WriteLine("[CSE][RECV] InterfaceId : " + message.InterfaceId);
-                Console.WriteLine("[CSE][RECV] MsgType : " + message.MsgType);
-                Console.WriteLine("[CSE][RECV] MsgId : " + message.MsgId);
-                Console.WriteLine("[CSE][RECV] ReplyTo : " + message.ReplyTo);
+                ConsoleLogHelper.WriteLine("[CSE][RECV] InterfaceId : " + message.InterfaceId);
+                ConsoleLogHelper.WriteLine("[CSE][RECV] MsgType : " + message.MsgType);
+                ConsoleLogHelper.WriteLine("[CSE][RECV] MsgId : " + message.MsgId);
+                ConsoleLogHelper.WriteLine("[CSE][RECV] ReplyTo : " + message.ReplyTo);
                 ConsoleLogHelper.PrintLine();
 
                 CommandReceived?.Invoke(
@@ -147,8 +147,8 @@ namespace VertiportNexus.Services.Vertiport
             catch (Exception ex)
             {
                 ConsoleLogHelper.PrintLine();
-                Console.WriteLine("[CSE][RECV] Message Receive Failed");
-                Console.WriteLine("[CSE][RECV] Error : " + ex.Message);
+                ConsoleLogHelper.WriteLine("[CSE][RECV] Message Receive Failed");
+                ConsoleLogHelper.WriteLine("[CSE][RECV] Error : " + ex.Message);
                 ConsoleLogHelper.PrintLine();
             }
 

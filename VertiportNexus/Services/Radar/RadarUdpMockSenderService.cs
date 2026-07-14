@@ -128,7 +128,7 @@ namespace VertiportNexus.Services.Radar
             if (packet == null ||
                 packet.Length == 0)
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[RADAR][UDP][MOCK] Send Failed : Empty Packet");
 
                 return;
@@ -146,9 +146,9 @@ namespace VertiportNexus.Services.Radar
                             port);
 
                     ConsoleLogHelper.PrintLine();
-                    Console.WriteLine(title);
-                    Console.WriteLine("[RADAR][UDP][MOCK] Target : " + ipAddress + ":" + port);
-                    Console.WriteLine("[RADAR][UDP][MOCK] Length : " + packet.Length);
+                    ConsoleLogHelper.WriteLine(title);
+                    ConsoleLogHelper.WriteLine("[RADAR][UDP][MOCK] Target : " + ipAddress + ":" + port);
+                    ConsoleLogHelper.WriteLine("[RADAR][UDP][MOCK] Length : " + packet.Length);
 
                     PrintHexData(
                         "[RADAR][UDP][MOCK] Packet",
@@ -164,15 +164,15 @@ namespace VertiportNexus.Services.Radar
                 }
 
                 ConsoleLogHelper.PrintLine();
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[RADAR][UDP][MOCK] Send Complete");
                 ConsoleLogHelper.PrintLine();
             }
             catch (Exception ex)
             {
                 ConsoleLogHelper.PrintLine();
-                Console.WriteLine("[RADAR][UDP][MOCK] Send Failed");
-                Console.WriteLine("[RADAR][UDP][MOCK] Error : " + ex.Message);
+                ConsoleLogHelper.WriteLine("[RADAR][UDP][MOCK] Send Failed");
+                ConsoleLogHelper.WriteLine("[RADAR][UDP][MOCK] Error : " + ex.Message);
                 ConsoleLogHelper.PrintLine();
             }
 
@@ -198,14 +198,14 @@ namespace VertiportNexus.Services.Radar
             if (data == null ||
                 data.Length == 0)
             {
-                Console.WriteLine(title + " : Empty");
+                ConsoleLogHelper.WriteLine(title + " : Empty");
                 return;
             }
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 title);
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 BitConverter
                     .ToString(
                         data)

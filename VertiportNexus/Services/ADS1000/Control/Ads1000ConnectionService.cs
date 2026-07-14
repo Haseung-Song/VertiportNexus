@@ -75,11 +75,11 @@ namespace VertiportNexus.Services.ADS1000
             string scbIpAddress,
             int scbPort)
         {
-            Console.WriteLine("[DEVICE] Connect Start");
-            Console.WriteLine();
+            ConsoleLogHelper.WriteLine("[DEVICE] Connect Start");
+            ConsoleLogHelper.WriteLine();
 
-            Console.WriteLine("[DEVICE] MCB Target : " + mcbIpAddress + ":" + mcbPort);
-            Console.WriteLine("[DEVICE] SCB Target : " + scbIpAddress + ":" + scbPort);
+            ConsoleLogHelper.WriteLine("[DEVICE] MCB Target : " + mcbIpAddress + ":" + mcbPort);
+            ConsoleLogHelper.WriteLine("[DEVICE] SCB Target : " + scbIpAddress + ":" + scbPort);
             ConsoleLogHelper.PrintLine();
 
             // [MCB] 연결 전 대기
@@ -123,10 +123,10 @@ namespace VertiportNexus.Services.ADS1000
                 isScbConnected);
 
             ConsoleLogHelper.PrintLine();
-            Console.WriteLine("[DEVICE] Connect Result");
-            Console.WriteLine();
-            Console.WriteLine("[DEVICE] MCB : " + isMcbConnected);
-            Console.WriteLine("[DEVICE] SCB : " + isScbConnected);
+            ConsoleLogHelper.WriteLine("[DEVICE] Connect Result");
+            ConsoleLogHelper.WriteLine();
+            ConsoleLogHelper.WriteLine("[DEVICE] MCB : " + isMcbConnected);
+            ConsoleLogHelper.WriteLine("[DEVICE] SCB : " + isScbConnected);
             ConsoleLogHelper.PrintLine();
 
             return new Ads1000ConnectionResult(
@@ -139,13 +139,13 @@ namespace VertiportNexus.Services.ADS1000
         /// </summary>
         public void Disconnect()
         {
-            Console.WriteLine("[DEVICE] Disconnect Start");
-            Console.WriteLine();
+            ConsoleLogHelper.WriteLine("[DEVICE] Disconnect Start");
+            ConsoleLogHelper.WriteLine();
 
             _mcbTcpClientService.Disconnect();
             _scbTcpClientService.Disconnect();
 
-            Console.WriteLine("[DEVICE] Disconnect Complete");
+            ConsoleLogHelper.WriteLine("[DEVICE] Disconnect Complete");
             ConsoleLogHelper.PrintLine();
         }
         #endregion

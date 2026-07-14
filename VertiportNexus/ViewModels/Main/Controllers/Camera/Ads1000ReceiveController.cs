@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using VertiportNexus.Models.ADS1000;
 using VertiportNexus.Services.ADS1000;
+using VertiportNexus.Common;
 
 namespace VertiportNexus.ViewModels.Main
 {
@@ -71,6 +72,7 @@ namespace VertiportNexus.ViewModels.Main
                             .Add(
                                 statusResult.ParsedPacket);
                     }
+
                 }
 
                 return Ads1000ReceiveControllerResult
@@ -79,12 +81,16 @@ namespace VertiportNexus.ViewModels.Main
             }
             catch (Exception ex)
             {
+                ConsoleLogHelper.Error(
+                    "[ADS1000][RECEIVE] Receive Failed : " + ex.Message);
+
                 return Ads1000ReceiveControllerResult
                     .Failed(
                         "ADS1000 Receive Failed : " + ex.Message);
             }
-        }
 
+        }
         #endregion
     }
+
 }

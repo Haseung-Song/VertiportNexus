@@ -1,5 +1,4 @@
-﻿using System;
-using VertiportNexus.Common;
+﻿using VertiportNexus.Common;
 using VertiportNexus.Models.ADS1000;
 using VertiportNexus.Services.Command;
 using VertiportNexus.ViewModels.Main.Composition;
@@ -256,13 +255,13 @@ namespace VertiportNexus.ViewModels.Main.Panels
                 return false;
             }
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[UI][PTZ] Pan / Tilt Speed Value Changed : "
                 + _context.Ads1000CameraControlService.PanTiltSpeedLevel.ToString("F0")
                 + " -> "
                 + clampedValue.ToString("F0"));
 
-            Console.WriteLine();
+            ConsoleLogHelper.WriteLine();
 
             _context.Ads1000CameraControlService.PanTiltSpeedLevel =
                 clampedValue;
@@ -359,8 +358,9 @@ namespace VertiportNexus.ViewModels.Main.Panels
             SetZoomPositionValue(0);
             SetZoomRatioValue(1);
             SetFocusPositionValue(0);
+
             ConsoleLogHelper.PrintLine();
-            Console.WriteLine("[UI][POSITION] Input Reset");
+            ConsoleLogHelper.WriteLine("[UI][POSITION] Input Reset");
             ConsoleLogHelper.PrintLine();
         }
         #endregion

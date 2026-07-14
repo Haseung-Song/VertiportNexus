@@ -170,21 +170,21 @@ namespace VertiportNexus.Services.ADS1000
                 return;
             }
 
-            Console.WriteLine("[ADS1000][" + deviceName + "] Parse Result");
-            Console.WriteLine("[ADS1000][" + deviceName + "] Raw : " + packetText);
-            Console.WriteLine("[ADS1000][" + deviceName + "] IsValid : " + parsedPacket.IsValid);
+            ConsoleLogHelper.WriteLine("[ADS1000][" + deviceName + "] Parse Result");
+            ConsoleLogHelper.WriteLine("[ADS1000][" + deviceName + "] Raw : " + packetText);
+            ConsoleLogHelper.WriteLine("[ADS1000][" + deviceName + "] IsValid : " + parsedPacket.IsValid);
 
             if (!parsedPacket.IsValid)
             {
-                Console.WriteLine("[ADS1000][" + deviceName + "] Error : " + parsedPacket.ErrorMessage);
+                ConsoleLogHelper.WriteLine("[ADS1000][" + deviceName + "] Error : " + parsedPacket.ErrorMessage);
                 ConsoleLogHelper.PrintLine();
 
                 return;
             }
 
-            Console.WriteLine("[ADS1000][" + deviceName + "] Cmd1 : 0x" + parsedPacket.Cmd1.ToString("X2"));
-            Console.WriteLine("[ADS1000][" + deviceName + "] Length : " + parsedPacket.Length);
-            Console.WriteLine("[ADS1000][" + deviceName + "] Checksum : 0x" + parsedPacket.Checksum.ToString("X2"));
+            ConsoleLogHelper.WriteLine("[ADS1000][" + deviceName + "] Cmd1 : 0x" + parsedPacket.Cmd1.ToString("X2"));
+            ConsoleLogHelper.WriteLine("[ADS1000][" + deviceName + "] Length : " + parsedPacket.Length);
+            ConsoleLogHelper.WriteLine("[ADS1000][" + deviceName + "] Checksum : 0x" + parsedPacket.Checksum.ToString("X2"));
             ConsoleLogHelper.PrintLine();
         }
 

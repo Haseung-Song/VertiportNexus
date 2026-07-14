@@ -796,7 +796,7 @@ namespace VertiportNexus.Features.Main.Ptz
                     string.Empty);
             }
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[UI][PTZ] Pan / Tilt Continuous Speed Changed : "
                 + panTiltSpeedLevel.ToString("F0"));
 
@@ -848,7 +848,7 @@ namespace VertiportNexus.Features.Main.Ptz
         {
             if (isHomePositionMoving)
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[UI][PTZ] Pan / Tilt Speed Apply Ignored : Home Position Moving");
 
                 ConsoleLogHelper.PrintLine();
@@ -866,7 +866,7 @@ namespace VertiportNexus.Features.Main.Ptz
             if (_currentPanTiltMoveAxis == PanTiltMoveAxis.None ||
                 _currentPanTiltMoveType == PanTiltMoveType.None)
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[UI][PTZ] Pan / Tilt Speed Apply Ignored : Pan / Tilt Move State None");
 
                 ConsoleLogHelper.PrintLine();
@@ -878,7 +878,7 @@ namespace VertiportNexus.Features.Main.Ptz
             bool includeBeginCommand =
                 _currentPanTiltMoveType == PanTiltMoveType.Absolute;
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[UI][PTZ] Pan / Tilt Speed Apply : "
                 + panTiltSpeedLevel.ToString("F0")
                 + " / "
@@ -1345,14 +1345,14 @@ namespace VertiportNexus.Features.Main.Ptz
 
             ConsoleLogHelper.PrintLine();
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[UI][PTZ] Pan Zero Offset Request");
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[UI][PTZ] Pan Zero Current : "
                 + normalizedPan.ToString("F2"));
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[UI][PTZ] Pan Zero Offset Value : "
                 + offsetValue);
 
@@ -1363,7 +1363,7 @@ namespace VertiportNexus.Features.Main.Ptz
 
             if (!result.IsSuccess)
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[UI][PTZ] Pan Zero Failed : "
                     + result.Message);
 
@@ -1404,14 +1404,14 @@ namespace VertiportNexus.Features.Main.Ptz
 
             ConsoleLogHelper.PrintLine();
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[UI][PTZ] Tilt Zero Offset Request");
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[UI][PTZ] Tilt Zero Current : "
                 + normalizedTilt.ToString("F2"));
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[UI][PTZ] Tilt Zero Offset Value : "
                 + offsetValue);
 
@@ -1422,7 +1422,7 @@ namespace VertiportNexus.Features.Main.Ptz
 
             if (!result.IsSuccess)
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[UI][PTZ] Tilt Zero Failed : "
                     + result.Message);
 

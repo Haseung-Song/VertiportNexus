@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using VertiportNexus.Services.ADS1000;
+using VertiportNexus.Common;
 
 namespace VertiportNexus.ViewModels.Main
 {
@@ -47,9 +48,13 @@ namespace VertiportNexus.ViewModels.Main
             }
             catch (Exception ex)
             {
+                ConsoleLogHelper.Error(
+                    "[UI][PTZ] Home Position Failed : " + ex.Message);
+
                 return PtzControllerResult.Failed(
                     "Home Position Failed : " + ex.Message);
             }
+
         }
 
         internal PtzControllerResult SetPanZero(
@@ -75,7 +80,7 @@ namespace VertiportNexus.ViewModels.Main
                 "Tilt Zero Offset Saved",
                 tiltUiZeroOffset: currentTilt);
         }
-
         #endregion
     }
+
 }

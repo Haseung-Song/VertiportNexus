@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using VertiportNexus.Common.Constants;
 using VertiportNexus.Models.Radar;
+using VertiportNexus.Common;
 
 namespace VertiportNexus.Services.Radar
 {
@@ -20,8 +21,7 @@ namespace VertiportNexus.Services.Radar
         /// <summary>
         /// Packet 번호
         /// </summary>
-        private uint _packetNumber =
-            1;
+        private uint _packetNumber = 1;
 
         #endregion
 
@@ -36,7 +36,7 @@ namespace VertiportNexus.Services.Radar
         {
             if (payload == null)
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[RADAR][BUILDER] Tracking Response Failed : Payload is null");
 
                 return null;
@@ -64,7 +64,7 @@ namespace VertiportNexus.Services.Radar
         {
             if (payload == null)
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[RADAR][BUILDER] BIST Response Failed : Payload is null");
 
                 return null;

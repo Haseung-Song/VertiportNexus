@@ -99,11 +99,11 @@ namespace VertiportNexus.Services.Communication.MQ
         {
             if (_isConnected)
             {
-                Console.WriteLine("[MQ][" + _serviceName + "] Connect Ignored : Already Connected");
+                ConsoleLogHelper.WriteLine("[MQ][" + _serviceName + "] Connect Ignored : Already Connected");
                 return Task.FromResult(true);
             }
 
-            Console.WriteLine("[MQ][" + _serviceName + "] Connect Try");
+            ConsoleLogHelper.WriteLine("[MQ][" + _serviceName + "] Connect Try");
 
             _cts =
                 new CancellationTokenSource();
@@ -111,7 +111,7 @@ namespace VertiportNexus.Services.Communication.MQ
             _isConnected =
                 true;
 
-            Console.WriteLine("[MQ][" + _serviceName + "] Connect Success");
+            ConsoleLogHelper.WriteLine("[MQ][" + _serviceName + "] Connect Success");
             ConsoleLogHelper.PrintLine();
 
             return Task.FromResult(true);
@@ -143,9 +143,9 @@ namespace VertiportNexus.Services.Communication.MQ
             }
 
             ConsoleLogHelper.PrintLine();
-            Console.WriteLine("[MQ][" + _serviceName + "] Send");
-            Console.WriteLine("[MQ][" + _serviceName + "] Message");
-            Console.WriteLine(message);
+            ConsoleLogHelper.WriteLine("[MQ][" + _serviceName + "] Send");
+            ConsoleLogHelper.WriteLine("[MQ][" + _serviceName + "] Message");
+            ConsoleLogHelper.WriteLine(message);
             ConsoleLogHelper.PrintLine();
 
             return Task.FromResult(true);
@@ -165,7 +165,7 @@ namespace VertiportNexus.Services.Communication.MQ
         {
             if (!_isConnected)
             {
-                Console.WriteLine("[MQ][" + _serviceName + "] Receive Start Failed : Not Connected");
+                ConsoleLogHelper.WriteLine("[MQ][" + _serviceName + "] Receive Start Failed : Not Connected");
                 return;
             }
 
@@ -177,8 +177,8 @@ namespace VertiportNexus.Services.Communication.MQ
             }
 
             ConsoleLogHelper.PrintLine();
-            Console.WriteLine("[MQ][" + _serviceName + "] Receive Start");
-            Console.WriteLine("[MQ][" + _serviceName + "] Receive Loop Not Implemented");
+            ConsoleLogHelper.WriteLine("[MQ][" + _serviceName + "] Receive Start");
+            ConsoleLogHelper.WriteLine("[MQ][" + _serviceName + "] Receive Loop Not Implemented");
             ConsoleLogHelper.PrintLine();
         }
 
@@ -189,14 +189,14 @@ namespace VertiportNexus.Services.Communication.MQ
         {
             if (!_isConnected)
             {
-                Console.WriteLine("[MQ][" + _serviceName + "] Receive Stop Ignored : Not Connected");
+                ConsoleLogHelper.WriteLine("[MQ][" + _serviceName + "] Receive Stop Ignored : Not Connected");
                 return;
             }
 
             _cts?.Cancel();
 
             ConsoleLogHelper.PrintLine();
-            Console.WriteLine("[MQ][" + _serviceName + "] Receive Stop");
+            ConsoleLogHelper.WriteLine("[MQ][" + _serviceName + "] Receive Stop");
             ConsoleLogHelper.PrintLine();
         }
 
@@ -236,7 +236,7 @@ namespace VertiportNexus.Services.Communication.MQ
         {
             if (!_isConnected)
             {
-                Console.WriteLine("[MQ][" + _serviceName + "] Disconnect Ignored : Already Disconnected");
+                ConsoleLogHelper.WriteLine("[MQ][" + _serviceName + "] Disconnect Ignored : Already Disconnected");
                 return;
             }
 
@@ -248,7 +248,7 @@ namespace VertiportNexus.Services.Communication.MQ
                 false;
 
             ConsoleLogHelper.PrintLine();
-            Console.WriteLine("[MQ][" + _serviceName + "] Disconnect Complete");
+            ConsoleLogHelper.WriteLine("[MQ][" + _serviceName + "] Disconnect Complete");
             ConsoleLogHelper.PrintLine();
         }
 
@@ -270,14 +270,14 @@ namespace VertiportNexus.Services.Communication.MQ
         {
             if (!_isConnected)
             {
-                Console.WriteLine("[MQ][" + _serviceName + "] Send Failed : Not Connected");
+                ConsoleLogHelper.WriteLine("[MQ][" + _serviceName + "] Send Failed : Not Connected");
                 return false;
             }
 
             if (string.IsNullOrWhiteSpace(
                 message))
             {
-                Console.WriteLine("[MQ][" + _serviceName + "] Send Failed : Message is empty");
+                ConsoleLogHelper.WriteLine("[MQ][" + _serviceName + "] Send Failed : Message is empty");
                 return false;
             }
             return true;

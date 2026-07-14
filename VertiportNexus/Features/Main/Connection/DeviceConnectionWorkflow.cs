@@ -242,7 +242,7 @@ namespace VertiportNexus.Features.Main.Connection
             int elapsedMs =
                 0;
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[EO CAMERA] RTSP Connected Wait Start");
 
             ConsoleLogHelper.PrintLine();
@@ -262,7 +262,7 @@ namespace VertiportNexus.Features.Main.Connection
             {
                 ConsoleLogHelper.PrintLine();
 
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[EO CAMERA] RTSP Connected Wait Canceled : Display Disabled");
 
                 ConsoleLogHelper.PrintLine();
@@ -274,10 +274,10 @@ namespace VertiportNexus.Features.Main.Connection
             {
                 ConsoleLogHelper.PrintLine();
 
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[EO CAMERA] RTSP Connected Wait Failed : Timeout");
 
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[DEVICE] Home Position After Connect Skipped : EO RTSP Not Connected");
 
                 ConsoleLogHelper.PrintLine();
@@ -285,7 +285,7 @@ namespace VertiportNexus.Features.Main.Connection
                 return null;
             }
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[EO CAMERA] RTSP Connected Wait Complete");
 
             ConsoleLogHelper.PrintLine();

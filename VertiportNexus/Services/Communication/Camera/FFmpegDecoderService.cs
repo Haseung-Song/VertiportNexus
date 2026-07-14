@@ -148,7 +148,7 @@ namespace VertiportNexus.Services.Communication.Video
             if (string.IsNullOrWhiteSpace(
                 rtspUrl))
             {
-                Console.WriteLine($"[{_streamName}] [FFmpeg RTSP] Open Failed : RTSP URL is empty");
+                ConsoleLogHelper.WriteLine($"[{_streamName}] [FFmpeg RTSP] Open Failed : RTSP URL is empty");
                 return false;
             }
 
@@ -156,8 +156,8 @@ namespace VertiportNexus.Services.Communication.Video
             {
                 CloseInternal();
 
-                Console.WriteLine($"[{_streamName}] [FFmpeg RTSP] Open Try...");
-                Console.WriteLine($"[{_streamName}] [FFmpeg RTSP] Source : {rtspUrl}");
+                ConsoleLogHelper.WriteLine($"[{_streamName}] [FFmpeg RTSP] Open Try...");
+                ConsoleLogHelper.WriteLine($"[{_streamName}] [FFmpeg RTSP] Source : {rtspUrl}");
                 ConsoleLogHelper.PrintLine();
 
                 ffmpeg.avformat_network_init();
@@ -178,12 +178,12 @@ namespace VertiportNexus.Services.Communication.Video
                 ffmpeg.av_dict_free(
                     &options);
 
-                Console.WriteLine($"[{_streamName}] [FFmpeg RTSP] avformat_open_input Result : {result}");
+                ConsoleLogHelper.WriteLine($"[{_streamName}] [FFmpeg RTSP] avformat_open_input Result : {result}");
                 ConsoleLogHelper.PrintLine();
 
                 if (result < 0)
                 {
-                    Console.WriteLine($"[{_streamName}] [FFmpeg RTSP] avformat_open_input Failed");
+                    ConsoleLogHelper.WriteLine($"[{_streamName}] [FFmpeg RTSP] avformat_open_input Failed");
                     return false;
                 }
 
@@ -203,7 +203,7 @@ namespace VertiportNexus.Services.Communication.Video
                 IsOpened =
                     true;
 
-                Console.WriteLine($"[{_streamName}] [FFmpeg RTSP] Open Success");
+                ConsoleLogHelper.WriteLine($"[{_streamName}] [FFmpeg RTSP] Open Success");
                 ConsoleLogHelper.PrintLine();
 
                 return true;
@@ -255,7 +255,7 @@ namespace VertiportNexus.Services.Communication.Video
 
             if (result < 0)
             {
-                Console.WriteLine($"[{_streamName}] [FFmpeg RTSP] avformat_find_stream_info Failed");
+                ConsoleLogHelper.WriteLine($"[{_streamName}] [FFmpeg RTSP] avformat_find_stream_info Failed");
                 return false;
             }
 
@@ -285,7 +285,7 @@ namespace VertiportNexus.Services.Communication.Video
 
             if (_videoStreamIndex < 0)
             {
-                Console.WriteLine($"[{_streamName}] [FFmpeg RTSP] Video Stream Not Found");
+                ConsoleLogHelper.WriteLine($"[{_streamName}] [FFmpeg RTSP] Video Stream Not Found");
                 return false;
             }
 
@@ -306,7 +306,7 @@ namespace VertiportNexus.Services.Communication.Video
 
             if (codec == null)
             {
-                Console.WriteLine($"[{_streamName}] [FFmpeg RTSP] Decoder Not Found");
+                ConsoleLogHelper.WriteLine($"[{_streamName}] [FFmpeg RTSP] Decoder Not Found");
                 return false;
             }
 
@@ -324,8 +324,8 @@ namespace VertiportNexus.Services.Communication.Video
             VideoHeight =
                 _codecContext->height;
 
-            Console.WriteLine($"[{_streamName}] [FFmpeg RTSP SIZE] {VideoWidth} x {VideoHeight}");
-            Console.WriteLine();
+            ConsoleLogHelper.WriteLine($"[{_streamName}] [FFmpeg RTSP SIZE] {VideoWidth} x {VideoHeight}");
+            ConsoleLogHelper.WriteLine();
 
             int result =
                 ffmpeg.avcodec_open2(
@@ -335,11 +335,11 @@ namespace VertiportNexus.Services.Communication.Video
 
             if (result < 0)
             {
-                Console.WriteLine($"[{_streamName}] [FFmpeg RTSP] avcodec_open2 Failed");
+                ConsoleLogHelper.WriteLine($"[{_streamName}] [FFmpeg RTSP] avcodec_open2 Failed");
                 return false;
             }
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 $"[{_streamName}] [FFmpeg RTSP] Codec : " +
                 ffmpeg.avcodec_get_name(
                     codecParameters->codec_id));

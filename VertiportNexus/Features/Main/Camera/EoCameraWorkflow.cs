@@ -281,7 +281,7 @@ namespace VertiportNexus.Features.Main.Camera
             {
                 ConsoleLogHelper.PrintLine();
 
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[EO CAMERA] RTSP Reconnect Start");
 
                 ConsoleLogHelper.PrintLine();
@@ -303,7 +303,7 @@ namespace VertiportNexus.Features.Main.Camera
 
                     ConsoleLogHelper.PrintLine();
 
-                    Console.WriteLine(
+                    ConsoleLogHelper.WriteLine(
                         "[EO CAMERA] RTSP Reconnect Try : "
                         + _rtspReconnectTryCount
                         + " / "
@@ -324,7 +324,7 @@ namespace VertiportNexus.Features.Main.Camera
 
                     ConsoleLogHelper.PrintLine();
 
-                    Console.WriteLine(
+                    ConsoleLogHelper.WriteLine(
                         "[EO CAMERA] RTSP Reconnect Failed : Max Retry Count");
 
                     ConsoleLogHelper.PrintLine();
@@ -358,7 +358,7 @@ namespace VertiportNexus.Features.Main.Camera
 
             ConsoleLogHelper.PrintLine();
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[EO CAMERA] RTSP Reconnect Stop");
 
             ConsoleLogHelper.PrintLine();

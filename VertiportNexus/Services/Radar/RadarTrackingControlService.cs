@@ -1,6 +1,7 @@
 ﻿using System;
 using VertiportNexus.Models.Radar;
 using VertiportNexus.Services.ADS1000;
+using VertiportNexus.Common;
 
 namespace VertiportNexus.Services.Radar
 {
@@ -79,7 +80,7 @@ namespace VertiportNexus.Services.Radar
         {
             if (payload == null)
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[RADAR][CONTROL] Failed : Payload is null");
 
                 return;
@@ -87,7 +88,7 @@ namespace VertiportNexus.Services.Radar
 
             if (payload.PtMove == PT_MOVE_RELEASE)
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[RADAR][CONTROL] PT Move Release");
 
                 // [Radar] PT 이동 해제 처리
@@ -102,10 +103,10 @@ namespace VertiportNexus.Services.Radar
 
             if (payload.PtMove != PT_MOVE_ON)
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[RADAR][CONTROL] Skip : Unsupported PT Move");
 
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[RADAR][CONTROL] PtMove : "
                     + payload.PtMove);
 
@@ -152,8 +153,7 @@ namespace VertiportNexus.Services.Radar
         private double ConvertRadianToDegree(
             double radian)
         {
-            return radian
-                * RADIAN_TO_DEGREE;
+            return radian * RADIAN_TO_DEGREE;
         }
 
         #endregion
@@ -168,15 +168,15 @@ namespace VertiportNexus.Services.Radar
             double panDegree,
             double tiltDegree)
         {
-            Console.WriteLine("[RADAR][CONTROL] Tracking Control");
+            ConsoleLogHelper.WriteLine("[RADAR][CONTROL] Tracking Control");
 
-            Console.WriteLine("[RADAR][CONTROL] Target Id : " + payload.Id);
-            Console.WriteLine("[RADAR][CONTROL] Azimuth(rad) : " + payload.Azimuth);
-            Console.WriteLine("[RADAR][CONTROL] Elevation(rad) : " + payload.Elevation);
-            Console.WriteLine("[RADAR][CONTROL] Distance(m) : " + payload.Distance);
+            ConsoleLogHelper.WriteLine("[RADAR][CONTROL] Target Id : " + payload.Id);
+            ConsoleLogHelper.WriteLine("[RADAR][CONTROL] Azimuth(rad) : " + payload.Azimuth);
+            ConsoleLogHelper.WriteLine("[RADAR][CONTROL] Elevation(rad) : " + payload.Elevation);
+            ConsoleLogHelper.WriteLine("[RADAR][CONTROL] Distance(m) : " + payload.Distance);
 
-            Console.WriteLine("[RADAR][CONTROL] Pan(deg) : " + panDegree.ToString("F2"));
-            Console.WriteLine("[RADAR][CONTROL] Tilt(deg) : " + tiltDegree.ToString("F2"));
+            ConsoleLogHelper.WriteLine("[RADAR][CONTROL] Pan(deg) : " + panDegree.ToString("F2"));
+            ConsoleLogHelper.WriteLine("[RADAR][CONTROL] Tilt(deg) : " + tiltDegree.ToString("F2"));
         }
         #endregion
     }

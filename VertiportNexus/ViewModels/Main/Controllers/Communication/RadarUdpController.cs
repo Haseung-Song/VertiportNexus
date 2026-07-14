@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using VertiportNexus.Services.Radar;
+using VertiportNexus.Common;
 
 namespace VertiportNexus.ViewModels.Main
 {
@@ -55,6 +56,9 @@ namespace VertiportNexus.ViewModels.Main
         {
             if (_isReceiveStarted)
             {
+                ConsoleLogHelper.Warning(
+                    "[RADAR][UDP] Receive Ignored : Already Started");
+
                 return ControllerResult.Failed(
                     "Radar UDP Receive Already Started");
             }
@@ -79,9 +83,13 @@ namespace VertiportNexus.ViewModels.Main
                 _isReceiveStarted =
                     false;
 
+                ConsoleLogHelper.Error(
+                    "[RADAR][UDP] Receive Failed : " + ex.Message);
+
                 return ControllerResult.Failed(
                     "Radar UDP Receive Failed : " + ex.Message);
             }
+
         }
 
         /// <summary>
@@ -91,6 +99,9 @@ namespace VertiportNexus.ViewModels.Main
         {
             if (!_isReceiveStarted)
             {
+                ConsoleLogHelper.Warning(
+                    "[RADAR][UDP] Stop Ignored : Not Started");
+
                 return ControllerResult.Failed(
                     "Radar UDP Receive Not Started");
             }
@@ -108,11 +119,15 @@ namespace VertiportNexus.ViewModels.Main
             }
             catch (Exception ex)
             {
+                ConsoleLogHelper.Error(
+                    "[RADAR][UDP] Receive Stop Failed : " + ex.Message);
+
                 return ControllerResult.Failed(
                     "Radar UDP Receive Stop Failed : " + ex.Message);
             }
-        }
 
+        }
         #endregion
     }
+
 }

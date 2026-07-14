@@ -86,7 +86,7 @@ namespace VertiportNexus.Services.Camera
         {
             if (_isEoVideoConnecting)
             {
-                Console.WriteLine("[EO VIDEO] RTSP Connect Ignored : Connecting");
+                ConsoleLogHelper.WriteLine("[EO VIDEO] RTSP Connect Ignored : Connecting");
                 return;
             }
 
@@ -96,7 +96,7 @@ namespace VertiportNexus.Services.Camera
                 StatusChanged?.Invoke(
                     "EO RTSP Address Empty");
 
-                Console.WriteLine("[EO VIDEO] RTSP Connect Failed : Address is empty");
+                ConsoleLogHelper.WriteLine("[EO VIDEO] RTSP Connect Failed : Address is empty");
                 ConsoleLogHelper.PrintLine();
 
                 return;
@@ -110,8 +110,8 @@ namespace VertiportNexus.Services.Camera
                 StatusChanged?.Invoke(
                     "EO RTSP Connecting...");
 
-                Console.WriteLine("[EO VIDEO] RTSP Connect Try");
-                Console.WriteLine("[EO VIDEO] RTSP : " + rtspAddress);
+                ConsoleLogHelper.WriteLine("[EO VIDEO] RTSP Connect Try");
+                ConsoleLogHelper.WriteLine("[EO VIDEO] RTSP : " + rtspAddress);
 
                 // [EO] 기존 영상 루프 정리
                 //
@@ -132,7 +132,7 @@ namespace VertiportNexus.Services.Camera
                     StatusChanged?.Invoke(
                         "EO RTSP Connect Failed");
 
-                    Console.WriteLine("[EO CAMERA] RTSP Open Failed");
+                    ConsoleLogHelper.WriteLine("[EO CAMERA] RTSP Open Failed");
                     ConsoleLogHelper.PrintLine();
 
                     return;
@@ -141,7 +141,7 @@ namespace VertiportNexus.Services.Camera
                 StatusChanged?.Invoke(
                     "EO RTSP Connected");
 
-                Console.WriteLine("[EO CAMERA] RTSP Open Success");
+                ConsoleLogHelper.WriteLine("[EO CAMERA] RTSP Open Success");
                 ConsoleLogHelper.PrintLine();
 
                 _ = Task.Run(() =>
@@ -156,7 +156,7 @@ namespace VertiportNexus.Services.Camera
                 StatusChanged?.Invoke(
                     "EO RTSP Error");
 
-                Console.WriteLine("[EO CAMERA ERROR] " + ex.Message);
+                ConsoleLogHelper.WriteLine("[EO CAMERA ERROR] " + ex.Message);
                 ConsoleLogHelper.PrintLine();
             }
             finally
@@ -200,18 +200,18 @@ namespace VertiportNexus.Services.Camera
 
                 if (isReconnectCleanup)
                 {
-                    Console.WriteLine("[EO VIDEO] RTSP Cleanup Before Connect Complete");
+                    ConsoleLogHelper.WriteLine("[EO VIDEO] RTSP Cleanup Before Connect Complete");
                 }
                 else
                 {
-                    Console.WriteLine("[EO VIDEO] RTSP Disconnect Complete");
+                    ConsoleLogHelper.WriteLine("[EO VIDEO] RTSP Disconnect Complete");
                 }
 
                 ConsoleLogHelper.PrintLine();
             }
             catch (Exception ex)
             {
-                Console.WriteLine("[EO VIDEO ERROR] Disconnect Exception : " + ex.Message);
+                ConsoleLogHelper.WriteLine("[EO VIDEO ERROR] Disconnect Exception : " + ex.Message);
                 ConsoleLogHelper.PrintLine();
             }
 

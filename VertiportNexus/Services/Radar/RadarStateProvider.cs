@@ -1,5 +1,6 @@
 ﻿using System;
 using VertiportNexus.Models.Radar;
+using VertiportNexus.Common;
 
 namespace VertiportNexus.Services.Radar
 {
@@ -105,7 +106,8 @@ namespace VertiportNexus.Services.Radar
                 _lastRadarTrackingTime =
                     DateTime.Now;
             }
-            Console.WriteLine("[RADAR][STATE] Tracking Active : True");
+
+            ConsoleLogHelper.WriteLine("[RADAR][STATE] Tracking Active : True");
         }
 
         /// <summary>
@@ -124,7 +126,8 @@ namespace VertiportNexus.Services.Radar
                 _lastRadarTrackingTime =
                     null;
             }
-            Console.WriteLine("[RADAR][STATE] Tracking Active : False");
+
+            ConsoleLogHelper.WriteLine("[RADAR][STATE] Tracking Active : False");
         }
 
         /// <summary>
@@ -138,7 +141,7 @@ namespace VertiportNexus.Services.Radar
         {
             if (payload == null)
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[RADAR][STATE] Tracking Request Update Failed : Payload is null");
 
                 return;
@@ -153,26 +156,26 @@ namespace VertiportNexus.Services.Radar
                     DateTime.Now;
             }
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[RADAR][STATE] Tracking Request Updated");
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[RADAR][STATE] Target Id : "
                 + payload.Id);
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[RADAR][STATE] Azimuth : "
                 + payload.Azimuth);
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[RADAR][STATE] Elevation : "
                 + payload.Elevation);
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[RADAR][STATE] Distance : "
                 + payload.Distance);
 
-            Console.WriteLine();
+            ConsoleLogHelper.WriteLine();
         }
 
         /// <summary>
@@ -186,7 +189,7 @@ namespace VertiportNexus.Services.Radar
         {
             if (payload == null)
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[RADAR][STATE] BIST Request Update Failed : Payload is null");
 
                 return;
@@ -201,22 +204,22 @@ namespace VertiportNexus.Services.Radar
                     DateTime.Now;
             }
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[RADAR][STATE] BIST Request Updated");
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[RADAR][STATE] BIST Type : "
                 + payload.BistType);
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[RADAR][STATE] Comport Number : "
                 + payload.ComportNumber);
 
-            Console.WriteLine(
+            ConsoleLogHelper.WriteLine(
                 "[RADAR][STATE] CBIST Interval : "
                 + payload.CbistInterval);
 
-            Console.WriteLine();
+            ConsoleLogHelper.WriteLine();
         }
         #endregion
     }

@@ -185,7 +185,7 @@ namespace VertiportNexus.Services.Vertiport
         {
             if (message == null)
             {
-                Console.WriteLine("[CSE][CMD] Handle Failed : Message is null");
+                ConsoleLogHelper.WriteLine("[CSE][CMD] Handle Failed : Message is null");
                 return;
             }
 
@@ -209,8 +209,8 @@ namespace VertiportNexus.Services.Vertiport
             catch (Exception ex)
             {
                 ConsoleLogHelper.PrintLine();
-                Console.WriteLine("[CSE][CMD] Handle Exception");
-                Console.WriteLine("[CSE][CMD] Error : " + ex.Message);
+                ConsoleLogHelper.WriteLine("[CSE][CMD] Handle Exception");
+                ConsoleLogHelper.WriteLine("[CSE][CMD] Error : " + ex.Message);
                 ConsoleLogHelper.PrintLine();
 
                 SendCommandError(
@@ -445,7 +445,7 @@ namespace VertiportNexus.Services.Vertiport
 
             if (!_detectionStateProvider.IsDetectEnabled)
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[CSE][DETECT] Detect Cont Ignored : LOCK OFF");
 
                 return;
@@ -472,7 +472,7 @@ namespace VertiportNexus.Services.Vertiport
             // 실제 PT 제어는 Radar에서 수신한 Azimuth / Elevation 기준으로 처리한다.
             if (_radarStateProvider.IsRadarTrackingActive)
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[TRACKING][BBOX] Skip : Radar Tracking Active");
 
                 SendAcceptedResponse(
@@ -501,7 +501,7 @@ namespace VertiportNexus.Services.Vertiport
             }
             else
             {
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[TRACKING][AUTO] Skip : PTZ Mode is "
                     + _cameraStateProvider.PtzControlMode);
             }
@@ -551,12 +551,12 @@ namespace VertiportNexus.Services.Vertiport
                 return;
             }
 
-            Console.WriteLine("[CSE][CMD][PTZ_MOVE] Mode : " + payload.Mode);
-            Console.WriteLine("[CSE][CMD][PTZ_MOVE] Command : " + payload.Command);
-            Console.WriteLine("[CSE][CMD][PTZ_MOVE] Pan : " + payload.Pan);
-            Console.WriteLine("[CSE][CMD][PTZ_MOVE] Tilt : " + payload.Tilt);
-            Console.WriteLine("[CSE][CMD][PTZ_MOVE] Zoom : " + payload.Zoom);
-            Console.WriteLine("[CSE][CMD][PTZ_MOVE] ZoomPosition : " + payload.ZoomPosition);
+            ConsoleLogHelper.WriteLine("[CSE][CMD][PTZ_MOVE] Mode : " + payload.Mode);
+            ConsoleLogHelper.WriteLine("[CSE][CMD][PTZ_MOVE] Command : " + payload.Command);
+            ConsoleLogHelper.WriteLine("[CSE][CMD][PTZ_MOVE] Pan : " + payload.Pan);
+            ConsoleLogHelper.WriteLine("[CSE][CMD][PTZ_MOVE] Tilt : " + payload.Tilt);
+            ConsoleLogHelper.WriteLine("[CSE][CMD][PTZ_MOVE] Zoom : " + payload.Zoom);
+            ConsoleLogHelper.WriteLine("[CSE][CMD][PTZ_MOVE] ZoomPosition : " + payload.ZoomPosition);
 
             CameraCommand cameraCommand =
                 new CameraCommand
@@ -639,7 +639,7 @@ namespace VertiportNexus.Services.Vertiport
                 message,
                 "PTZ Control Mode");
 
-            Console.WriteLine("[CSE][CMD][PTZ_MODE] Mode : " + ptzControlMode);
+            ConsoleLogHelper.WriteLine("[CSE][CMD][PTZ_MODE] Mode : " + ptzControlMode);
 
             _cameraStateProvider
                 .UpdatePtzControlMode(
@@ -695,7 +695,7 @@ namespace VertiportNexus.Services.Vertiport
 
             int frequency = message.Payload.Frequency ?? 10;
 
-            Console.WriteLine("[CSE][STATUS] Request Frequency : " + frequency);
+            ConsoleLogHelper.WriteLine("[CSE][STATUS] Request Frequency : " + frequency);
 
             // [카메라 상태 송신 주기 처리]
             //
@@ -754,9 +754,9 @@ namespace VertiportNexus.Services.Vertiport
                         async () =>
                         {
                             ConsoleLogHelper.PrintLine();
-                            Console.WriteLine("[CSE][STATUS] Publish Start");
-                            Console.WriteLine("[CSE][STATUS] Frequency : " + publishFrequency + "Hz");
-                            Console.WriteLine("[CSE][STATUS] Interval : " + publishIntervalMs + "ms");
+                            ConsoleLogHelper.WriteLine("[CSE][STATUS] Publish Start");
+                            ConsoleLogHelper.WriteLine("[CSE][STATUS] Frequency : " + publishFrequency + "Hz");
+                            ConsoleLogHelper.WriteLine("[CSE][STATUS] Interval : " + publishIntervalMs + "ms");
                             ConsoleLogHelper.PrintLine();
 
                             while (!cancellationToken.IsCancellationRequested)
@@ -770,8 +770,8 @@ namespace VertiportNexus.Services.Vertiport
                                 catch (Exception ex)
                                 {
                                     ConsoleLogHelper.PrintLine();
-                                    Console.WriteLine("[CSE][STATUS] Publish Failed");
-                                    Console.WriteLine("[CSE][STATUS] Error : " + ex.Message);
+                                    ConsoleLogHelper.WriteLine("[CSE][STATUS] Publish Failed");
+                                    ConsoleLogHelper.WriteLine("[CSE][STATUS] Error : " + ex.Message);
                                     ConsoleLogHelper.PrintLine();
                                 }
 
@@ -805,14 +805,14 @@ namespace VertiportNexus.Services.Vertiport
                         .Cancel();
 
                     ConsoleLogHelper.PrintLine();
-                    Console.WriteLine("[CSE][STATUS] Publish Stop");
+                    ConsoleLogHelper.WriteLine("[CSE][STATUS] Publish Stop");
                     ConsoleLogHelper.PrintLine();
                 }
                 catch (Exception ex)
                 {
                     ConsoleLogHelper.PrintLine();
-                    Console.WriteLine("[CSE][STATUS] Publish Stop Failed");
-                    Console.WriteLine("[CSE][STATUS] Error : " + ex.Message);
+                    ConsoleLogHelper.WriteLine("[CSE][STATUS] Publish Stop Failed");
+                    ConsoleLogHelper.WriteLine("[CSE][STATUS] Error : " + ex.Message);
                     ConsoleLogHelper.PrintLine();
                 }
                 finally
@@ -931,10 +931,10 @@ namespace VertiportNexus.Services.Vertiport
             CseCommandMessage message)
         {
             ConsoleLogHelper.PrintLine();
-            Console.WriteLine("[CSE][CMD] Command Handle Start");
-            Console.WriteLine("[CSE][CMD] InterfaceId : " + message.InterfaceId);
-            Console.WriteLine("[CSE][CMD] MsgType : " + message.MsgType);
-            Console.WriteLine("[CSE][CMD] MsgId : " + message.MsgId);
+            ConsoleLogHelper.WriteLine("[CSE][CMD] Command Handle Start");
+            ConsoleLogHelper.WriteLine("[CSE][CMD] InterfaceId : " + message.InterfaceId);
+            ConsoleLogHelper.WriteLine("[CSE][CMD] MsgType : " + message.MsgType);
+            ConsoleLogHelper.WriteLine("[CSE][CMD] MsgId : " + message.MsgId);
             ConsoleLogHelper.PrintLine();
         }
 
@@ -944,7 +944,7 @@ namespace VertiportNexus.Services.Vertiport
         private void PrintCommandEndLog()
         {
             ConsoleLogHelper.PrintLine();
-            Console.WriteLine("[CSE][CMD] Command Handle End");
+            ConsoleLogHelper.WriteLine("[CSE][CMD] Command Handle End");
             ConsoleLogHelper.PrintLine();
         }
 
@@ -961,9 +961,9 @@ namespace VertiportNexus.Services.Vertiport
             CseCommandMessage message,
             string commandName)
         {
-            Console.WriteLine("[CSE][CMD] " + commandName);
-            Console.WriteLine("[CSE][CMD] InterfaceId : " + message.InterfaceId);
-            Console.WriteLine("[CSE][CMD] Request MsgId : " + message.MsgId);
+            ConsoleLogHelper.WriteLine("[CSE][CMD] " + commandName);
+            ConsoleLogHelper.WriteLine("[CSE][CMD] InterfaceId : " + message.InterfaceId);
+            ConsoleLogHelper.WriteLine("[CSE][CMD] Request MsgId : " + message.MsgId);
         }
 
         /// <summary>
@@ -980,13 +980,13 @@ namespace VertiportNexus.Services.Vertiport
                 return;
             }
 
-            Console.WriteLine("[CSE][CMD] FrameId : " + payload.FrameId);
-            Console.WriteLine("[CSE][CMD] X1 : " + payload.X1);
-            Console.WriteLine("[CSE][CMD] Y1 : " + payload.Y1);
-            Console.WriteLine("[CSE][CMD] X2 : " + payload.X2);
-            Console.WriteLine("[CSE][CMD] Y2 : " + payload.Y2);
-            Console.WriteLine("[CSE][CMD] ClassId : " + payload.ClassId);
-            Console.WriteLine("[CSE][CMD] Confidence : " + payload.Confidence);
+            ConsoleLogHelper.WriteLine("[CSE][CMD] FrameId : " + payload.FrameId);
+            ConsoleLogHelper.WriteLine("[CSE][CMD] X1 : " + payload.X1);
+            ConsoleLogHelper.WriteLine("[CSE][CMD] Y1 : " + payload.Y1);
+            ConsoleLogHelper.WriteLine("[CSE][CMD] X2 : " + payload.X2);
+            ConsoleLogHelper.WriteLine("[CSE][CMD] Y2 : " + payload.Y2);
+            ConsoleLogHelper.WriteLine("[CSE][CMD] ClassId : " + payload.ClassId);
+            ConsoleLogHelper.WriteLine("[CSE][CMD] Confidence : " + payload.Confidence);
         }
 
         #endregion
@@ -1029,7 +1029,7 @@ namespace VertiportNexus.Services.Vertiport
             string errorCode,
             string errorMessage)
         {
-            Console.WriteLine("[CSE][CMD] " + errorMessage);
+            ConsoleLogHelper.WriteLine("[CSE][CMD] " + errorMessage);
 
             _responseService
                 .SendCommandErrorResponse(
@@ -1055,7 +1055,7 @@ namespace VertiportNexus.Services.Vertiport
             string errorCode,
             string errorMessage)
         {
-            Console.WriteLine("[CSE][CMD] " + errorMessage);
+            ConsoleLogHelper.WriteLine("[CSE][CMD] " + errorMessage);
 
             _responseService
                 .SendCommandErrorResponse(

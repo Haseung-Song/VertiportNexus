@@ -1,13 +1,15 @@
 using System;
 using System.Windows.Media.Imaging;
 using VertiportNexus.Services.Camera;
+using VertiportNexus.Common;
 
 namespace VertiportNexus.ViewModels.Main
 {
     /// <summary>
     /// [EO Camera] Controller
     /// 
-    /// EO RTSP 연결 / 재연결 판단 / Frame 결과 변환을 담당한다.
+    /// [EO RTSP] 연결 / 재연결 판단 / Frame 결과 변환을 담당한다.
+    /// 
     /// 화면 Binding 상태 변경은 [MainViewModel]에서 수행한다.
     /// </summary>
     internal sealed class EoCameraController
@@ -54,9 +56,13 @@ namespace VertiportNexus.ViewModels.Main
             }
             catch (Exception ex)
             {
+                ConsoleLogHelper.Error(
+                    "[EO CAMERA] RTSP Connect Error : " + ex.Message);
+
                 return ControllerResult.Failed(
                     "EO RTSP Connect Error : " + ex.Message);
             }
+
         }
 
         /// <summary>
@@ -74,9 +80,13 @@ namespace VertiportNexus.ViewModels.Main
             }
             catch (Exception ex)
             {
+                ConsoleLogHelper.Error(
+                    "[EO CAMERA] RTSP Disconnect Error : " + ex.Message);
+
                 return ControllerResult.Failed(
                     "EO RTSP Disconnect Error : " + ex.Message);
             }
+
         }
 
         /// <summary>
@@ -133,7 +143,7 @@ namespace VertiportNexus.ViewModels.Main
                     shouldStartReconnect,
                     operationModeText);
         }
-
         #endregion
     }
+
 }

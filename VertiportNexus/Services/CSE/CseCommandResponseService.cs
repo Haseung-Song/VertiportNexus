@@ -252,9 +252,9 @@ namespace VertiportNexus.Services.Vertiport
                     _jsonSerializerOptions);
 
             ConsoleLogHelper.PrintLine();
-            Console.WriteLine("[CSE][STATUS][SEND] Camera Status Response");
-            Console.WriteLine("[CSE][STATUS][SEND] Queue : " + CseMqQueue.StatusResponse);
-            Console.WriteLine(json);
+            ConsoleLogHelper.WriteLine("[CSE][STATUS][SEND] Camera Status Response");
+            ConsoleLogHelper.WriteLine("[CSE][STATUS][SEND] Queue : " + CseMqQueue.StatusResponse);
+            ConsoleLogHelper.WriteLine(json);
             ConsoleLogHelper.PrintLine();
 
             _mqSender
@@ -350,9 +350,9 @@ namespace VertiportNexus.Services.Vertiport
             {
                 ConsoleLogHelper.PrintLine();
 
-                Console.WriteLine("[CSE][RES] Response Send Failed");
-                Console.WriteLine("[CSE][RES] Queue : " + queueName);
-                Console.WriteLine("[CSE][RES] Error : " + ex.Message);
+                ConsoleLogHelper.WriteLine("[CSE][RES] Response Send Failed");
+                ConsoleLogHelper.WriteLine("[CSE][RES] Queue : " + queueName);
+                ConsoleLogHelper.WriteLine("[CSE][RES] Error : " + ex.Message);
 
                 ConsoleLogHelper.PrintLine();
             }

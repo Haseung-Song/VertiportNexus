@@ -41,7 +41,7 @@ namespace VertiportNexus
         /// 
         /// 콘솔 출력 장치([CONOUT$])를 여는 함수
         /// 
-        /// [WPF]는 [Console.WriteLine()] 출력 대상이 없기 때문에,
+        /// [WPF]는 [ConsoleLogHelper.WriteLine()] 출력 대상이 없기 때문에,
         /// [CreateFile()]을 사용해서 실제 콘솔 출력 핸들을 가져온다.
         /// </summary>
         [DllImport("kernel32.dll", SetLastError = true)]
@@ -60,7 +60,7 @@ namespace VertiportNexus
         /// 표준 출력 핸들을 새 콘솔 핸들로 변경하는 함수
         /// 
         /// 이 작업을 하지 않으면,
-        /// [Console.WriteLine()]이 [Visual Studio] 출력창으로 갈 수 있다.
+        /// [ConsoleLogHelper.WriteLine()]이 [Visual Studio] 출력창으로 갈 수 있다.
         /// </summary>
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool SetStdHandle(
@@ -114,7 +114,7 @@ namespace VertiportNexus
 
             ffmpeg.RootPath = ffmpegPath;
 
-            Console.WriteLine("[FFmpeg] RootPath : " + ffmpeg.RootPath);
+            ConsoleLogHelper.WriteLine("[FFmpeg] RootPath : " + ffmpeg.RootPath);
         }
 
         #endregion
@@ -124,7 +124,7 @@ namespace VertiportNexus
         /// <summary>
         /// [WPF] 프로그램 시작 시 최초 실행되는 함수
         /// 
-        /// [Debug] 모드에서 콘솔 창 생성 및 [Console.WriteLine()] 출력 연결을 수행한다.
+        /// [Debug] 모드에서 콘솔 창 생성 및 [ConsoleLogHelper.WriteLine()] 출력 연결을 수행한다.
         /// </summary>
         protected override void OnStartup(StartupEventArgs e)
         {
@@ -168,7 +168,7 @@ namespace VertiportNexus
             /// 실제 콘솔 출력 장치([CONOUT$]) 열기
             /// 
             /// 이 핸들을 통해,
-            /// [Console.WriteLine()] 출력 대상을
+            /// [ConsoleLogHelper.WriteLine()] 출력 대상을
             /// [Visual Studio] 출력창에서 실제 콘솔창으로 변경한다.
             /// </summary>
             SafeFileHandle consoleHandle = CreateFile(
@@ -206,7 +206,7 @@ namespace VertiportNexus
             /// <summary>
             /// [UTF8] 기반 [StreamWriter] 생성
             /// 
-            /// [AutoFlush] = true : [Console.WriteLine()] 호출 즉시 출력
+            /// [AutoFlush] = true : [ConsoleLogHelper.WriteLine()] 호출 즉시 출력
             /// </summary>
             var consoleWriter = new StreamWriter(
                 consoleStream,
@@ -216,7 +216,7 @@ namespace VertiportNexus
             };
 
             /// <summary>
-            /// [Console.WriteLine()] 출력 연결
+            /// [ConsoleLogHelper.WriteLine()] 출력 연결
             /// </summary>
             Console.SetOut(consoleWriter);
 
@@ -226,7 +226,7 @@ namespace VertiportNexus
             Console.SetError(consoleWriter);
 
             ConsoleLogHelper.PrintLine();
-            Console.WriteLine("[CONSOLE] Vertiport Nexus Middleware -> Debug Console Start");
+            ConsoleLogHelper.WriteLine("[CONSOLE] Vertiport Nexus Middleware -> Debug Console Start");
             ConsoleLogHelper.PrintLine();
 #endif
 
@@ -244,7 +244,7 @@ namespace VertiportNexus
         protected override void OnExit(ExitEventArgs e)
         {
             ConsoleLogHelper.PrintLine();
-            Console.WriteLine("[CONSOLE] Vertiport Nexus Middleware -> Debug Console End");
+            ConsoleLogHelper.WriteLine("[CONSOLE] Vertiport Nexus Middleware -> Debug Console End");
 
             AppLogger.Shutdown();
 #if DEBUG

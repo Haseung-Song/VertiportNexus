@@ -69,13 +69,13 @@ namespace VertiportNexus.Features.Main.Communication
             {
                 ConsoleLogHelper.PrintLine();
 
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[RADAR][UDP] Start Failed");
 
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     ex.Message);
 
-                Console.WriteLine();
+                ConsoleLogHelper.WriteLine();
 
                 return ControllerResult.Failed(
                     "Radar UDP Receive Failed : " + ex.Message);
@@ -101,13 +101,13 @@ namespace VertiportNexus.Features.Main.Communication
             {
                 ConsoleLogHelper.PrintLine();
 
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     "[RADAR][UDP] Stop Failed");
 
-                Console.WriteLine(
+                ConsoleLogHelper.WriteLine(
                     ex.Message);
 
-                Console.WriteLine();
+                ConsoleLogHelper.WriteLine();
 
                 return ControllerResult.Failed(
                     "Radar UDP Receive Stop Failed : " + ex.Message);
