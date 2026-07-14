@@ -149,22 +149,46 @@ namespace VertiportNexus.ViewModels.Main.Coordinators
                     0,
                     360);
 
-            // [Pan] 360도 입력 보정
-            //
-            // Absolute Position에서 [360]은 [0]과 동일한 위치로 취급한다.
-            // 기존처럼 [360 - 현재 Pan]을 강제로 더하면,
-            // 현재 위치와 무관하게 장비가 오른쪽으로 추가 회전할 수 있다.
-            if (Math.Abs(targetPan - 360.0) <= POSITION_EPSILON)
-            {
-                targetPan =
-                    0.0;
-            }
+            bool isPanFullTurnRequest =
+                Math.Abs(targetPan - 360.0) <= POSITION_EPSILON;
 
-            double panMoveAngle =
-                CameraCommandService.CalculatePanMoveAngle(
-                    currentPan,
-                    targetPan,
-                    _cameraState.PanTurnMode);
+            double panMoveAngle;
+
+            if (isPanFullTurnRequest)
+            {
+                // [Pan] 360도 입력 보정
+                //
+                // [360]은 UI 표시상 [0]과 같은 위치이지만,
+                // [Relative] 이동 UI를 제거한 상태에서는
+                // 사용자가 [360]을 입력했을 때 한 바퀴 회전 동작이 가능해야 한다.
+                //
+                // 따라서 [360] 입력은 [0]으로 즉시 치환하지 않고,
+                // 현재 UI Pan 위치에서 [360 / 0] 위치까지
+                // 정방향으로 이동하는 각도로 계산한다.
+                //
+                // 현재 위치가 이미 [0]이면 [360]도 이동으로 처리하여
+                // 한 바퀴 회전하도록 한다.
+                if (Math.Abs(currentPan) <= POSITION_EPSILON ||
+                    Math.Abs(currentPan - 360.0) <= POSITION_EPSILON)
+                {
+                    panMoveAngle =
+                        360.0;
+                }
+                else
+                {
+                    panMoveAngle =
+                        360.0 - currentPan;
+                }
+
+            }
+            else
+            {
+                panMoveAngle =
+                    CameraCommandService.CalculatePanMoveAngle(
+                        currentPan,
+                        targetPan,
+                        _cameraState.PanTurnMode);
+            }
 
             if (Math.Abs(panMoveAngle) <= POSITION_EPSILON)
             {
@@ -176,6 +200,26 @@ namespace VertiportNexus.ViewModels.Main.Coordinators
 
             double panCommandTarget =
                 currentPanCommandAngle + panMoveAngle;
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Absolute Input : {0:F2}",
+                inputPan);
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Absolute Current : {0:F2}",
+                currentPan);
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Absolute Target : {0:F2}",
+                targetPan);
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Absolute Move Angle : {0:F2}",
+                panMoveAngle);
+
+            Console.WriteLine(
+                "[UI][PTZ] Pan Absolute Command Target : {0:F2}",
+                panCommandTarget);
 
             return _ptzControlWorkflow
                 .MovePanAbsolute(
