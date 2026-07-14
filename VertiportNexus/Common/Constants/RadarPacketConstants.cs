@@ -20,7 +20,7 @@
         /// [Radar] Packet 종료 Frame
         /// </summary>
         public const byte END_FRAME =
-            0xFF;
+            0xFE;
 
         #endregion
 

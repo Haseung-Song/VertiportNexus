@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Serilog;
+using System;
 using VertiportNexus.Common.Constants;
 using VertiportNexus.Models.Radar;
 
@@ -13,6 +14,16 @@ namespace VertiportNexus.Services.Radar
     /// </summary>
     internal class RadarPacketParser
     {
+        #region [Fields]
+
+        /// <summary>
+        /// [Radar] Packet Parser 로그
+        /// </summary>
+        private static readonly ILogger Logger =
+            Log.ForContext<RadarPacketParser>();
+
+        #endregion
+
         #region [Public Methods]
 
         /// <summary>
@@ -30,8 +41,10 @@ namespace VertiportNexus.Services.Radar
             if (packetBytes == null ||
                 packetBytes.Length < RadarPacketConstants.MIN_PACKET_LENGTH)
             {
-                Console.WriteLine(
-                    "[RADAR][PARSER] Failed : Packet length is invalid");
+                Logger.Warning(
+                    "[RADAR][PARSER] Failed : Packet length is invalid. ActualLength={ActualLength}, MinLength={MinLength}",
+                    packetBytes == null ? 0 : packetBytes.Length,
+                    RadarPacketConstants.MIN_PACKET_LENGTH);
 
                 return null;
             }
@@ -42,43 +55,61 @@ namespace VertiportNexus.Services.Radar
 
             if (header.StartFrame != RadarPacketConstants.START_FRAME)
             {
-                Console.WriteLine(
-                    "[RADAR][PARSER] Failed : Start Frame is invalid");
+                Logger.Warning(
+                    "[RADAR][PARSER] Failed : Start Frame is invalid. StartFrame=0x{StartFrame:X2}, ExpectedStartFrame=0x{ExpectedStartFrame:X2}",
+                    header.StartFrame,
+                    RadarPacketConstants.START_FRAME);
 
                 return null;
             }
 
-            if (header.PacketLength != packetBytes.Length)
+            int expectedPacketLength =
+                RadarPacketConstants.HEADER_LENGTH
+                + (int)header.PacketLength
+                + RadarPacketConstants.TAIL_LENGTH;
+
+            if (expectedPacketLength != packetBytes.Length)
             {
-                Console.WriteLine(
-                    "[RADAR][PARSER] Failed : Packet Length mismatch");
-
-                Console.WriteLine(
-                    "[RADAR][PARSER] Header Length : "
-                    + header.PacketLength);
-
-                Console.WriteLine(
-                    "[RADAR][PARSER] Actual Length : "
-                    + packetBytes.Length);
+                Logger.Warning(
+                    "[RADAR][PARSER] Failed : Packet Length mismatch. SubDataLength={SubDataLength}, ExpectedPacketLength={ExpectedPacketLength}, ActualPacketLength={ActualPacketLength}",
+                    header.PacketLength,
+                    expectedPacketLength,
+                    packetBytes.Length);
 
                 return null;
             }
+
+            Logger.Debug(
+                "[RADAR][PARSER] Length OK. Header={HeaderLength}, SubData={SubDataLength}, Tail={TailLength}, Total={TotalLength}",
+                RadarPacketConstants.HEADER_LENGTH,
+                header.PacketLength,
+                RadarPacketConstants.TAIL_LENGTH,
+                expectedPacketLength);
 
             RadarPacketTail tail =
                 ParseTail(
                     packetBytes);
 
+            Logger.Debug(
+                "[RADAR][PARSER] Tail Check. Checksum=0x{Checksum:X2}, EndFrame=0x{EndFrame:X2}, ExpectedEndFrame=0x{ExpectedEndFrame:X2}",
+                tail.Checksum,
+                tail.EndFrame,
+                RadarPacketConstants.END_FRAME);
+
             if (tail.EndFrame != RadarPacketConstants.END_FRAME)
             {
-                Console.WriteLine(
-                    "[RADAR][PARSER] Failed : End Frame is invalid");
+                Logger.Warning(
+                    "[RADAR][PARSER] Failed : End Frame is invalid. EndFrame=0x{EndFrame:X2}, ExpectedEndFrame=0x{ExpectedEndFrame:X2}",
+                    tail.EndFrame,
+                    RadarPacketConstants.END_FRAME);
 
                 return null;
             }
 
             byte[] subData =
                 ExtractSubData(
-                    packetBytes);
+                    packetBytes,
+                    header.PacketLength);
 
             byte calculatedChecksum =
                 CalculateChecksum(
@@ -86,19 +117,20 @@ namespace VertiportNexus.Services.Radar
 
             if (calculatedChecksum != tail.Checksum)
             {
-                Console.WriteLine(
-                    "[RADAR][PARSER] Failed : Checksum mismatch");
-
-                Console.WriteLine(
-                    "[RADAR][PARSER] Received Checksum : 0x"
-                    + tail.Checksum.ToString("X2"));
-
-                Console.WriteLine(
-                    "[RADAR][PARSER] Calculated Checksum : 0x"
-                    + calculatedChecksum.ToString("X2"));
+                Logger.Warning(
+                    "[RADAR][PARSER] Failed : Checksum mismatch. ReceivedChecksum=0x{ReceivedChecksum:X2}, CalculatedChecksum=0x{CalculatedChecksum:X2}, SubDataLength={SubDataLength}",
+                    tail.Checksum,
+                    calculatedChecksum,
+                    subData.Length);
 
                 return null;
             }
+
+            Logger.Debug(
+                "[RADAR][PARSER] Parse Success. Command=0x{Command:X2}, PacketNumber={PacketNumber}, SubDataLength={SubDataLength}",
+                header.Command,
+                header.PacketNumber,
+                header.PacketLength);
 
             return new RadarPacket
             {
@@ -123,8 +155,10 @@ namespace VertiportNexus.Services.Radar
             if (subData == null ||
                 subData.Length < 63)
             {
-                Console.WriteLine(
-                    "[RADAR][PARSER] Failed : Tracking Request SubData length is invalid");
+                Logger.Warning(
+                    "[RADAR][PARSER] Failed : Tracking Request SubData length is invalid. ActualLength={ActualLength}, RequiredLength={RequiredLength}",
+                    subData == null ? 0 : subData.Length,
+                    63);
 
                 return null;
             }
@@ -132,74 +166,84 @@ namespace VertiportNexus.Services.Radar
             int offset =
                 0;
 
-            return new RadarTrackingRequestPayload
-            {
-                TimeStamp =
-                    ReadInt64(
-                        subData,
-                        ref offset),
+            RadarTrackingRequestPayload payload =
+                new RadarTrackingRequestPayload
+                {
+                    TimeStamp =
+                        ReadInt64(
+                            subData,
+                            ref offset),
 
-                PtMove =
-                    ReadByte(
-                        subData,
-                        ref offset),
+                    PtMove =
+                        ReadByte(
+                            subData,
+                            ref offset),
 
-                Id =
-                    ReadUInt16(
-                        subData,
-                        ref offset),
+                    Id =
+                        ReadUInt16(
+                            subData,
+                            ref offset),
 
-                Azimuth =
-                    ReadFloat(
-                        subData,
-                        ref offset),
+                    Azimuth =
+                        ReadFloat(
+                            subData,
+                            ref offset),
 
-                Elevation =
-                    ReadFloat(
-                        subData,
-                        ref offset),
+                    Elevation =
+                        ReadFloat(
+                            subData,
+                            ref offset),
 
-                Distance =
-                    ReadFloat(
-                        subData,
-                        ref offset),
+                    Distance =
+                        ReadFloat(
+                            subData,
+                            ref offset),
 
-                Vx =
-                    ReadFloat(
-                        subData,
-                        ref offset),
+                    Vx =
+                        ReadFloat(
+                            subData,
+                            ref offset),
 
-                Vy =
-                    ReadFloat(
-                        subData,
-                        ref offset),
+                    Vy =
+                        ReadFloat(
+                            subData,
+                            ref offset),
 
-                Vz =
-                    ReadFloat(
-                        subData,
-                        ref offset),
+                    Vz =
+                        ReadFloat(
+                            subData,
+                            ref offset),
 
-                EcefX =
-                    ReadDouble(
-                        subData,
-                        ref offset),
+                    EcefX =
+                        ReadDouble(
+                            subData,
+                            ref offset),
 
-                EcefY =
-                    ReadDouble(
-                        subData,
-                        ref offset),
+                    EcefY =
+                        ReadDouble(
+                            subData,
+                            ref offset),
 
-                EcefZ =
-                    ReadDouble(
-                        subData,
-                        ref offset),
+                    EcefZ =
+                        ReadDouble(
+                            subData,
+                            ref offset),
 
-                Reserved =
-                    ReadUInt32(
-                        subData,
-                        ref offset)
-            };
+                    Reserved =
+                        ReadUInt32(
+                            subData,
+                            ref offset)
+                };
 
+            Logger.Debug(
+                "[RADAR][PARSER] Tracking Request Payload Parsed. TargetId={TargetId}, PtMove={PtMove}, Azimuth={Azimuth}, Elevation={Elevation}, Distance={Distance}",
+                payload.Id,
+                payload.PtMove,
+                payload.Azimuth,
+                payload.Elevation,
+                payload.Distance);
+
+            return payload;
         }
 
         /// <summary>
@@ -211,8 +255,10 @@ namespace VertiportNexus.Services.Radar
             if (subData == null ||
                 subData.Length < 17)
             {
-                Console.WriteLine(
-                    "[RADAR][PARSER] Failed : BIST Request SubData length is invalid");
+                Logger.Warning(
+                    "[RADAR][PARSER] Failed : BIST Request SubData length is invalid. ActualLength={ActualLength}, RequiredLength={RequiredLength}",
+                    subData == null ? 0 : subData.Length,
+                    17);
 
                 return null;
             }
@@ -220,29 +266,37 @@ namespace VertiportNexus.Services.Radar
             int offset =
                 0;
 
-            return new RadarBistRequestPayload
-            {
-                TimeStamp =
-                    ReadInt64(
-                        subData,
-                        ref offset),
+            RadarBistRequestPayload payload =
+                new RadarBistRequestPayload
+                {
+                    TimeStamp =
+                        ReadInt64(
+                            subData,
+                            ref offset),
 
-                BistType =
-                    ReadByte(
-                        subData,
-                        ref offset),
+                    BistType =
+                        ReadByte(
+                            subData,
+                            ref offset),
 
-                ComportNumber =
-                    ReadUInt32(
-                        subData,
-                        ref offset),
+                    ComportNumber =
+                        ReadUInt32(
+                            subData,
+                            ref offset),
 
-                CbistInterval =
-                    ReadUInt32(
-                        subData,
-                        ref offset)
-            };
+                    CbistInterval =
+                        ReadUInt32(
+                            subData,
+                            ref offset)
+                };
 
+            Logger.Debug(
+                "[RADAR][PARSER] BIST Request Payload Parsed. BistType={BistType}, ComportNumber={ComportNumber}, CbistInterval={CbistInterval}",
+                payload.BistType,
+                payload.ComportNumber,
+                payload.CbistInterval);
+
+            return payload;
         }
 
         #endregion
@@ -314,12 +368,11 @@ namespace VertiportNexus.Services.Radar
         /// SubData 추출
         /// </summary>
         private byte[] ExtractSubData(
-            byte[] packetBytes)
+            byte[] packetBytes,
+            uint packetLength)
         {
             int subDataLength =
-                packetBytes.Length
-                - RadarPacketConstants.HEADER_LENGTH
-                - RadarPacketConstants.TAIL_LENGTH;
+                (int)packetLength;
 
             byte[] subData =
                 new byte[subDataLength];
@@ -357,6 +410,7 @@ namespace VertiportNexus.Services.Radar
                 checksum ^=
                     subData[i];
             }
+
             return checksum;
         }
 
