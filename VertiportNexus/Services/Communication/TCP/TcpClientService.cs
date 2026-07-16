@@ -31,6 +31,15 @@ namespace VertiportNexus.Services.Communication.TCP
             true;
 
         /// <summary>
+        /// [TCP] Packet 송신 동기화 객체
+        ///
+        /// UI / MQ / Radar / Tracking 등 여러 실행 흐름에서
+        /// 동일한 [NetworkStream]으로 동시에 송신하지 않도록 보호한다.
+        /// </summary>
+        private readonly object _sendLock =
+            new object();
+
+        /// <summary>
         /// [TCP] [Client] 객체
         /// 
         /// [MCB] / [SCB] 장비에 접속하는 실제 [Socket] 객체
@@ -67,7 +76,8 @@ namespace VertiportNexus.Services.Communication.TCP
         /// [Console] 도배 방지를 위해 일정 시간 간격으로만
         /// [Log] 출력할 때 사용한다.
         /// </summary>
-        private DateTime _lastRecvLogTime = DateTime.MinValue;
+        private DateTime _lastRecvLogTime =
+            DateTime.MinValue;
 
         #endregion
 
@@ -200,29 +210,33 @@ namespace VertiportNexus.Services.Communication.TCP
         {
             try
             {
-                if (!CanSend())
+                lock (_sendLock)
                 {
-                    Log.Warning(
-                        "[TCP][{DeviceName}] Send Failed : Not Connected",
-                        _deviceName);
+                    if (!CanSend())
+                    {
+                        Log.Warning(
+                            "[TCP][{DeviceName}] Send Failed : Not Connected",
+                            _deviceName);
 
-                    return false;
+                        return false;
+                    }
+
+                    _networkStream.Write(
+                        data,
+                        0,
+                        data.Length);
+
+                    _networkStream.Flush();
+
+                    Log.Debug(
+                        "[TCP][{DeviceName}] SEND {Hex}",
+                        _deviceName,
+                        ToHexString(
+                            data));
+
+                    return true;
                 }
 
-                _networkStream.Write(
-                    data,
-                    0,
-                    data.Length);
-
-                _networkStream.Flush();
-
-                Log.Debug(
-                    "[TCP][{DeviceName}] SEND {Hex}",
-                    _deviceName,
-                    ToHexString(
-                        data));
-
-                return true;
             }
             catch (Exception ex)
             {
@@ -309,6 +323,7 @@ namespace VertiportNexus.Services.Communication.TCP
                     "[TCP][{DeviceName}] Receive Failed",
                     _deviceName);
             }
+
             Disconnect();
         }
 
@@ -409,13 +424,16 @@ namespace VertiportNexus.Services.Communication.TCP
             _cts?.Dispose();
             _cts = null;
 
-            _networkStream?.Close();
-            _networkStream?.Dispose();
-            _networkStream = null;
+            lock (_sendLock)
+            {
+                _networkStream?.Close();
+                _networkStream?.Dispose();
+                _networkStream = null;
 
-            _tcpClient?.Close();
-            _tcpClient?.Dispose();
-            _tcpClient = null;
+                _tcpClient?.Close();
+                _tcpClient?.Dispose();
+                _tcpClient = null;
+            }
 
             LogSectionHelper.Information(
                 $"[TCP][{_deviceName}] DISCONNECT");

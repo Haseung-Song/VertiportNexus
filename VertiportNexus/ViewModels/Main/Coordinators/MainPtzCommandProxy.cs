@@ -184,14 +184,25 @@ namespace VertiportNexus.ViewModels.Main.Coordinators
                 return;
             }
 
+            // 실제 KeyDown 이동 명령이 전달되지 않은 상태이면
+            // KeyUp Stop 명령을 송신하지 않는다.
+            if (!_isPanTiltKeyboardMoveActive)
+            {
+                return;
+            }
+
+            // KeyUp 처리는 한 번만 수행되도록
+            // 이동 진행 상태를 먼저 초기화한다.
+            _isPanTiltKeyboardMoveActive =
+                false;
+
             bool isMoveAvailable =
                 IsPtzKeyboardMoveAvailable();
 
+            // 장비 연결 해제 또는 Home Position 이동 중이면
+            // 기존 이동 명령에 대한 Stop 명령을 전달하지 않는다.
             if (!isMoveAvailable)
             {
-                _isPanTiltKeyboardMoveActive =
-                    false;
-
                 return;
             }
 

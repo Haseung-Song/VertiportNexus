@@ -279,7 +279,8 @@ namespace VertiportNexus.Services.Vertiport
             return new CseCommandResponse
             {
                 InterfaceId =
-                    request?.InterfaceId,
+                    CreateResponseInterfaceId(
+                        request?.InterfaceId),
 
                 MsgType =
                     CreateResponseMsgType(
@@ -308,6 +309,39 @@ namespace VertiportNexus.Services.Vertiport
         }
 
         /// <summary>
+        /// 응답 Interface ID 생성
+        ///
+        /// 요청 [Interface ID]에 대응되는
+        /// [CSE -> GUIS] 응답 Interface ID를 반환한다.
+        /// </summary>
+        private string CreateResponseInterfaceId(
+            string requestInterfaceId)
+        {
+            switch (requestInterfaceId)
+            {
+                case CseInterfaceId.DetectOn:
+                    return CseInterfaceId.DetectOnResponse;
+
+                case CseInterfaceId.DetectOff:
+                    return CseInterfaceId.DetectOffResponse;
+
+                case CseInterfaceId.DetectCont:
+                    return CseInterfaceId.DetectContResponse;
+
+                case CseInterfaceId.PtzMove:
+                    return CseInterfaceId.PtzMoveResponse;
+
+                case CseInterfaceId.GetState:
+                    return CseInterfaceId.GetStateResponse;
+
+                default:
+                    return requestInterfaceId
+                           ?? string.Empty;
+            }
+
+        }
+
+        /// <summary>
         /// 응답 메시지 타입 생성
         /// 
         /// 요청 [msg_type] 뒤에 [_res]를 붙여
@@ -321,6 +355,7 @@ namespace VertiportNexus.Services.Vertiport
             {
                 return "response";
             }
+
             return requestMsgType + "_res";
         }
 

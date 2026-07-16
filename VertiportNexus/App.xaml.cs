@@ -147,6 +147,7 @@ namespace VertiportNexus
             InitializeFFmpeg();
 
 #if DEBUG
+
             /// <summary>
             /// [Debug] 콘솔 창 생성
             /// </summary>
@@ -228,6 +229,7 @@ namespace VertiportNexus
             ConsoleLogHelper.PrintLine();
             ConsoleLogHelper.WriteLine("[CONSOLE] Vertiport Nexus Middleware -> Debug Console Start");
             ConsoleLogHelper.PrintLine();
+
 #endif
 
         }
@@ -247,15 +249,17 @@ namespace VertiportNexus
             ConsoleLogHelper.WriteLine("[CONSOLE] Vertiport Nexus Middleware -> Debug Console End");
 
             AppLogger.Shutdown();
+
 #if DEBUG
+
             /// <summary>
             /// [Debug] 콘솔 창 해제
             /// </summary>
             FreeConsole();
 
-            base.OnExit(e);
 #endif
 
+            base.OnExit(e);
         }
         #endregion
     }

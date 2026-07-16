@@ -36,8 +36,8 @@ namespace VertiportNexus.ViewModels.Main.Composition
 
                 // [MQ] 연결 요청 [Command]
                 StartMqReceiveCommand =
-                    new RelayCommand(
-                        handlers.StartMqReceive),
+                    new AsyncRelayCommand(
+                        handlers.StartMqReceiveAsync),
 
                 // [MQ] 연결 해제 요청 [Command]
                 StopMqReceiveCommand =
@@ -56,8 +56,8 @@ namespace VertiportNexus.ViewModels.Main.Composition
 
                 // [Radar] UDP 수신 시작 요청 [Command]
                 StartRadarUdpReceiveCommand =
-                    new RelayCommand(
-                        handlers.StartRadarUdpReceive),
+                    new AsyncRelayCommand(
+                        handlers.StartRadarUdpReceiveAsync),
 
                 // [Radar] UDP 수신 중지 요청 [Command]
                 StopRadarUdpReceiveCommand =
@@ -221,7 +221,7 @@ namespace VertiportNexus.ViewModels.Main.Composition
         /// <summary>
         /// [MQ] 연결 요청 처리기
         /// </summary>
-        internal Action StartMqReceive { get; set; }
+        internal Func<Task> StartMqReceiveAsync { get; set; }
 
         /// <summary>
         /// [MQ] 연결 해제 요청 처리기
@@ -241,7 +241,7 @@ namespace VertiportNexus.ViewModels.Main.Composition
         /// <summary>
         /// [Radar] UDP 수신 시작 요청 처리기
         /// </summary>
-        internal Action StartRadarUdpReceive { get; set; }
+        internal Func<Task> StartRadarUdpReceiveAsync { get; set; }
 
         /// <summary>
         /// [Radar] UDP 수신 중지 요청 처리기

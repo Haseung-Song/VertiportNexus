@@ -498,12 +498,8 @@ namespace VertiportNexus.ViewModels.Main
                 commandFactory.Create(
                     new MainViewModelCommandHandlerSet
                     {
-                        StartMqReceive =
-                            async () =>
-                            {
-                                await _communicationCommandProxy
-                                    .StartRabbitMqReceiveAsync();
-                            },
+                        StartMqReceiveAsync =
+                            _communicationCommandProxy.StartRabbitMqReceiveAsync,
 
                         StopMqReceive =
                             _communicationCommandProxy.StopRabbitMqReceive,
@@ -583,12 +579,8 @@ namespace VertiportNexus.ViewModels.Main
                         SetPtzManualMode =
                             _ptzCommandProxy.SetManualMode,
 
-                        StartRadarUdpReceive =
-                            async () =>
-                            {
-                                await _communicationCommandProxy
-                                    .StartRadarUdpReceiveAsync();
-                            },
+                        StartRadarUdpReceiveAsync =
+                            _communicationCommandProxy.StartRadarUdpReceiveAsync,
 
                         StopRadarUdpReceive =
                             _communicationCommandProxy.StopRadarUdpReceive,
@@ -1175,6 +1167,7 @@ namespace VertiportNexus.ViewModels.Main
                 OnPropertyChanged(nameof(IsRadarUdpConnectionSettingEnabled));
                 OnPropertyChanged(nameof(IsRabbitMqConnectionSettingEnabled));
             }
+
             return Task.CompletedTask;
         }
 
