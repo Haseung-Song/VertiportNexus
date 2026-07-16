@@ -10,7 +10,9 @@ namespace VertiportNexus.Services.Communication.MQ
 {
     /// <summary>
     /// [RabbitMQ] 메시지 수신 서비스
-    /// 
+    ///
+    /// 프로그램 시작 시 [GUIS] / [CSE] 간 통신에 사용하는
+    /// Request / Response Queue를 RabbitMQ 서버에 생성하고,
     /// [q.command.req] / [q.status.req] Queue에서
     /// [JSON] 메시지를 수신한다.
     /// </summary>
@@ -153,27 +155,11 @@ namespace VertiportNexus.Services.Communication.MQ
                 _channel =
                     _connection.CreateModel();
 
-                // [Command Request] Queue 선언
+                // [RabbitMQ] Queue 선언
                 //
-                // [IF-GUIS-CSE-001] ~ [IF-GUIS-CSE-004] 명령은
-                // [q.command.req] Queue로 수신한다.
-                _channel.QueueDeclare(
-                    queue: CseMqQueue.CommandRequest,
-                    durable: true,
-                    exclusive: false,
-                    autoDelete: false,
-                    arguments: null);
-
-                // [Status Request] Queue 선언
-                //
-                // [IF-GUIS-CSE-005] 카메라 상태 조회 요청은
-                // [q.status.req] Queue로 수신한다.
-                _channel.QueueDeclare(
-                    queue: CseMqQueue.StatusRequest,
-                    durable: true,
-                    exclusive: false,
-                    autoDelete: false,
-                    arguments: null);
+                // 프로그램 실행 시 [Request] / [Response] Queue를
+                // RabbitMQ 서버에 모두 생성한다.
+                DeclareQueues();
 
                 EventingBasicConsumer consumer =
                     new EventingBasicConsumer(
@@ -200,11 +186,13 @@ namespace VertiportNexus.Services.Communication.MQ
                     "[RabbitMQ][RECV] RECEIVE START");
 
                 Log.Information(
-                    "[RabbitMQ][RECV] Receive Start : Host={Host}, Port={Port}, CommandQueue={CommandQueue}, StatusQueue={StatusQueue}",
+                    "[RabbitMQ][RECV] Receive Start : Host={Host}, Port={Port}, CommandRequestQueue={CommandRequestQueue}, StatusRequestQueue={StatusRequestQueue}, CommandResponseQueue={CommandResponseQueue}, StatusResponseQueue={StatusResponseQueue}",
                     _connectionFactory.HostName,
                     _connectionFactory.Port,
                     CseMqQueue.CommandRequest,
-                    CseMqQueue.StatusRequest);
+                    CseMqQueue.StatusRequest,
+                    CseMqQueue.CommandResponse,
+                    CseMqQueue.StatusResponse);
             }
             catch (Exception ex)
             {
@@ -309,6 +297,59 @@ namespace VertiportNexus.Services.Communication.MQ
         #endregion
 
         #region [Private Methods]
+
+        /// <summary>
+        /// [RabbitMQ] Queue 선언
+        ///
+        /// 프로그램 실행 시 [GUIS] / [CSE] 간 통신에 사용하는
+        /// Request / Response Queue를 RabbitMQ 서버에 모두 생성한다.
+        /// </summary>
+        private void DeclareQueues()
+        {
+            // [Command Request] Queue 선언
+            //
+            // [IF-GUIS-CSE-001] ~ [IF-GUIS-CSE-004] 명령은
+            // [q.command.req] Queue로 수신한다.
+            _channel.QueueDeclare(
+                queue: CseMqQueue.CommandRequest,
+                durable: true,
+                exclusive: false,
+                autoDelete: false,
+                arguments: null);
+
+            // [Status Request] Queue 선언
+            //
+            // [IF-GUIS-CSE-005] 카메라 상태 조회 요청은
+            // [q.status.req] Queue로 수신한다.
+            _channel.QueueDeclare(
+                queue: CseMqQueue.StatusRequest,
+                durable: true,
+                exclusive: false,
+                autoDelete: false,
+                arguments: null);
+
+            // [Command Response] Queue 선언
+            //
+            // [IF-CSE-GUIS] 카메라 제어 명령 처리 결과는
+            // [q.command.res] Queue로 송신한다.
+            _channel.QueueDeclare(
+                queue: CseMqQueue.CommandResponse,
+                durable: true,
+                exclusive: false,
+                autoDelete: false,
+                arguments: null);
+
+            // [Status Response] Queue 선언
+            //
+            // [IF-CSE-GUIS] 카메라 상태 조회 결과는
+            // [q.status.res] Queue로 송신한다.
+            _channel.QueueDeclare(
+                queue: CseMqQueue.StatusResponse,
+                durable: true,
+                exclusive: false,
+                autoDelete: false,
+                arguments: null);
+        }
 
         /// <summary>
         /// [RabbitMQ] 수신 리소스 정리

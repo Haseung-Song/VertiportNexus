@@ -512,7 +512,7 @@
                                 <TabItem Header="통신 설정">
 
                                     <!-- [통신 설정] Tab 내부 Scroll 영역 -->
-                                    <ScrollViewer VerticalScrollBarVisibility="Disabled"
+                                    <ScrollViewer VerticalScrollBarVisibility="Visible"
                                                   HorizontalScrollBarVisibility="Disabled">
 
                                         <StackPanel Margin="5">
